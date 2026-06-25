@@ -210,7 +210,7 @@ function updateDashboard() {
 function connectMQTT() {
 
     client = mqtt.connect(
-        `ws://${config.broker}:${config.port}`
+        `wss://${config.broker}:${config.port}`
     );
 
     client.on(
