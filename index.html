@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Smart Home</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+</head>
+
+<body class="bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white min-h-screen">
+
+<div class="max-w-7xl mx-auto p-6">
+
+    <!-- HEADER -->
+
+    <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-8">
+
+        <div>
+
+            <h1 class="text-5xl font-black tracking-tight">
+                🏠 Smart Home
+            </h1>
+
+            <p class="text-zinc-400 mt-2">
+                Controle inteligente da residência
+            </p>
+
+        </div>
+
+        <div class="flex gap-3">
+
+            <div
+                id="mqttBadge"
+                class="bg-zinc-800 px-4 py-3 rounded-2xl border border-zinc-700">
+
+                🔴 Offline
+
+            </div>
+
+            <a
+                href="config/config.html"
+                class="bg-indigo-600 hover:bg-indigo-500 transition px-5 py-3 rounded-2xl font-bold">
+
+                ⚙️ Configurações
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- DASHBOARD -->
+
+    <div class="grid lg:grid-cols-3 gap-5 mb-8">
+
+        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+
+            <div class="text-zinc-400 text-sm">
+                CÔMODOS
+            </div>
+
+            <div
+                id="totalRooms"
+                class="text-4xl font-black mt-2">
+
+                0
+
+            </div>
+
+        </div>
+
+        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+
+            <div class="text-zinc-400 text-sm">
+                LIGADOS
+            </div>
+
+            <div
+                id="activeRooms"
+                class="text-4xl font-black mt-2 text-yellow-400">
+
+                0
+
+            </div>
+
+        </div>
+
+        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+
+            <div class="text-zinc-400 text-sm">
+                STATUS
+            </div>
+
+            <div
+                id="houseStatus"
+                class="text-2xl font-bold mt-3">
+
+                Tudo Desligado
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- CÔMODOS LIGADOS -->
+
+    <div
+        id="summaryCard"
+        class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-8">
+
+        <h2 class="text-xl font-bold mb-4">
+
+            ⚡ Ativos Agora
+
+        </h2>
+
+        <div
+            id="activeList"
+            class="text-zinc-400">
+
+            Nenhum cômodo ligado
+
+        </div>
+
+    </div>
+
+    <!-- CÔMODOS -->
+
+    <div
+        id="rooms"
+        class="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+    </div>
+
+</div>
+
+<script>
+
+let client;
+
+const roomStates = {};
+
+const config =
+    JSON.parse(
+        localStorage.getItem(
+            "smartHomeConfig"
+        )
+    );
+
+if (!config) {
+
+    alert(
+        "Configure o sistema primeiro."
+    );
+
+    location.href =
+        "config/config.html";
+}
+
+function updateDashboard() {
+
+    const total =
+        config.rooms.length;
+
+    const active =
+        config.rooms.filter(
+            room =>
+                roomStates[room.topic]
+        );
+
+    document
+        .getElementById("totalRooms")
+        .innerText =
+        total;
+
+    document
+        .getElementById("activeRooms")
+        .innerText =
+        active.length;
+
+    document
+        .getElementById("houseStatus")
+        .innerText =
+        active.length
+            ? "Casa Ativa"
+            : "Tudo Desligado";
+
+    document
+        .getElementById("activeList")
+        .innerHTML =
+
+        active.length
+
+        ? active.map(
+            room => `
+            <div class="mb-2">
+                💡 ${room.name}
+            </div>
+          `
+        ).join("")
+
+        : "Nenhum cômodo ligado";
+}
+
+function connectMQTT() {
+
+    client = mqtt.connect(
+        `ws://${config.broker}:${config.port}`
+    );
+
+    client.on(
+        "connect",
+        () => {
+
+            document
+                .getElementById("mqttBadge")
+                .innerHTML =
+                "🟢 MQTT Online";
+
+            client.subscribe(
+                "pensador/casa/+/state"
+            );
+        }
+    );
+
+    client.on(
+        "message",
+        (topic,payload) => {
+
+            const state =
+                payload.toString();
+
+            const room =
+                topic.split("/")[2];
+
+            roomStates[room] =
+                state === "ON";
+
+            renderRooms();
+
+            updateDashboard();
+        }
+    );
+
+    client.on(
+        "error",
+        () => {
+
+            document
+                .getElementById("mqttBadge")
+                .innerHTML =
+                "🔴 MQTT Offline";
+        }
+    );
+}
+
+function toggleRoom(index) {
+
+    const room =
+        config.rooms[index];
+
+    const current =
+        roomStates[
+            room.topic
+        ] || false;
+
+    client.publish(
+
+        `pensador/casa/${room.topic}/set`,
+
+        current
+            ? "OFF"
+            : "ON"
+
+    );
+}
+
+function renderRooms() {
+
+    document
+        .getElementById("rooms")
+        .innerHTML =
+
+        config.rooms.map(
+            (room,index)=>{
+
+            const on =
+                roomStates[
+                    room.topic
+                ] || false;
+
+            return `
+
+            <div
+                class="
+                rounded-3xl
+                p-6
+                border
+                transition-all
+                duration-300
+
+                ${on
+                    ? `
+                    bg-yellow-500/10
+                    border-yellow-500
+                    shadow-[0_0_40px_rgba(234,179,8,0.25)]
+                    `
+                    :
+                    `
+                    bg-zinc-900
+                    border-zinc-800
+                    `
+                }">
+
+                <div class="flex justify-between items-start">
+
+                    <div>
+
+                        <div class="text-5xl">
+
+                            ${on
+                                ? "💡"
+                                : "⚫"}
+
+                        </div>
+
+                        <h2 class="text-2xl font-bold mt-4">
+
+                            ${room.name}
+
+                        </h2>
+
+                        <div
+                            class="
+                            mt-2
+                            font-medium
+
+                            ${on
+                                ? "text-yellow-400"
+                                : "text-zinc-500"
+                            }">
+
+                            ${on
+                                ? "Ligado"
+                                : "Desligado"}
+
+                        </div>
+
+                    </div>
+
+                    <div
+                        class="
+                        w-4 h-4 rounded-full
+
+                        ${on
+                            ? "bg-green-400"
+                            : "bg-red-500"
+                        }">
+                    </div>
+
+                </div>
+
+                <button
+
+                    onclick="toggleRoom(${index})"
+
+                    class="
+                    mt-6
+                    w-full
+                    py-3
+                    rounded-2xl
+                    font-bold
+                    transition
+
+                    ${on
+                        ? "bg-red-600 hover:bg-red-500"
+                        : "bg-green-600 hover:bg-green-500"
+                    }">
+
+                    ${on
+                        ? "Desligar"
+                        : "Ligar"}
+
+                </button>
+
+            </div>
+
+            `;
+        }).join("");
+}
+
+connectMQTT();
+
+renderRooms();
+
+updateDashboard();
+
+</script>
+
+</body>
+
+</html>
