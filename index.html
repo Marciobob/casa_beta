@@ -768,6 +768,7 @@
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
             if (!SpeechRecognition) {
+                console.error("[Speech]: Navegador não suporta SpeechRecognition.");
                 alert("Seu navegador não suporta reconhecimento de voz. Utilize o Google Chrome ou Edge.");
                 return null;
             }
@@ -789,12 +790,14 @@
             rec.interimResults = true;
             rec.maxAlternatives = 1;
 
-            let capturedFinalText = "";
+            let latestHeardText = "";
 
             rec.onstart = () => {
                 isListening = true;
-                capturedFinalText = "";
+                latestHeardText = "";
                 lastActivityTimestamp = Date.now();
+                console.log("[Speech onstart]: Microfone ativo e escutando...");
+
                 document.getElementById("micPulseEffect").classList.remove("hidden");
                 document.getElementById("micIcon").classList.add("hidden");
                 document.getElementById("stopIcon").classList.remove("hidden");
@@ -814,23 +817,26 @@
                 if (isSpeakingTTS) return;
 
                 let interim = "";
+                let finalStr = "";
+
                 for (let i = 0; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
-                        capturedFinalText = event.results[i][0].transcript;
+                        finalStr += event.results[i][0].transcript + " ";
                     } else {
-                        interim += event.results[i][0].transcript;
+                        interim += event.results[i][0].transcript + " ";
                     }
                 }
 
-                const currentText = (capturedFinalText || interim).trim();
+                const currentText = (finalStr || interim).trim();
                 if (currentText) {
-                    console.log("[Reconhecendo]:", currentText);
+                    latestHeardText = currentText;
+                    console.log("[Speech onresult]:", currentText, `(isFinal: ${Boolean(finalStr)})`);
                     setVoiceTranscript(`"${currentText}"`, false);
                 }
             };
 
             rec.onerror = (event) => {
-                console.warn("[Speech Event]:", event.error);
+                console.warn("[Speech onerror]:", event.error);
                 lastActivityTimestamp = Date.now();
 
                 if (event.error === "not-allowed") {
@@ -842,15 +848,18 @@
 
             rec.onend = () => {
                 isListening = false;
+                console.log("[Speech onend]: Sessão encerrada. Frase final capturada:", `"${latestHeardText}"`);
+
                 document.getElementById("micPulseEffect").classList.add("hidden");
                 document.getElementById("micIcon").classList.remove("hidden");
                 document.getElementById("stopIcon").classList.add("hidden");
 
-                // Se capturou a frase completa ao final da fala:
-                if (capturedFinalText && !isSpeakingTTS && !isProcessingCommand) {
-                    const textToProcess = capturedFinalText.trim();
-                    capturedFinalText = "";
+                // Processa a frase se houver texto capturado
+                if (latestHeardText && !isSpeakingTTS && !isProcessingCommand) {
+                    const textToProcess = latestHeardText;
+                    latestHeardText = "";
 
+                    console.log("[Speech -> Processamento]: Enviando texto:", textToProcess, "| Modo Ouvir Sempre:", alwaysListen);
                     if (alwaysListen) {
                         handleWakeWordDetection(textToProcess);
                     } else {
@@ -884,7 +893,12 @@
 
         // Processa a detecção da palavra de ativação dinâmica (ex: "Meu Agente", "Jarvis", etc.)
         function handleWakeWordDetection(text) {
-            if (isProcessingCommand || isSpeakingTTS) return;
+            console.log("[handleWakeWordDetection]: Analisando texto:", `"${text}"`);
+
+            if (isProcessingCommand || isSpeakingTTS) {
+                console.warn("[handleWakeWordDetection]: Ignorado pois já está processando ou falando TTS.");
+                return;
+            }
 
             const normalizedText = normalizeText(text);
             const agentName = getAgentName();
@@ -902,12 +916,14 @@
             const regex = new RegExp(`(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
 
             const wakeMatch = normalizedText.match(regex);
+            console.log("[handleWakeWordDetection]: Match Wake Word:", wakeMatch);
 
             if (wakeMatch) {
                 const commandAfterWakeWord = wakeMatch[1].trim();
 
                 // Caso 1: Falou o nome do agente E o comando na mesma frase (ex: "Meu Agente, liga a luz da sala")
                 if (commandAfterWakeWord.length > 1) {
+                    console.log("[handleWakeWordDetection]: Caso 1 -> Nome + Comando direto:", commandAfterWakeWord);
                     clearTimeout(wakeWordTimer);
                     isWaitingCommandAfterWakeWord = false;
                     showVoiceHud();
@@ -919,6 +935,7 @@
 
                 // Caso 2: Falou apenas o nome do agente (ex: "Meu Agente") -> responde e aguarda o comando na próxima frase
                 if (!isWaitingCommandAfterWakeWord) {
+                    console.log("[handleWakeWordDetection]: Caso 2 -> Apenas nome do agente. Aguardando comando...");
                     isWaitingCommandAfterWakeWord = true;
                     showVoiceHud();
                     setVoiceStatus("⚡", `Sim! Diga o comando agora...`, true);
@@ -928,6 +945,7 @@
 
                     clearTimeout(wakeWordTimer);
                     wakeWordTimer = setTimeout(() => {
+                        console.log("[handleWakeWordDetection]: Timeout aguardando comando após wake word.");
                         isWaitingCommandAfterWakeWord = false;
                         setVoiceStatus("👂", `Aguardando "${agentName}"...`, true);
                     }, 10000);
@@ -937,12 +955,15 @@
 
             // Caso 3: O nome já havia sido chamado antes ("Sim?") e agora a pessoa falou o comando
             if (isWaitingCommandAfterWakeWord && text.trim()) {
+                console.log("[handleWakeWordDetection]: Caso 3 -> Comando recebido em seguida:", text.trim());
                 clearTimeout(wakeWordTimer);
                 isWaitingCommandAfterWakeWord = false;
                 showVoiceHud();
                 setVoiceStatus("✨", "Processando comando...", true);
                 setVoiceTranscript(`"${text.trim()}"`, false);
                 processCommandWithGemini(text.trim());
+            } else {
+                console.log("[handleWakeWordDetection]: Texto não continha a palavra de ativação.");
             }
         }
 
@@ -1027,16 +1048,21 @@
 
         async function processCommandWithGemini(userCommand) {
             const apiKey = getGeminiApiKey();
+            console.log("[processCommandWithGemini]: Iniciando processamento do comando:", `"${userCommand}"`);
+
             if (!apiKey) {
+                console.warn("[processCommandWithGemini]: Chave de API ausente! Abrindo modal.");
                 openVoiceApiKeyModal();
                 return;
             }
 
-            if (isProcessingCommand) return;
+            if (isProcessingCommand) {
+                console.warn("[processCommandWithGemini]: Já existe uma requisição em andamento.");
+                return;
+            }
             isProcessingCommand = true;
 
             const agentName = getAgentName();
-            console.log("[Disparo Único -> Gemini]:", userCommand);
             setVoiceStatus("✨", `Processando comando completo...`, true);
 
             const allRooms = config.rooms || [];
@@ -1057,6 +1083,8 @@
                 comodosApagados: inactiveRoomsList.length ? inactiveRoomsList : ["Nenhum"],
                 statusGeral: activeRoomsList.length ? `${activeRoomsList.length} cômodo(s) com luz acesa` : "Tudo desligado na casa"
             };
+
+            console.log("[processCommandWithGemini]: Contexto de cômodos:", houseSummary);
 
             const systemPrompt = `Você é o assistente inteligente residencial chamado "${agentName}".
 Você possui 3 funções fundamentais:
@@ -1091,7 +1119,7 @@ Formato de Resposta Obrigatório (sempre JSON válido):
 
             try {
                 // Modelos oficiais com suporte a Google Search Grounding:
-                const models = ['gemini-2.5-flash-lite'];
+                const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash'];
 
                 // Estrutura oficial da API com systemInstruction e ferramenta de busca Google Search:
                 const requestBodyWithSearch = {
@@ -1112,26 +1140,33 @@ Formato de Resposta Obrigatório (sempre JSON válido):
                 for (const model of models) {
                     try {
                         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                        console.log(`[Gemini Request]: Enviando para ${model}...`);
+
                         const res = await fetch(endpoint, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify(requestBodyWithSearch)
                         });
 
+                        console.log(`[Gemini HTTP Response ${model}]: Status HTTP: ${res.status}`);
+
                         if (res.ok) {
                             responseData = await res.json();
-                            console.log(`[Gemini Grounding ${model}]:`, responseData);
+                            console.log(`[Gemini Resposta Sucesso ${model}]:`, responseData);
                             break;
                         } else {
                             const errData = await res.json().catch(() => ({}));
                             errorMsg = errData.error ? errData.error.message : `HTTP ${res.status}`;
+                            console.warn(`[Gemini Erro ${model}]:`, errorMsg);
                         }
                     } catch (e) {
                         errorMsg = e.message;
+                        console.error(`[Gemini Fetch Exception ${model}]:`, e);
                     }
                 }
 
                 if (!responseData) {
+                    console.error("[processCommandWithGemini]: Nenhuma resposta obtida do Gemini:", errorMsg);
                     setVoiceStatus("❌", `Erro Gemini: ${errorMsg || "Falha na conexão"}`, false);
                     return;
                 }
@@ -1141,17 +1176,22 @@ Formato de Resposta Obrigatório (sempre JSON válido):
                     rawText = responseData.candidates[0].content.parts.map(p => p.text || "").join("\n").trim();
                 }
 
+                console.log("[processCommandWithGemini]: Texto bruto retornado:", rawText);
+
                 let result = null;
                 const jsonMatch = rawText.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     try {
                         result = JSON.parse(jsonMatch[0]);
                     } catch (e) {
+                        console.warn("[processCommandWithGemini]: Falha no JSON.parse, usando texto bruto:", e);
                         result = { reply: rawText.replace(/```json|```/gi, "").trim(), actions: [] };
                     }
                 } else {
                     result = { reply: rawText || "Comando processado.", actions: [] };
                 }
+
+                console.log("[processCommandWithGemini]: Objeto interpretado:", result);
 
                 // Executar ações via MQTT se houver cômodos para controlar
                 if (result.actions && Array.isArray(result.actions)) {
@@ -1161,6 +1201,8 @@ Formato de Resposta Obrigatório (sempre JSON válido):
                         );
                         const topic = targetRoom ? targetRoom.topic : action.topic;
                         const payload = (action.state === "ON" || action.state === "on") ? "ON" : "OFF";
+
+                        console.log(`[MQTT Publish]: Tópico: pensador/casa/${topic}/set -> Payload: ${payload} | Cliente MQTT Conectado: ${Boolean(client && client.connected)}`);
 
                         if (client) {
                             client.publish(`pensador/casa/${topic}/set`, payload);
@@ -1176,11 +1218,12 @@ Formato de Resposta Obrigatório (sempre JSON válido):
                 setVoiceStatus("✅", "Concluído!" + isGrounded, false);
                 showGeminiResponse(reply);
 
+                console.log("[TTS]: Falando resposta:", `"${reply}"`);
                 // Síntese de voz (TTS) com isolamento para não retroalimentar o microfone
                 speakResponse(reply);
 
             } catch (e) {
-                console.error("Erro ao analisar resposta do Gemini:", e);
+                console.error("[processCommandWithGemini]: Erro geral:", e);
                 setVoiceStatus("⚠️", "Não foi possível interpretar a resposta", false);
             } finally {
                 setTimeout(() => {
