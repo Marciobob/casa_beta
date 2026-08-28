@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Rastreador GPS</title>
+
+
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css">
+
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+
+<style>
+
+
+*{
+    box-sizing:border-box;
+}
+
+
+body{
+
+    margin:0;
+    font-family:
+    Arial, Helvetica, sans-serif;
+
+}
+
+
+#map{
+
+    height:100vh;
+    width:100%;
+
+}
+
+
+
+.painel{
+
+    position:absolute;
+
+    z-index:999;
+
+    top:15px;
+    left:15px;
+
+    width:330px;
+
+    background:white;
+
+    padding:20px;
+
+    border-radius:15px;
+
+    box-shadow:
+    0 5px 25px rgba(0,0,0,.25);
+
+}
+
+
+
+h2{
+
+    margin-top:0;
+
+}
+
+
+
+.status{
+
+    padding:8px;
+
+    border-radius:8px;
+
+    background:#eee;
+
+    margin-bottom:15px;
+
+}
+
+
+
+label{
+
+    font-size:13px;
+
+    font-weight:bold;
+
+}
+
+
+
+input{
+
+    width:100%;
+
+    padding:8px;
+
+    margin-bottom:10px;
+
+    border-radius:6px;
+
+    border:1px solid #ccc;
+
+}
+
+
+
+button{
+
+    width:100%;
+
+    padding:10px;
+
+    border:none;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+    margin-top:5px;
+
+}
+
+
+
+.buscar{
+
+    background:#1976d2;
+
+    color:white;
+
+}
+
+
+
+.limpar{
+
+    background:#d32f2f;
+
+    color:white;
+
+}
+
+
+
+.info{
+
+    margin-top:15px;
+
+    font-size:14px;
+
+}
+
+
+
+</style>
+
+
+</head>
+
+
+<body>
+
+
+
+<div class="painel">
+
+
+<h2>
+📍 Rastreador GPS
+</h2>
+
+
+<div class="status" id="status">
+Conectando...
+</div>
+
+
+
+<label>
+Data inicial
+</label>
+
+
+<input 
+type="date"
+id="dataInicio">
+
+
+
+<label>
+Hora inicial
+</label>
+
+
+<input 
+type="time"
+id="horaInicio"
+value="00:00">
+
+
+
+<label>
+Data final
+</label>
+
+
+<input 
+type="date"
+id="dataFim">
+
+
+
+<label>
+Hora final
+</label>
+
+
+<input 
+type="time"
+id="horaFim"
+value="23:59">
+
+
+
+<button
+class="buscar"
+onclick="buscarPercurso()">
+
+🔎 Buscar percurso
+
+</button>
+
+
+
+<button
+class="limpar"
+onclick="limparRota()">
+
+🗑 Limpar rota
+
+</button>
+
+
+
+<hr>
+
+
+<div class="info" id="dados">
+
+Nenhuma localização
+
+</div>
+
+
+</div>
+
+
+
+<div id="map"></div>
+
+
+
+
+<script>
+
+
+const API_URL =
+"http://127.0.0.1:5000";
+
+
+const WS_URL =
+"ws://127.0.0.1:5000/ws";
+
+
+const USUARIO = 1;
+
+
+
+const map =
+L.map("map")
+.setView(
+[-23.5505,-46.6333],
+15
+);
+
+
+
+L.tileLayer(
+"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+{
+maxZoom:19
+}
+)
+.addTo(map);
+
+
+
+let marcador=null;
+
+let linha=null;
+
+let pontos=[];
+
+let socket;
+
+let linhaGPS = null;       // azul
+let linhaRua = null;       // vermelho
+
+// =======================
+// desenha percurso
+// =======================
+
+
+function desenharRota(){
+
+
+    if(linha){
+
+        map.removeLayer(linha);
+
+    }
+
+
+
+    linha =
+    L.polyline(
+        pontos,
+        {
+            weight:6
+        }
+    )
+    .addTo(map);
+
+
+
+    if(pontos.length){
+
+        map.fitBounds(
+            linha.getBounds()
+        );
+
+    }
+
+}
+
+async function desenharRota2(){
+
+    if(pontos.length < 2)
+        return;
+
+
+    let coordenadas = pontos
+    .map(p =>
+        `${p[1]},${p[0]}`
+    )
+    .join(";");
+
+
+    let url =
+    `https://router.project-osrm.org/route/v1/driving/${coordenadas}?overview=full&geometries=geojson`;
+
+
+
+    try{
+
+
+        let resposta =
+        await fetch(url);
+
+
+
+        let dados =
+        await resposta.json();
+
+
+
+        if(dados.routes.length){
+
+
+            let geometria =
+            dados.routes[0]
+            .geometry
+            .coordinates;
+
+
+
+            let rotaRua =
+            geometria.map(p=>[
+                p[1],
+                p[0]
+            ]);
+
+
+
+            if(linha){
+
+                map.removeLayer(linha);
+
+            }
+
+
+
+            linha =
+            L.polyline(
+                rotaRua,
+                {
+                    weight:6
+                }
+            )
+            .addTo(map);
+
+
+
+            map.fitBounds(
+                linha.getBounds()
+            );
+
+
+        }
+
+
+    }catch(e){
+
+        console.log(
+            "Erro OSRM",
+            e
+        );
+
+    }
+
+}
+
+async function desenharRota_duas_rotas(){
+
+    if(pontos.length < 2)
+        return;
+
+
+    // =========================
+    // LINHA GPS ORIGINAL (AZUL)
+    // =========================
+
+    if(linhaGPS){
+
+        map.removeLayer(linhaGPS);
+
+    }
+
+
+    linhaGPS = L.polyline(
+        pontos,
+        {
+            color:"blue",
+            weight:4,
+            opacity:0.7
+        }
+    ).addTo(map);
+
+
+
+
+    // =========================
+    // ROTA NAS RUAS (VERMELHA)
+    // =========================
+
+
+    let coordenadas = pontos
+    .map(p =>
+        `${p[1]},${p[0]}`
+    )
+    .join(";");
+
+
+
+    let url =
+    `https://router.project-osrm.org/route/v1/driving/${coordenadas}?overview=full&geometries=geojson`;
+
+
+
+    try{
+
+
+        let resposta =
+        await fetch(url);
+
+
+
+        let dados =
+        await resposta.json();
+
+
+
+        if(dados.routes.length){
+
+
+            let rua =
+            dados.routes[0]
+            .geometry
+            .coordinates
+            .map(p=>[
+                p[1],
+                p[0]
+            ]);
+
+
+
+            if(linhaRua){
+
+                map.removeLayer(linhaRua);
+
+            }
+
+
+
+            linhaRua =
+            L.polyline(
+                rua,
+                {
+                    color:"red",
+                    weight:6,
+                    opacity:0.8
+                }
+            )
+            .addTo(map);
+
+
+
+        }
+
+
+
+        map.fitBounds(
+            linhaGPS.getBounds()
+        );
+
+
+
+    }
+    catch(e){
+
+        console.log(
+            "Erro rota rua",
+            e
+        );
+
+    }
+
+}
+
+// =======================
+// atualizar mapa
+// =======================
+
+
+function atualizarMapa(dados){
+
+
+    let ponto=[
+        dados.latitude,
+        dados.longitude
+    ];
+
+
+
+    pontos.push(ponto);
+
+
+
+    desenharRota();
+
+
+
+    if(!marcador){
+
+
+        marcador =
+        L.marker(ponto)
+        .addTo(map)
+        .bindPopup(
+        "📍 Dispositivo"
+        );
+
+
+    }else{
+
+
+        marcador.setLatLng(
+            ponto
+        );
+
+    }
+
+
+
+    marcador.openPopup();
+
+
+}
+
+
+
+// =======================
+// painel
+// =======================
+
+
+function mostrarDados(dados){
+
+
+document.getElementById("dados")
+.innerHTML=`
+
+<b>Usuário:</b>
+${dados.usuario_id}
+
+<br>
+
+<b>Latitude:</b>
+${dados.latitude}
+
+<br>
+
+<b>Longitude:</b>
+${dados.longitude}
+
+<br>
+
+<b>Precisão:</b>
+${dados.accuracy} m
+
+<br>
+
+<b>Velocidade:</b>
+${dados.speed}
+
+<br>
+
+<b>Hora:</b>
+${dados.timestamp_gps}
+
+`;
+
+}
+
+
+
+
+
+// =======================
+// buscar histórico
+// =======================
+
+
+async function buscarPercurso(){
+
+
+try{
+
+
+let inicio =
+document.getElementById("dataInicio").value
++"T"+
+document.getElementById("horaInicio").value;
+
+
+let fim =
+document.getElementById("dataFim").value
++"T"+
+document.getElementById("horaFim").value;
+
+
+
+let url =
+`${API_URL}/historico/${USUARIO}?inicio=${inicio}&fim=${fim}`;
+
+
+
+let resposta =
+await fetch(url);
+
+
+
+let dados =
+await resposta.json();
+
+
+
+pontos=[];
+
+
+
+dados.reverse()
+.forEach(item=>{
+
+
+pontos.push([
+item.latitude,
+item.longitude
+]);
+
+
+});
+
+
+desenharRota_duas_rotas()
+
+
+
+if(dados.length){
+
+atualizarMapa(
+dados[dados.length-1]
+);
+
+
+}
+
+
+
+}
+catch(e){
+
+console.log(e);
+
+}
+
+
+
+}
+
+
+
+
+
+// =======================
+// ultima posição
+// =======================
+
+
+async function carregarUltima(){
+
+
+let r =
+await fetch(
+`${API_URL}/ultima/${USUARIO}`
+);
+
+
+let dados =
+await r.json();
+
+
+
+mostrarDados(dados);
+
+atualizarMapa(dados);
+
+
+}
+
+
+
+
+// =======================
+// websocket
+// =======================
+
+
+function conectar(){
+
+
+socket =
+new WebSocket(
+WS_URL
+);
+
+
+
+socket.onopen=()=>{
+
+
+document.getElementById("status")
+.innerHTML=
+"🟢 Online";
+
+
+};
+
+
+
+socket.onmessage=(evento)=>{
+
+
+let dados =
+JSON.parse(
+evento.data
+);
+
+
+
+if(
+dados.usuario_id!=USUARIO
+)
+return;
+
+
+
+mostrarDados(dados);
+
+
+atualizarMapa(dados);
+
+
+
+};
+
+
+
+socket.onclose=()=>{
+
+
+document.getElementById("status")
+.innerHTML=
+"🔴 Reconectando";
+
+
+setTimeout(
+conectar,
+2000
+);
+
+
+};
+
+
+}
+
+
+
+
+function limparRota(){
+
+
+pontos=[];
+
+
+if(linha){
+
+map.removeLayer(linha);
+
+linha=null;
+
+}
+
+
+}
+
+
+
+carregarUltima();
+
+
+conectar();
+
+
+
+</script>
+
+
+</body>
+
+</html>

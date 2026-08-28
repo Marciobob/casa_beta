@@ -2,299 +2,511 @@
 <html lang="pt-BR">
 
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Smart Home</title>
+    <title>Smart Home</title>
 
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+    <style>
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.95);
+                opacity: 0.8;
+            }
+
+            50% {
+                transform: scale(1.3);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        @keyframes wave {
+
+            0%,
+            100% {
+                height: 6px;
+            }
+
+            50% {
+                height: 26px;
+            }
+        }
+
+        .animate-pulse-ring {
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        .wave-bar {
+            animation: wave 1.2s ease-in-out infinite;
+        }
+
+        .wave-bar:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+
+        .wave-bar:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .wave-bar:nth-child(4) {
+            animation-delay: 0.45s;
+        }
+
+        .wave-bar:nth-child(5) {
+            animation-delay: 0.6s;
+        }
+
+        .glass {
+            background: rgba(24, 24, 27, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+    </style>
 
 </head>
 
-<body class="bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white min-h-screen">
+<body class="bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white min-h-screen pb-28">
 
-<div class="max-w-7xl mx-auto p-6">
+    <div class="max-w-7xl mx-auto p-6">
 
-    <!-- HEADER -->
+        <!-- HEADER -->
 
-    <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-8">
+        <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-8">
 
-        <div>
+            <div>
 
-            <h1 class="text-5xl font-black tracking-tight">
-                🏠 Smart Home
-            </h1>
+                <h1 class="text-5xl font-black tracking-tight flex items-center gap-3">
+                    <span>🏠 Smart Home</span>
+                </h1>
 
-            <p class="text-zinc-400 mt-2">
-                Controle inteligente da residência
+                <p class="text-zinc-400 mt-2">
+                    Controle inteligente • Diga <span id="headerAgentNameTag" class="text-indigo-400 font-bold">"Meu
+                        Agente"</span> para acionar por voz
+                </p>
+
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+
+                <!-- BADGE MQTT -->
+                <div id="mqttBadge"
+                    class="bg-zinc-800 px-4 py-3 rounded-2xl border border-zinc-700 font-medium text-sm flex items-center gap-2">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                    <span>MQTT Offline</span>
+                </div>
+
+                <!-- BOTAO MODO PAREDE / ESCUTA CONTINUA (WAKE WORD) -->
+                <button id="alwaysListenBtn" onclick="toggleAlwaysListen()" title="Ativar/Desativar escuta contínua"
+                    class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition px-4 py-3 rounded-2xl font-semibold text-sm flex items-center gap-2">
+                    <span id="alwaysListenDot" class="w-2.5 h-2.5 rounded-full bg-zinc-500"></span>
+                    <span id="alwaysListenText">🎙️ Ouvir Sempre: Inativo</span>
+                </button>
+
+                <!-- BOTAO CONFIG GEMINI -->
+                <button onclick="openVoiceApiKeyModal()" title="Configurar Chave Gemini"
+                    class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition px-4 py-3 rounded-2xl font-semibold text-sm flex items-center gap-2">
+                    <span>✨</span>
+                    <span>Gemini API</span>
+                </button>
+
+                <!-- BOTAO CONFIGURACOES GERAIS -->
+                <a href="config/config.html"
+                    class="bg-indigo-600 hover:bg-indigo-500 transition px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/30">
+                    <span>⚙️</span>
+                    <span>Configurações</span>
+                </a>
+
+            </div>
+
+        </div>
+
+        <!-- DASHBOARD -->
+
+        <div class="grid lg:grid-cols-3 gap-5 mb-8">
+
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+
+                <div class="text-zinc-400 text-sm font-semibold tracking-wider uppercase">
+                    CÔMODOS
+                </div>
+
+                <div id="totalRooms" class="text-4xl font-black mt-2">
+
+                    0
+
+                </div>
+
+            </div>
+
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+
+                <div class="text-zinc-400 text-sm font-semibold tracking-wider uppercase">
+                    LIGADOS
+                </div>
+
+                <div id="activeRooms" class="text-4xl font-black mt-2 text-yellow-400">
+
+                    0
+
+                </div>
+
+            </div>
+
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+
+                <div class="text-zinc-400 text-sm font-semibold tracking-wider uppercase">
+                    STATUS GERAL
+                </div>
+
+                <div id="houseStatus" class="text-2xl font-bold mt-3">
+
+                    Tudo Desligado
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- CÔMODOS LIGADOS -->
+
+        <div id="summaryCard" class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 mb-8 shadow-xl">
+
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+
+                <span>⚡</span>
+                <span>Ativos Agora</span>
+
+            </h2>
+
+            <div id="activeList" class="text-zinc-400 flex flex-wrap gap-2">
+
+                Nenhum cômodo ligado
+
+            </div>
+
+        </div>
+
+        <!-- CÔMODOS -->
+
+        <div id="rooms" class="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+        </div>
+
+    </div>
+
+    <!-- FLOATING VOICE ASSISTANT -->
+    <div class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 pointer-events-none">
+
+        <!-- FLOATING VOICE HUD / CARD -->
+        <div id="voiceHud"
+            class="hidden pointer-events-auto glass border border-indigo-500/40 rounded-3xl p-5 shadow-[0_10px_40px_rgba(0,0,0,0.8)] w-80 sm:w-96 text-white transition-all duration-300 transform scale-100 origin-bottom-right">
+
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-indigo-400 text-lg">✨</span>
+                    <span id="hudAgentTitle" class="font-bold text-sm tracking-wide">Assistente "Meu Agente"</span>
+                </div>
+                <button onclick="closeVoiceHud()"
+                    class="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- STATUS INDICATOR & SOUND WAVES -->
+            <div class="flex items-center justify-between bg-zinc-950/70 rounded-2xl p-3 border border-zinc-800 mb-3">
+                <div class="flex items-center gap-2 text-sm font-medium" id="voiceStatusContainer">
+                    <span id="voiceStatusIcon" class="text-base">🎙️</span>
+                    <span id="voiceStatusText" class="text-zinc-300">Ouvindo...</span>
+                </div>
+
+                <!-- SOUNDWAVE BARS -->
+                <div id="voiceWaveVisualizer" class="flex items-center gap-1 h-7">
+                    <div class="w-1 bg-indigo-500 rounded-full wave-bar"></div>
+                    <div class="w-1 bg-cyan-400 rounded-full wave-bar"></div>
+                    <div class="w-1 bg-violet-500 rounded-full wave-bar"></div>
+                    <div class="w-1 bg-indigo-400 rounded-full wave-bar"></div>
+                    <div class="w-1 bg-cyan-300 rounded-full wave-bar"></div>
+                </div>
+            </div>
+
+            <!-- TRANSCRIPT TEXT -->
+            <div class="mb-3">
+                <div class="text-xs text-zinc-400 mb-1 font-medium">Comando Identificado:</div>
+                <div id="voiceTranscript"
+                    class="bg-zinc-900/90 border border-zinc-800 p-3 rounded-2xl text-sm min-h-[50px] max-h-24 overflow-y-auto text-zinc-200 italic">
+                    Diga o nome do agente e o comando desejado...
+                </div>
+            </div>
+
+            <!-- GEMINI REPLY / ACTION FEEDBACK -->
+            <div id="voiceGeminiResponseBox" class="hidden mb-3">
+                <div class="text-xs text-indigo-400 mb-1 font-medium flex items-center gap-1">
+                    <span>🤖 Resposta Gemini:</span>
+                </div>
+                <div id="voiceGeminiResponse"
+                    class="bg-indigo-950/50 border border-indigo-500/40 p-3 rounded-2xl text-sm text-indigo-200 font-medium">
+                </div>
+            </div>
+
+            <!-- MANUAL TEXT INPUT FALLBACK -->
+            <form onsubmit="handleManualCommand(event)" class="flex gap-2">
+                <input id="voiceTextInput" type="text" placeholder="Ou digite um comando..."
+                    class="w-full bg-zinc-950/80 border border-zinc-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-zinc-200">
+                <button type="submit"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center">
+                    ➤
+                </button>
+            </form>
+
+        </div>
+
+        <!-- MAIN FLOATING ACTION BUTTON (MIC) -->
+        <div class="relative group pointer-events-auto">
+            <!-- PULSE WAVE EFFECT WHEN LISTENING -->
+            <div id="micPulseEffect"
+                class="hidden absolute inset-0 rounded-full bg-indigo-500 animate-pulse-ring -z-10">
+            </div>
+
+            <button id="floatingMicBtn" onclick="toggleVoiceAssistant()"
+                class="relative flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-600 via-violet-600 to-cyan-500 text-white shadow-[0_0_30px_rgba(99,102,241,0.5)] hover:shadow-[0_0_45px_rgba(99,102,241,0.8)] hover:scale-105 active:scale-95 transition-all duration-300 border-2 border-white/20">
+
+                <!-- MIC ICON -->
+                <svg id="micIcon" class="w-8 h-8 transition-transform duration-200 group-hover:scale-110" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+
+                <!-- STOP ICON (HIDDEN DEFAULT) -->
+                <svg id="stopIcon" class="hidden w-7 h-7 text-red-300 animate-pulse" fill="currentColor"
+                    viewBox="0 0 24 24">
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                </svg>
+
+            </button>
+        </div>
+
+    </div>
+
+    <!-- MODAL PARA CONFIGURAR GEMINI API KEY -->
+    <div id="geminiKeyModal"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
+            <div class="flex items-center gap-3 mb-4">
+                <div
+                    class="w-10 h-10 rounded-2xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-xl font-bold">
+                    ✨
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold">Chave de API do Gemini</h3>
+                    <p class="text-xs text-zinc-400">Google AI Studio</p>
+                </div>
+            </div>
+
+            <p class="text-sm text-zinc-300 mb-4 leading-relaxed">
+                Para interpretar comandos de voz com inteligência artificial, informe sua chave de API do Google Gemini.
             </p>
 
-        </div>
+            <input id="modalApiKeyInput" type="password" placeholder="AIzaSy..."
+                class="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none p-3 rounded-2xl font-mono text-sm mb-2 text-white">
 
-        <div class="flex gap-3">
+            <p class="text-xs text-zinc-500 mb-6">
+                Obtenha sua chave gratuitamente em
+                <a href="https://aistudio.google.com/app/apikey" target="_blank"
+                    class="text-indigo-400 underline hover:text-indigo-300">
+                    aistudio.google.com
+                </a>
+            </p>
 
-            <div
-                id="mqttBadge"
-                class="bg-zinc-800 px-4 py-3 rounded-2xl border border-zinc-700">
-
-                🔴 Offline
-
+            <div class="flex gap-3">
+                <button onclick="closeVoiceApiKeyModal()"
+                    class="w-1/2 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-2xl transition">
+                    Cancelar
+                </button>
+                <button onclick="saveVoiceApiKey()"
+                    class="w-1/2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/30 transition">
+                    Salvar Chave
+                </button>
             </div>
-
-            <a
-                href="config/config.html"
-                class="bg-indigo-600 hover:bg-indigo-500 transition px-5 py-3 rounded-2xl font-bold">
-
-                ⚙️ Configurações
-
-            </a>
-
         </div>
-
     </div>
 
-    <!-- DASHBOARD -->
+    <script>
 
-    <div class="grid lg:grid-cols-3 gap-5 mb-8">
+        let client;
 
-        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+        const roomStates = {};
 
-            <div class="text-zinc-400 text-sm">
-                CÔMODOS
-            </div>
+        const config =
+            JSON.parse(
+                localStorage.getItem(
+                    "smartHomeConfig"
+                )
+            );
 
-            <div
-                id="totalRooms"
-                class="text-4xl font-black mt-2">
+        if (!config) {
 
-                0
+            alert(
+                "Configure o sistema primeiro."
+            );
 
-            </div>
+            location.href =
+                "config/config.html";
+        }
 
-        </div>
+        // Nome configurado do agente (palavra de ativação)
+        function getAgentName() {
+            return (config && config.agentName && config.agentName.trim()) || "Meu Agente";
+        }
 
-        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+        function updateDashboard() {
 
-            <div class="text-zinc-400 text-sm">
-                LIGADOS
-            </div>
+            const total =
+                config.rooms ? config.rooms.length : 0;
 
-            <div
-                id="activeRooms"
-                class="text-4xl font-black mt-2 text-yellow-400">
+            const active =
+                config.rooms ? config.rooms.filter(
+                    room =>
+                        roomStates[room.topic]
+                ) : [];
 
-                0
+            document
+                .getElementById("totalRooms")
+                .innerText =
+                total;
 
-            </div>
+            document
+                .getElementById("activeRooms")
+                .innerText =
+                active.length;
 
-        </div>
+            document
+                .getElementById("houseStatus")
+                .innerText =
+                active.length
+                    ? "Casa Ativa"
+                    : "Tudo Desligado";
 
-        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+            document
+                .getElementById("activeList")
+                .innerHTML =
 
-            <div class="text-zinc-400 text-sm">
-                STATUS
-            </div>
+                active.length
 
-            <div
-                id="houseStatus"
-                class="text-2xl font-bold mt-3">
-
-                Tudo Desligado
-
-            </div>
-
-        </div>
-
-    </div>
-
-    <!-- CÔMODOS LIGADOS -->
-
-    <div
-        id="summaryCard"
-        class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-8">
-
-        <h2 class="text-xl font-bold mb-4">
-
-            ⚡ Ativos Agora
-
-        </h2>
-
-        <div
-            id="activeList"
-            class="text-zinc-400">
-
-            Nenhum cômodo ligado
-
-        </div>
-
-    </div>
-
-    <!-- CÔMODOS -->
-
-    <div
-        id="rooms"
-        class="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-    </div>
-
-</div>
-
-<script>
-
-let client;
-
-const roomStates = {};
-
-const config =
-    JSON.parse(
-        localStorage.getItem(
-            "smartHomeConfig"
-        )
-    );
-
-if (!config) {
-
-    alert(
-        "Configure o sistema primeiro."
-    );
-
-    location.href =
-        "config/config.html";
-}
-
-function updateDashboard() {
-
-    const total =
-        config.rooms.length;
-
-    const active =
-        config.rooms.filter(
-            room =>
-                roomStates[room.topic]
-        );
-
-    document
-        .getElementById("totalRooms")
-        .innerText =
-        total;
-
-    document
-        .getElementById("activeRooms")
-        .innerText =
-        active.length;
-
-    document
-        .getElementById("houseStatus")
-        .innerText =
-        active.length
-            ? "Casa Ativa"
-            : "Tudo Desligado";
-
-    document
-        .getElementById("activeList")
-        .innerHTML =
-
-        active.length
-
-        ? active.map(
-            room => `
+                    ? active.map(
+                        room => `
             <div class="mb-2">
                 💡 ${room.name}
             </div>
           `
-        ).join("")
+                    ).join("")
 
-        : "Nenhum cômodo ligado";
-}
+                    : "Nenhum cômodo ligado";
+        }
 
-function connectMQTT() {
+        function connectMQTT() {
 
-    client = mqtt.connect(
-        `wss://${config.broker}:${config.port}`
-    );
+            client = mqtt.connect(
+                `wss://${config.broker}:${config.port}`
+            );
 
-    client.on(
-        "connect",
-        () => {
+            client.on(
+                "connect",
+                () => {
 
-            document
-                .getElementById("mqttBadge")
-                .innerHTML =
-                "🟢 MQTT Online";
+                    document
+                        .getElementById("mqttBadge")
+                        .innerHTML =
+                        `<span class="inline-block w-2.5 h-2.5 rounded-full bg-green-400"></span><span>🟢 MQTT Online</span>`;
 
-            client.subscribe(
-                "pensador/casa/+/state"
+                    client.subscribe(
+                        "pensador/casa/+/state"
+                    );
+                }
+            );
+
+            client.on(
+                "message",
+                (topic, payload) => {
+
+                    const state =
+                        payload.toString();
+
+                    const room =
+                        topic.split("/")[2];
+
+                    roomStates[room] =
+                        state === "ON";
+
+                    renderRooms();
+
+                    updateDashboard();
+                }
+            );
+
+            client.on(
+                "error",
+                () => {
+
+                    document
+                        .getElementById("mqttBadge")
+                        .innerHTML =
+                        `<span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500"></span><span>🔴 MQTT Offline</span>`;
+                }
             );
         }
-    );
 
-    client.on(
-        "message",
-        (topic,payload) => {
-
-            const state =
-                payload.toString();
+        function toggleRoom(index) {
 
             const room =
-                topic.split("/")[2];
+                config.rooms[index];
 
-            roomStates[room] =
-                state === "ON";
-
-            renderRooms();
-
-            updateDashboard();
-        }
-    );
-
-    client.on(
-        "error",
-        () => {
-
-            document
-                .getElementById("mqttBadge")
-                .innerHTML =
-                "🔴 MQTT Offline";
-        }
-    );
-}
-
-function toggleRoom(index) {
-
-    const room =
-        config.rooms[index];
-
-    const current =
-        roomStates[
-            room.topic
-        ] || false;
-
-    client.publish(
-
-        `pensador/casa/${room.topic}/set`,
-
-        current
-            ? "OFF"
-            : "ON"
-
-    );
-}
-
-function renderRooms() {
-
-    document
-        .getElementById("rooms")
-        .innerHTML =
-
-        config.rooms.map(
-            (room,index)=>{
-
-            const on =
+            const current =
                 roomStates[
-                    room.topic
+                room.topic
                 ] || false;
 
-            return `
+            const newState = current ? "OFF" : "ON";
+
+            if (client) {
+                client.publish(
+                    `pensador/casa/${room.topic}/set`,
+                    newState
+                );
+            }
+
+            // Atualiza imediatamente na tela
+            roomStates[room.topic] = !current;
+            renderRooms();
+            updateDashboard();
+        }
+
+        function renderRooms() {
+
+            document
+                .getElementById("rooms")
+                .innerHTML =
+
+                config.rooms.map(
+                    (room, index) => {
+
+                        const on =
+                            roomStates[
+                            room.topic
+                            ] || false;
+
+                        return `
 
             <div
                 class="
@@ -305,17 +517,17 @@ function renderRooms() {
                 duration-300
 
                 ${on
-                    ? `
+                                ? `
                     bg-yellow-500/10
                     border-yellow-500
                     shadow-[0_0_40px_rgba(234,179,8,0.25)]
                     `
-                    :
-                    `
+                                :
+                                `
                     bg-zinc-900
                     border-zinc-800
                     `
-                }">
+                            }">
 
                 <div class="flex justify-between items-start">
 
@@ -358,9 +570,9 @@ function renderRooms() {
                         w-4 h-4 rounded-full
 
                         ${on
-                            ? "bg-green-400"
-                            : "bg-red-500"
-                        }">
+                                ? "bg-green-400"
+                                : "bg-red-500"
+                            }">
                     </div>
 
                 </div>
@@ -378,29 +590,645 @@ function renderRooms() {
                     transition
 
                     ${on
-                        ? "bg-red-600 hover:bg-red-500"
-                        : "bg-green-600 hover:bg-green-500"
-                    }">
+                                ? "bg-red-600 hover:bg-red-500"
+                                : "bg-green-600 hover:bg-green-500"
+                            }">
 
                     ${on
-                        ? "Desligar"
-                        : "Ligar"}
+                                ? "Desligar"
+                                : "Ligar"}
 
                 </button>
 
             </div>
 
             `;
-        }).join("");
-}
+                    }).join("");
+        }
 
-connectMQTT();
+        connectMQTT();
 
-renderRooms();
+        renderRooms();
 
-updateDashboard();
+        updateDashboard();
 
-</script>
+        // ========================================================================
+        // MOTOR DE VOZ ULTRA-ROBUSTO COM ANTI-TRAVAMENTO (WATCHDOG) E WAKE WORD
+        // ========================================================================
+
+        let recognitionInstance = null;
+        let isListening = false;
+        let isSpeakingTTS = false;
+        let alwaysListen = localStorage.getItem("alwaysListenSmartHome") === "true";
+        let isWaitingCommandAfterWakeWord = false;
+        let wakeWordTimer = null;
+        let watchdogInterval = null;
+        let lastActivityTimestamp = Date.now();
+        let wakeLock = null;
+
+        function getGeminiApiKey() {
+            return (config && config.geminiApiKey) || localStorage.getItem("geminiApiKey") || "";
+        }
+
+        function openVoiceApiKeyModal() {
+            document.getElementById("modalApiKeyInput").value = getGeminiApiKey();
+            document.getElementById("geminiKeyModal").classList.remove("hidden");
+        }
+
+        function closeVoiceApiKeyModal() {
+            document.getElementById("geminiKeyModal").classList.add("hidden");
+        }
+
+        function saveVoiceApiKey() {
+            const key = document.getElementById("modalApiKeyInput").value.trim();
+            if (!key) {
+                alert("Por favor, digite uma chave de API válida.");
+                return;
+            }
+            localStorage.setItem("geminiApiKey", key);
+            if (config) {
+                config.geminiApiKey = key;
+                localStorage.setItem("smartHomeConfig", JSON.stringify(config));
+            }
+            closeVoiceApiKeyModal();
+            setVoiceStatus("✨", "Chave salva com sucesso!", false);
+        }
+
+        function showVoiceHud() {
+            document.getElementById("voiceHud").classList.remove("hidden");
+        }
+
+        function closeVoiceHud() {
+            if (!alwaysListen) {
+                stopVoiceRecognition();
+            }
+            document.getElementById("voiceHud").classList.add("hidden");
+        }
+
+        function setVoiceStatus(icon, text, isAnimated = false) {
+            const iconEl = document.getElementById("voiceStatusIcon");
+            const textEl = document.getElementById("voiceStatusText");
+            if (iconEl) iconEl.innerText = icon;
+            if (textEl) textEl.innerText = text;
+
+            const wave = document.getElementById("voiceWaveVisualizer");
+            if (wave) {
+                if (isAnimated) {
+                    wave.classList.remove("opacity-20");
+                } else {
+                    wave.classList.add("opacity-20");
+                }
+            }
+        }
+
+        function setVoiceTranscript(text, isItalic = false) {
+            const el = document.getElementById("voiceTranscript");
+            if (!el) return;
+            el.innerText = text;
+            if (isItalic) {
+                el.classList.add("italic", "text-zinc-400");
+            } else {
+                el.classList.remove("italic", "text-zinc-400");
+                el.classList.add("text-white");
+            }
+        }
+
+        function showGeminiResponse(replyText) {
+            const box = document.getElementById("voiceGeminiResponseBox");
+            const res = document.getElementById("voiceGeminiResponse");
+            if (res) res.innerText = replyText;
+            if (box) box.classList.remove("hidden");
+        }
+
+        // Manter a tela do celular sempre ligada na parede
+        async function requestScreenWakeLock() {
+            try {
+                if ("wakeLock" in navigator) {
+                    wakeLock = await navigator.wakeLock.request("screen");
+                }
+            } catch (e) {
+                console.log("WakeLock não suportado:", e);
+            }
+        }
+
+        function updateAgentNamesInUI() {
+            const agentName = getAgentName();
+            const tag = document.getElementById("headerAgentNameTag");
+            if (tag) tag.innerText = `"${agentName}"`;
+            const hudTitle = document.getElementById("hudAgentTitle");
+            if (hudTitle) hudTitle.innerText = `Assistente "${agentName}"`;
+        }
+
+        function updateAlwaysListenUI() {
+            const agentName = getAgentName();
+            const dot = document.getElementById("alwaysListenDot");
+            const text = document.getElementById("alwaysListenText");
+            const btn = document.getElementById("alwaysListenBtn");
+
+            if (alwaysListen) {
+                if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-green-400 animate-ping";
+                if (text) text.innerHTML = `🟢 Ouvindo: <b>"${agentName}"</b>`;
+                if (btn) btn.className = "bg-indigo-900/60 border border-indigo-500 text-indigo-200 transition px-4 py-3 rounded-2xl font-semibold text-sm flex items-center gap-2 shadow-lg shadow-indigo-500/20";
+                requestScreenWakeLock();
+            } else {
+                if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-zinc-500";
+                if (text) text.innerHTML = `🎙️ Ouvir Sempre: Inativo`;
+                if (btn) btn.className = "bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition px-4 py-3 rounded-2xl font-semibold text-sm flex items-center gap-2";
+            }
+        }
+
+        function toggleAlwaysListen() {
+            const apiKey = getGeminiApiKey();
+            if (!apiKey) {
+                openVoiceApiKeyModal();
+                return;
+            }
+
+            alwaysListen = !alwaysListen;
+            localStorage.setItem("alwaysListenSmartHome", alwaysListen ? "true" : "false");
+            updateAlwaysListenUI();
+
+            if (alwaysListen) {
+                showVoiceHud();
+                const agentName = getAgentName();
+                setVoiceStatus("👂", `Ouvindo... Diga "${agentName}"`, true);
+                setVoiceTranscript(`Aguardando palavra de ativação "${agentName}"...`, true);
+                startVoiceRecognition();
+            } else {
+                stopVoiceRecognition();
+                setVoiceStatus("⏹️", "Escuta contínua pausada", false);
+            }
+        }
+
+        // ========================================================================
+        // CRIAÇÃO E GERENCIAMENTO DE INSTÂNCIAS DE RECONHECIMENTO DE VOZ
+        // ========================================================================
+
+        function createFreshRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {
+                alert("Seu navegador não suporta reconhecimento de voz. Utilize o Google Chrome ou Edge.");
+                return null;
+            }
+
+            if (recognitionInstance) {
+                try {
+                    recognitionInstance.onstart = null;
+                    recognitionInstance.onresult = null;
+                    recognitionInstance.onerror = null;
+                    recognitionInstance.onend = null;
+                    recognitionInstance.abort();
+                } catch (e) { }
+                recognitionInstance = null;
+            }
+
+            const rec = new SpeechRecognition();
+            rec.lang = "pt-BR";
+            rec.continuous = false;
+            rec.interimResults = true;
+            rec.maxAlternatives = 1;
+
+            let capturedFinalText = "";
+
+            rec.onstart = () => {
+                isListening = true;
+                capturedFinalText = "";
+                lastActivityTimestamp = Date.now();
+                document.getElementById("micPulseEffect").classList.remove("hidden");
+                document.getElementById("micIcon").classList.add("hidden");
+                document.getElementById("stopIcon").classList.remove("hidden");
+
+                if (alwaysListen) {
+                    const agentName = getAgentName();
+                    if (!isWaitingCommandAfterWakeWord) {
+                        setVoiceStatus("👂", `Ouvindo... Diga "${agentName}"`, true);
+                    }
+                } else {
+                    setVoiceStatus("🎙️", "Ouvindo... Fale agora", true);
+                }
+            };
+
+            rec.onresult = (event) => {
+                lastActivityTimestamp = Date.now();
+                if (isSpeakingTTS) return;
+
+                let interim = "";
+                for (let i = 0; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        capturedFinalText = event.results[i][0].transcript;
+                    } else {
+                        interim += event.results[i][0].transcript;
+                    }
+                }
+
+                const currentText = (capturedFinalText || interim).trim();
+                if (currentText) {
+                    console.log("[Reconhecendo]:", currentText);
+                    setVoiceTranscript(`"${currentText}"`, false);
+                }
+            };
+
+            rec.onerror = (event) => {
+                console.warn("[Speech Event]:", event.error);
+                lastActivityTimestamp = Date.now();
+
+                if (event.error === "not-allowed") {
+                    setVoiceStatus("⚠️", "Permissão de microfone negada", false);
+                    alwaysListen = false;
+                    updateAlwaysListenUI();
+                }
+            };
+
+            rec.onend = () => {
+                isListening = false;
+                document.getElementById("micPulseEffect").classList.add("hidden");
+                document.getElementById("micIcon").classList.remove("hidden");
+                document.getElementById("stopIcon").classList.add("hidden");
+
+                // Se capturou a frase completa ao final da fala:
+                if (capturedFinalText && !isSpeakingTTS && !isProcessingCommand) {
+                    const textToProcess = capturedFinalText.trim();
+                    capturedFinalText = "";
+
+                    if (alwaysListen) {
+                        handleWakeWordDetection(textToProcess);
+                    } else {
+                        processCommandWithGemini(textToProcess);
+                    }
+                }
+
+                // Se a escuta contínua estiver ativada, reinicia para a próxima frase
+                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand) {
+                    setTimeout(() => {
+                        if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand) {
+                            startVoiceRecognition();
+                        }
+                    }, 120);
+                }
+            };
+
+            return rec;
+        }
+
+        // Normalizador de texto para comparação segura sem acentos
+        function normalizeText(text) {
+            return text
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .trim();
+        }
+
+        let isProcessingCommand = false;
+
+        // Processa a detecção da palavra de ativação dinâmica (ex: "Meu Agente", "Jarvis", etc.)
+        function handleWakeWordDetection(text) {
+            if (isProcessingCommand || isSpeakingTTS) return;
+
+            const normalizedText = normalizeText(text);
+            const agentName = getAgentName();
+            const normalizedAgentName = normalizeText(agentName);
+
+            // Cria regex dinâmica para o nome configurado + variações comuns
+            const namePatterns = [
+                normalizedAgentName,
+                normalizedAgentName.replace(/\s+/g, ""),
+                "meu agente",
+                "meu gente",
+                "agente"
+            ];
+            const escapedNames = namePatterns.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
+            const regex = new RegExp(`(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
+
+            const wakeMatch = normalizedText.match(regex);
+
+            if (wakeMatch) {
+                const commandAfterWakeWord = wakeMatch[1].trim();
+
+                // Caso 1: Falou o nome do agente E o comando na mesma frase (ex: "Meu Agente, liga a luz da sala")
+                if (commandAfterWakeWord.length > 1) {
+                    clearTimeout(wakeWordTimer);
+                    isWaitingCommandAfterWakeWord = false;
+                    showVoiceHud();
+                    setVoiceStatus("✨", "Processando comando...", true);
+                    setVoiceTranscript(`"${agentName}, ${commandAfterWakeWord}"`, false);
+                    processCommandWithGemini(commandAfterWakeWord);
+                    return;
+                }
+
+                // Caso 2: Falou apenas o nome do agente (ex: "Meu Agente") -> responde e aguarda o comando na próxima frase
+                if (!isWaitingCommandAfterWakeWord) {
+                    isWaitingCommandAfterWakeWord = true;
+                    showVoiceHud();
+                    setVoiceStatus("⚡", `Sim! Diga o comando agora...`, true);
+                    setVoiceTranscript(`"${agentName}..." (Aguardando instrução...)`, false);
+
+                    speakResponse("Sim?");
+
+                    clearTimeout(wakeWordTimer);
+                    wakeWordTimer = setTimeout(() => {
+                        isWaitingCommandAfterWakeWord = false;
+                        setVoiceStatus("👂", `Aguardando "${agentName}"...`, true);
+                    }, 10000);
+                }
+                return;
+            }
+
+            // Caso 3: O nome já havia sido chamado antes ("Sim?") e agora a pessoa falou o comando
+            if (isWaitingCommandAfterWakeWord && text.trim()) {
+                clearTimeout(wakeWordTimer);
+                isWaitingCommandAfterWakeWord = false;
+                showVoiceHud();
+                setVoiceStatus("✨", "Processando comando...", true);
+                setVoiceTranscript(`"${text.trim()}"`, false);
+                processCommandWithGemini(text.trim());
+            }
+        }
+
+        function toggleVoiceAssistant() {
+            const apiKey = getGeminiApiKey();
+            if (!apiKey) {
+                openVoiceApiKeyModal();
+                return;
+            }
+
+            showVoiceHud();
+
+            if (isListening) {
+                stopVoiceRecognition();
+            } else {
+                startVoiceRecognition();
+            }
+        }
+
+        function startVoiceRecognition() {
+            if (isSpeakingTTS || isProcessingCommand) return;
+
+            try {
+                recognitionInstance = createFreshRecognition();
+                if (recognitionInstance) {
+                    recognitionInstance.start();
+                    lastActivityTimestamp = Date.now();
+                }
+            } catch (e) {
+                console.warn("[Speech] Reiniciando escuta:", e);
+                setTimeout(() => {
+                    if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand) {
+                        startVoiceRecognition();
+                    }
+                }, 200);
+            }
+        }
+
+        function stopVoiceRecognition() {
+            if (recognitionInstance) {
+                try {
+                    recognitionInstance.abort();
+                } catch (e) { }
+            }
+            isListening = false;
+            document.getElementById("micPulseEffect").classList.add("hidden");
+            document.getElementById("micIcon").classList.remove("hidden");
+            document.getElementById("stopIcon").classList.add("hidden");
+        }
+
+        // ========================================================================
+        // WATCHDOG SUAVE (Garante que a escuta nunca fique desligada por engano)
+        // ========================================================================
+        function initVoiceWatchdog() {
+            if (watchdogInterval) clearInterval(watchdogInterval);
+
+            watchdogInterval = setInterval(() => {
+                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand && !isListening) {
+                    startVoiceRecognition();
+                }
+            }, 2000);
+        }
+
+        initVoiceWatchdog();
+
+        function handleManualCommand(e) {
+            e.preventDefault();
+            const input = document.getElementById("voiceTextInput");
+            const cmd = input.value.trim();
+            if (!cmd) return;
+
+            const apiKey = getGeminiApiKey();
+            if (!apiKey) {
+                openVoiceApiKeyModal();
+                return;
+            }
+
+            input.value = "";
+            setVoiceTranscript(`"${cmd}"`, false);
+            processCommandWithGemini(cmd);
+        }
+
+        async function processCommandWithGemini(userCommand) {
+            const apiKey = getGeminiApiKey();
+            if (!apiKey) {
+                openVoiceApiKeyModal();
+                return;
+            }
+
+            if (isProcessingCommand) return;
+            isProcessingCommand = true;
+
+            const agentName = getAgentName();
+            console.log("[Disparo Único -> Gemini]:", userCommand);
+            setVoiceStatus("✨", `Processando comando completo...`, true);
+
+            const allRooms = config.rooms || [];
+            const activeRoomsList = allRooms.filter(r => roomStates[r.topic]).map(r => r.name);
+            const inactiveRoomsList = allRooms.filter(r => !roomStates[r.topic]).map(r => r.name);
+
+            const roomsInfo = allRooms.map(r => ({
+                nome: r.name,
+                topico: r.topic,
+                estadoAtual: roomStates[r.topic] ? "Ligado (Aceso)" : "Desligado (Apagado)"
+            }));
+
+            const houseSummary = {
+                totalComodos: allRooms.length,
+                totalLuzesAcesas: activeRoomsList.length,
+                totalLuzesApagadas: inactiveRoomsList.length,
+                comodosAcesos: activeRoomsList.length ? activeRoomsList : ["Nenhum"],
+                comodosApagados: inactiveRoomsList.length ? inactiveRoomsList : ["Nenhum"],
+                statusGeral: activeRoomsList.length ? `${activeRoomsList.length} cômodo(s) com luz acesa` : "Tudo desligado na casa"
+            };
+
+            const systemPrompt = `Você é o assistente inteligente residencial chamado "${agentName}".
+Você possui 3 funções fundamentais:
+
+1. CONSULTAS E RELATÓRIO DE STATUS DA CASA:
+Resumo atual da residência em tempo real:
+${JSON.stringify(houseSummary, null, 2)}
+Lista detalhada de cômodos:
+${JSON.stringify(roomsInfo, null, 2)}
+- Se o usuário perguntar "quais luzes estão acesas?", "quantas lâmpadas estão ligadas?", "qual luz tá acesa?", "o que está aceso?", "qual o status da casa?", "me dê um relatório da casa", ou perguntas similares:
+- Responda em português brasileiro de forma natural, clara e simpática, informando a quantidade e exatamente os nomes dos cômodos que estão acesos ou apagados.
+- Para consultas e relatórios (onde nenhuma luz deve ser alterada), envie "actions": [].
+
+2. AUTOMAÇÃO RESIDENCIAL (ACIONAMENTO):
+- Se o usuário pedir para acender, ligar, apagar ou desligar cômodos (ou a casa toda), inclua a ação em "actions": [{ "topic": "topico_do_comodo", "state": "ON" | "OFF" }].
+- Se o comando não envolver acionamento de luzes, deixe "actions": [].
+
+3. PESQUISA NA INTERNET E INFORMAÇÕES GERAIS:
+- Você é capaz de responder a qualquer pergunta do usuário: reportagens e notícias do dia, previsão do tempo/clima, temperatura da semana, sugestões de filmes/séries, curiosidades, fatos, etc.
+- Responda de forma natural, clara, amigável e informativa.
+
+Formato de Resposta Obrigatório (sempre JSON válido):
+{
+  "reply": "Texto da sua resposta para o usuário (esta resposta será falada em voz alta e exibida na tela)",
+  "actions": [
+    { "topic": "topico_do_comodo", "state": "ON" | "OFF" }
+  ]
+}`;
+
+            let responseData = null;
+            let errorMsg = null;
+
+            try {
+                // Modelos oficiais com suporte a Google Search Grounding:
+                const models = ['gemini-2.5-flash-lite'];
+
+                // Estrutura oficial da API com systemInstruction e ferramenta de busca Google Search:
+                const requestBodyWithSearch = {
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                    contents: [
+                        {
+                            role: "user",
+                            parts: [{ text: `Comando/Pergunta do usuário: "${userCommand}"\nLembre-se de responder em JSON com {"reply": "...", "actions": [...]}` }]
+                        }
+                    ],
+                    tools: [
+                        { googleSearch: {} }
+                    ]
+                };
+
+                for (const model of models) {
+                    try {
+                        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                        const res = await fetch(endpoint, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(requestBodyWithSearch)
+                        });
+
+                        if (res.ok) {
+                            responseData = await res.json();
+                            console.log(`[Gemini Grounding ${model}]:`, responseData);
+                            break;
+                        } else {
+                            const errData = await res.json().catch(() => ({}));
+                            errorMsg = errData.error ? errData.error.message : `HTTP ${res.status}`;
+                        }
+                    } catch (e) {
+                        errorMsg = e.message;
+                    }
+                }
+
+                if (!responseData) {
+                    setVoiceStatus("❌", `Erro Gemini: ${errorMsg || "Falha na conexão"}`, false);
+                    return;
+                }
+
+                let rawText = "";
+                if (responseData.candidates && responseData.candidates[0] && responseData.candidates[0].content && responseData.candidates[0].content.parts) {
+                    rawText = responseData.candidates[0].content.parts.map(p => p.text || "").join("\n").trim();
+                }
+
+                let result = null;
+                const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    try {
+                        result = JSON.parse(jsonMatch[0]);
+                    } catch (e) {
+                        result = { reply: rawText.replace(/```json|```/gi, "").trim(), actions: [] };
+                    }
+                } else {
+                    result = { reply: rawText || "Comando processado.", actions: [] };
+                }
+
+                // Executar ações via MQTT se houver cômodos para controlar
+                if (result.actions && Array.isArray(result.actions)) {
+                    for (const action of result.actions) {
+                        const targetRoom = config.rooms.find(
+                            r => r.topic === action.topic || r.name.toLowerCase() === action.topic.toLowerCase()
+                        );
+                        const topic = targetRoom ? targetRoom.topic : action.topic;
+                        const payload = (action.state === "ON" || action.state === "on") ? "ON" : "OFF";
+
+                        if (client) {
+                            client.publish(`pensador/casa/${topic}/set`, payload);
+                        }
+                        roomStates[topic] = (payload === "ON");
+                    }
+                    renderRooms();
+                    updateDashboard();
+                }
+
+                const reply = result.reply || "Comando concluído.";
+                const isGrounded = responseData.candidates[0].groundingMetadata ? " 🌐" : "";
+                setVoiceStatus("✅", "Concluído!" + isGrounded, false);
+                showGeminiResponse(reply);
+
+                // Síntese de voz (TTS) com isolamento para não retroalimentar o microfone
+                speakResponse(reply);
+
+            } catch (e) {
+                console.error("Erro ao analisar resposta do Gemini:", e);
+                setVoiceStatus("⚠️", "Não foi possível interpretar a resposta", false);
+            } finally {
+                setTimeout(() => {
+                    isProcessingCommand = false;
+                }, 800);
+            }
+        }
+
+        function speakResponse(text) {
+            if ("speechSynthesis" in window) {
+                window.speechSynthesis.cancel();
+                isSpeakingTTS = true;
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = "pt-BR";
+                utterance.rate = 1.05;
+
+                utterance.onend = () => {
+                    setTimeout(() => {
+                        isSpeakingTTS = false;
+                        lastActivityTimestamp = Date.now();
+                        if (alwaysListen) {
+                            startVoiceRecognition();
+                        }
+                    }, 200);
+                };
+
+                utterance.onerror = () => {
+                    isSpeakingTTS = false;
+                    if (alwaysListen) {
+                        startVoiceRecognition();
+                    }
+                };
+
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Inicialização de UI e escuta salva
+        updateAgentNamesInUI();
+        if (alwaysListen) {
+            updateAlwaysListenUI();
+            setTimeout(() => {
+                startVoiceRecognition();
+            }, 1000);
+        }
+
+    </script>
 
 </body>
 

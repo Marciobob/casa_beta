@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Configuração MQTT</title>
+<title>Configuração Smart Home</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 
@@ -21,31 +21,74 @@
 
     <div class="bg-zinc-900 rounded-3xl p-6">
 
+        <h2 class="text-xl font-bold mb-4 text-zinc-300">
+            📡 Conexão MQTT
+        </h2>
+
         <div class="grid md:grid-cols-2 gap-4">
 
             <div>
-                <label class="block mb-2">
+                <label class="block mb-2 text-sm text-zinc-400">
                     Broker MQTT
                 </label>
 
                 <input
                     id="broker"
-                    class="w-full bg-zinc-800 p-3 rounded-xl"
+                    class="w-full bg-zinc-800 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="test.mosquitto.org"
                 >
             </div>
 
             <div>
-                <label class="block mb-2">
+                <label class="block mb-2 text-sm text-zinc-400">
                     Porta WebSocket
                 </label>
 
                 <input
                     id="port"
                     type="number"
-                    class="w-full bg-zinc-800 p-3 rounded-xl"
+                    class="w-full bg-zinc-800 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="8080"
                 >
+            </div>
+
+        </div>
+
+        <h2 class="text-xl font-bold mt-6 mb-4 text-zinc-300">
+            🎙️ Assistente de Voz & Inteligência Artificial
+        </h2>
+
+        <div class="grid md:grid-cols-2 gap-4">
+
+            <div>
+                <label class="block mb-2 text-sm text-zinc-400">
+                    Nome do Agente (Palavra de Ativação)
+                </label>
+
+                <input
+                    id="agentName"
+                    class="w-full bg-zinc-800 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Meu Agente"
+                >
+                <p class="text-xs text-zinc-500 mt-1">
+                    Exemplos: <i>Meu Agente</i>, <i>Jarvis</i>, <i>Casa</i>, <i>Sexta-Feira</i>.
+                </p>
+            </div>
+
+            <div>
+                <label class="block mb-2 text-sm text-zinc-400">
+                    Chave de API do Gemini (Google AI Studio)
+                </label>
+
+                <input
+                    id="geminiApiKey"
+                    type="password"
+                    class="w-full bg-zinc-800 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                    placeholder="AIzaSy..."
+                >
+                <p class="text-xs text-zinc-500 mt-1">
+                    Obtenha gratuitamente em <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-400 hover:underline">aistudio.google.com</a>.
+                </p>
             </div>
 
         </div>
@@ -62,9 +105,9 @@
 
             <button
                 onclick="addRoom()"
-                class="bg-green-600 px-5 py-3 rounded-xl"
+                class="bg-green-600 px-5 py-3 rounded-xl font-semibold hover:bg-green-500 transition"
             >
-                + Adicionar
+                + Adicionar Cômodo
             </button>
 
         </div>
@@ -75,16 +118,16 @@
 
     <button
         onclick="saveConfig()"
-        class="mt-8 w-full bg-blue-600 py-4 rounded-2xl font-bold text-lg"
+        class="mt-8 w-full bg-blue-600 hover:bg-blue-500 transition py-4 rounded-2xl font-bold text-lg shadow-lg shadow-blue-600/30"
     >
         Salvar Configuração
     </button>
 
     <a
         href="../index.html"
-        class="block text-center mt-4 text-blue-400"
+        class="block text-center mt-4 text-blue-400 hover:text-blue-300 font-semibold"
     >
-        Abrir Painel →
+        Abrir Painel Principal →
     </a>
 
 </div>
@@ -106,13 +149,13 @@ function slugify(text) {
 function addRoom() {
 
     const roomName =
-        prompt("Nome do cômodo");
+        prompt("Nome do cômodo (ex: Sala, Quarto, Cozinha):");
 
-    if(!roomName) return;
+    if(!roomName || !roomName.trim()) return;
 
     rooms.push({
         id: Date.now(),
-        name: roomName,
+        name: roomName.trim(),
         topic: slugify(roomName)
     });
 
@@ -133,7 +176,7 @@ function renderRooms() {
 
     document
         .getElementById("rooms")
-        .innerHTML = rooms.map(room => `
+        .innerHTML = rooms.length ? rooms.map(room => `
 
         <div
             class="bg-zinc-800 p-4 rounded-xl flex justify-between items-center">
@@ -144,37 +187,47 @@ function renderRooms() {
                     ${room.name}
                 </div>
 
-                <div class="text-sm text-zinc-400">
-                    ${room.topic}
+                <div class="text-sm text-zinc-400 font-mono">
+                    Tópico MQTT: pensador/casa/${room.topic}/set
                 </div>
 
             </div>
 
             <button
                 onclick="removeRoom(${room.id})"
-                class="bg-red-600 px-4 py-2 rounded-lg"
+                class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-lg font-medium transition"
             >
                 Remover
             </button>
 
         </div>
 
-    `).join("");
+    `).join("") : `<div class="text-zinc-500 italic p-4 text-center">Nenhum cômodo adicionado ainda.</div>`;
 }
 
 function saveConfig() {
+
+    const agentNameInput = document.getElementById("agentName").value.trim();
 
     const config = {
 
         broker:
             document
             .getElementById("broker")
-            .value,
+            .value.trim() || "test.mosquitto.org",
 
         port:
             document
             .getElementById("port")
-            .value,
+            .value.trim() || "8080",
+
+        agentName:
+            agentNameInput || "Meu Agente",
+
+        geminiApiKey:
+            document
+            .getElementById("geminiApiKey")
+            .value.trim(),
 
         rooms
 
@@ -185,7 +238,11 @@ function saveConfig() {
         JSON.stringify(config)
     );
 
-    alert("Configuração salva.");
+    if (config.geminiApiKey) {
+        localStorage.setItem("geminiApiKey", config.geminiApiKey);
+    }
+
+    alert("Configuração salva com sucesso!");
 }
 
 function loadConfig() {
@@ -209,6 +266,16 @@ function loadConfig() {
         .getElementById("port")
         .value =
         config.port || "8080";
+
+    document
+        .getElementById("agentName")
+        .value =
+        config.agentName || "Meu Agente";
+
+    document
+        .getElementById("geminiApiKey")
+        .value =
+        config.geminiApiKey || localStorage.getItem("geminiApiKey") || "";
 
     rooms =
         config.rooms || [];
