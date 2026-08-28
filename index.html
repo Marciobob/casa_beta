@@ -891,7 +891,7 @@
 
         let isProcessingCommand = false;
 
-        // Processa a detecção da palavra de ativação dinâmica (ex: "Meu Agente", "Jarvis", etc.)
+        // Processa a detecção da palavra de ativação dinâmica (ex: "Meu Agente", "Sexta-Feira", "Jarvis", etc.)
         function handleWakeWordDetection(text) {
             console.log("[handleWakeWordDetection]: Analisando texto:", `"${text}"`);
 
@@ -900,20 +900,32 @@
                 return;
             }
 
-            const normalizedText = normalizeText(text);
             const agentName = getAgentName();
+            const normalizedText = normalizeText(text);
             const normalizedAgentName = normalizeText(agentName);
 
-            // Cria regex dinâmica para o nome configurado + variações comuns
-            const namePatterns = [
+            // Conjunto completo de variações para o nome configurado e nomes comuns (com/sem hífen, espaços, etc.)
+            const rawPatterns = new Set([
                 normalizedAgentName,
-                normalizedAgentName.replace(/\s+/g, ""),
+                normalizedAgentName.replace(/[-\s_]+/g, " "),
+                normalizedAgentName.replace(/[-\s_]+/g, "-"),
+                normalizedAgentName.replace(/[-\s_]+/g, ""),
+                "sexta-feira",
+                "sexta feira",
+                "sextafeira",
+                "sexta",
                 "meu agente",
                 "meu gente",
-                "agente"
-            ];
-            const escapedNames = namePatterns.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
+                "agente",
+                "jarvis",
+                "casa"
+            ]);
+
+            const patternList = Array.from(rawPatterns).filter(Boolean);
+            const escapedNames = patternList.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
             const regex = new RegExp(`(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
+
+            console.log("[handleWakeWordDetection]: Nome configurado:", agentName, "| Regex:", regex);
 
             const wakeMatch = normalizedText.match(regex);
             console.log("[handleWakeWordDetection]: Match Wake Word:", wakeMatch);
