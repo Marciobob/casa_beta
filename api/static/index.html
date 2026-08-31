@@ -1796,7 +1796,6 @@
                                             const statusSpan = document.getElementById("agentThinkingStatus");
                                             if (statusSpan) statusSpan.textContent = ev.message;
                                             logToConsole(`[Agente]: ${ev.message}`, "info");
-                                            speakIntermediateStatus(ev.message);
                                         } else if (ev.type === "final") {
                                             finalReply = ev.reply || "";
                                             finalActions = ev.actions || [];
@@ -2274,12 +2273,23 @@
             }
         }
 
+        let voiceRestartTimeout = null;
+
         async function processSpeechQueue() {
             if (speechQueue.length === 0) {
                 isProcessingQueue = false;
-                isSpeakingTTS = false;
-                if (ttsSafetyTimeout) clearTimeout(ttsSafetyTimeout);
-                if (alwaysListen) startVoiceRecognition();
+                if (!isProcessingCommand) {
+                    isSpeakingTTS = false;
+                    if (ttsSafetyTimeout) clearTimeout(ttsSafetyTimeout);
+                    if (alwaysListen) {
+                        clearTimeout(voiceRestartTimeout);
+                        voiceRestartTimeout = setTimeout(() => {
+                            if (!isSpeakingTTS && !isProcessingCommand && speechQueue.length === 0 && alwaysListen) {
+                                startVoiceRecognition();
+                            }
+                        }, 700);
+                    }
+                }
                 return;
             }
 
@@ -2293,8 +2303,8 @@
             ttsSafetyTimeout = setTimeout(() => {
                 console.warn("[TTS Watchdog]: Destravando fila de áudio por timeout.");
                 clearSpeechQueue();
-                if (alwaysListen) startVoiceRecognition();
-            }, 30000);
+                if (alwaysListen && !isProcessingCommand) startVoiceRecognition();
+            }, 35000);
 
             try {
                 if (item.voice === "browser-native" || !navigator.onLine) {
@@ -2453,6 +2463,7 @@
             isProcessingQueue = false;
             isSpeakingTTS = false;
             lastEnqueuedText = "";
+            clearTimeout(voiceRestartTimeout);
             if (ttsSafetyTimeout) clearTimeout(ttsSafetyTimeout);
             if (currentAudioSourceNode) {
                 try { currentAudioSourceNode.stop(); } catch (e) { }
@@ -2528,6 +2539,10 @@
 
             if (recognitionInstance) {
                 try {
+                    recognitionInstance.onstart = null;
+                    recognitionInstance.onresult = null;
+                    recognitionInstance.onerror = null;
+                    recognitionInstance.onend = null;
                     recognitionInstance.abort();
                 } catch (e) { }
                 recognitionInstance = null;
@@ -2542,7 +2557,6 @@
             let latestHeardText = "";
 
             rec.onstart = () => {
-                primeAudioEngine();
                 isListening = true;
                 latestHeardText = "";
                 document.getElementById("micPulseEffect").classList.remove("hidden");
@@ -2558,8 +2572,7 @@
             };
 
             rec.onresult = (event) => {
-                primeAudioEngine();
-                if (isSpeakingTTS) return;
+                if (isSpeakingTTS || isProcessingCommand) return;
                 let interim = "";
                 let finalStr = "";
                 for (let i = 0; i < event.results.length; ++i) {
@@ -2605,12 +2618,13 @@
                     }
                 }
 
-                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand) {
-                    setTimeout(() => {
-                        if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand) {
+                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand && speechQueue.length === 0) {
+                    clearTimeout(voiceRestartTimeout);
+                    voiceRestartTimeout = setTimeout(() => {
+                        if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && speechQueue.length === 0) {
                             startVoiceRecognition();
                         }
-                    }, 150);
+                    }, 500);
                 }
             };
 
@@ -2674,7 +2688,7 @@
         }
 
         function startVoiceRecognition() {
-            if (isSpeakingTTS || isProcessingCommand) return;
+            if (isListening || isSpeakingTTS || isProcessingCommand || speechQueue.length > 0) return;
             try {
                 recognitionInstance = createFreshRecognition();
                 if (recognitionInstance) recognitionInstance.start();
@@ -2682,8 +2696,16 @@
         }
 
         function stopVoiceRecognition() {
+            clearTimeout(voiceRestartTimeout);
             if (recognitionInstance) {
-                try { recognitionInstance.abort(); } catch (e) { }
+                try {
+                    recognitionInstance.onstart = null;
+                    recognitionInstance.onresult = null;
+                    recognitionInstance.onerror = null;
+                    recognitionInstance.onend = null;
+                    recognitionInstance.abort();
+                } catch (e) { }
+                recognitionInstance = null;
             }
             isListening = false;
             document.getElementById("micPulseEffect").classList.add("hidden");

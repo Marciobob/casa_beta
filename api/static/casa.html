@@ -1609,7 +1609,6 @@
             let latestHeardText = "";
 
             rec.onstart = () => {
-                primeAudioEngine();
                 isListening = true;
                 latestHeardText = "";
                 lastActivityTimestamp = Date.now();
@@ -1628,9 +1627,8 @@
             };
 
             rec.onresult = (event) => {
-                primeAudioEngine();
                 lastActivityTimestamp = Date.now();
-                if (isSpeakingTTS) return;
+                if (isSpeakingTTS || isProcessingCommand) return;
 
                 let interim = "";
                 let finalStr = "";
@@ -1663,8 +1661,8 @@
             rec.onend = () => {
                 isListening = false;
                 document.getElementById("micPulseEffect").classList.add("hidden");
-                document.getElementById("micIcon").classList.remove("hidden");
-                document.getElementById("stopIcon").classList.add("hidden");
+                document.getElementById("micIcon").classList.add("hidden");
+                document.getElementById("stopIcon").classList.remove("hidden");
 
                 if (latestHeardText && !isSpeakingTTS && !isProcessingCommand) {
                     const textToProcess = latestHeardText;
@@ -1676,12 +1674,13 @@
                     }
                 }
 
-                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand) {
-                    setTimeout(() => {
-                        if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand) {
+                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand && speechQueue.length === 0) {
+                    clearTimeout(voiceRestartTimeout);
+                    voiceRestartTimeout = setTimeout(() => {
+                        if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && speechQueue.length === 0) {
                             startVoiceRecognition();
                         }
-                    }, 120);
+                    }, 500);
                 }
             };
 
@@ -1749,8 +1748,8 @@
                     clearTimeout(wakeWordTimer);
                     wakeWordTimer = setTimeout(() => {
                         isWaitingCommandAfterWakeWord = false;
-                        setVoiceStatus("👂", `Aguardando "${agentName}"...`, true);
-                    }, 10000);
+                        setVoiceStatus("💤", "Aguardando ativação...", false);
+                    }, 8000);
                 }
                 return;
             }
@@ -1759,14 +1758,14 @@
                 clearTimeout(wakeWordTimer);
                 isWaitingCommandAfterWakeWord = false;
                 showVoiceHud();
-                setVoiceStatus("✨", "Processando comando...", true);
+                setVoiceStatus("✨", "Executando comando...", true);
                 setVoiceTranscript(`"${text.trim()}"`, false);
                 processCommandWithApi(text.trim());
             }
         }
 
         function toggleVoiceAssistant() {
-            showVoiceHud();
+            unlockAudioContext();
 
             if (isListening) {
                 stopVoiceRecognition();
@@ -1776,7 +1775,7 @@
         }
 
         function startVoiceRecognition() {
-            if (isSpeakingTTS || isProcessingCommand) return;
+            if (isListening || isSpeakingTTS || isProcessingCommand || speechQueue.length > 0) return;
 
             try {
                 recognitionInstance = createFreshRecognition();
@@ -1786,37 +1785,32 @@
                 }
             } catch (e) {
                 console.warn("[Speech] Reiniciando escuta:", e);
-                setTimeout(() => {
-                    if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand) {
+                clearTimeout(voiceRestartTimeout);
+                voiceRestartTimeout = setTimeout(() => {
+                    if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && speechQueue.length === 0) {
                         startVoiceRecognition();
                     }
-                }, 200);
+                }, 500);
             }
         }
 
         function stopVoiceRecognition() {
+            clearTimeout(voiceRestartTimeout);
             if (recognitionInstance) {
                 try {
+                    recognitionInstance.onstart = null;
+                    recognitionInstance.onresult = null;
+                    recognitionInstance.onerror = null;
+                    recognitionInstance.onend = null;
                     recognitionInstance.abort();
                 } catch (e) { }
+                recognitionInstance = null;
             }
             isListening = false;
             document.getElementById("micPulseEffect").classList.add("hidden");
             document.getElementById("micIcon").classList.add("hidden");
             document.getElementById("stopIcon").classList.remove("hidden");
         }
-
-        function initVoiceWatchdog() {
-            if (watchdogInterval) clearInterval(watchdogInterval);
-
-            watchdogInterval = setInterval(() => {
-                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand && !isListening) {
-                    startVoiceRecognition();
-                }
-            }, 2000);
-        }
-
-        initVoiceWatchdog();
 
         function handleManualCommand(e) {
             e.preventDefault();
@@ -1921,7 +1915,6 @@
                                         if (ev.type === "status") {
                                             setVoiceStatus("🔄", ev.message, true);
                                             showResponse(`⏳ ${ev.message}`);
-                                            speakIntermediateStatus(ev.message);
                                         } else if (ev.type === "final") {
                                             finalReply = ev.reply || "";
                                             finalActions = ev.actions || [];
@@ -2277,10 +2270,19 @@
         async function processSpeechQueue() {
             if (speechQueue.length === 0) {
                 isProcessingQueue = false;
-                isSpeakingTTS = false;
-                if (ttsSafetyTimeout) clearTimeout(ttsSafetyTimeout);
-                lastActivityTimestamp = Date.now();
-                if (alwaysListen) startVoiceRecognition();
+                if (!isProcessingCommand) {
+                    isSpeakingTTS = false;
+                    if (ttsSafetyTimeout) clearTimeout(ttsSafetyTimeout);
+                    lastActivityTimestamp = Date.now();
+                    if (alwaysListen) {
+                        clearTimeout(voiceRestartTimeout);
+                        voiceRestartTimeout = setTimeout(() => {
+                            if (!isSpeakingTTS && !isProcessingCommand && speechQueue.length === 0 && alwaysListen) {
+                                startVoiceRecognition();
+                            }
+                        }, 700);
+                    }
+                }
                 return;
             }
 
@@ -2294,8 +2296,8 @@
             ttsSafetyTimeout = setTimeout(() => {
                 console.warn("[TTS Watchdog]: Destravando fila de áudio por timeout.");
                 clearSpeechQueue();
-                if (alwaysListen) startVoiceRecognition();
-            }, 30000);
+                if (alwaysListen && !isProcessingCommand) startVoiceRecognition();
+            }, 35000);
 
             try {
                 if (item.voice === "browser-native" || !navigator.onLine) {
