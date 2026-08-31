@@ -1235,6 +1235,59 @@ AUTOMATION_TEMPLATES = [
         "trigger_value": "60",
         "action_type": "agent_prompt",
         "action_payload": {"prompt": "Verifique se tenho e-mails importantes não lidos ou tarefas urgentes"}
+    },
+    {
+        "id": "video_resident_find",
+        "name": "📹 Reconhecer Morador na Câmera & Avisar no Telegram",
+        "description": "Monitora a câmera com visão computacional e IA. Ao reconhecer o morador cadastrado, envia aviso e a foto capturada instantaneamente no Telegram.",
+        "icon": "👤",
+        "automation_type": "video_face_recognition",
+        "trigger_type": "interval_seconds",
+        "trigger_value": "30",
+        "action_type": "video_alert",
+        "action_payload": {
+            "detection_mode": "video_face_recognition",
+            "target_person": "todos",
+            "notify_telegram": True,
+            "cooldown_seconds": 300,
+            "custom_message": "🎉 Morador identificado na câmera da residência!"
+        }
+    },
+    {
+        "id": "video_unknown_person_alert",
+        "name": "🚨 Alerta de Segurança: Visitante / Pessoa Não Cadastrada",
+        "description": "Analisa a câmera e envia um alerta imediato com a foto no Telegram se detectar uma pessoa não cadastrada nos moradores da casa.",
+        "icon": "🚨",
+        "automation_type": "video_unknown_alert",
+        "trigger_type": "interval_seconds",
+        "trigger_value": "30",
+        "action_type": "video_alert",
+        "action_payload": {
+            "detection_mode": "video_unknown_alert",
+            "target_person": "desconhecido",
+            "notify_telegram": True,
+            "cooldown_seconds": 300,
+            "custom_message": "🚨 Atenção: Pessoa não cadastrada/visitante detectada na câmera!"
+        }
+    },
+    {
+        "id": "video_welcome_arrival",
+        "name": "🎉 Boas-Vindas Inteligente (Reconhecimento Facial + Luzes)",
+        "description": "Ao reconhecer a chegada do morador, acende as luzes do cômodo via MQTT e envia mensagem de boas-vindas com foto no Telegram.",
+        "icon": "✨",
+        "automation_type": "video_face_recognition",
+        "trigger_type": "interval_seconds",
+        "trigger_value": "30",
+        "action_type": "video_alert",
+        "action_payload": {
+            "detection_mode": "video_face_recognition",
+            "target_person": "todos",
+            "notify_telegram": True,
+            "mqtt_room": "sala",
+            "mqtt_action": "ON",
+            "cooldown_seconds": 600,
+            "custom_message": "🏠 Seja bem-vindo(a) de volta! Luzes da sala acesas para sua chegada."
+        }
     }
 ]
 
@@ -1242,6 +1295,20 @@ AUTOMATION_TEMPLATES = [
 def get_automation_templates_endpoint():
     """Retorna os modelos prontos de automações para fácil criação pelo usuário."""
     return {"templates": AUTOMATION_TEMPLATES}
+
+@app.get("/api/residents/list")
+def list_residents_endpoint(token_payload: dict = Depends(get_current_user_token)):
+    """Retorna a lista de moradores cadastrados com indicação de fotos para automações."""
+    residents = db_get_all_residents()
+    res_list = []
+    for r in residents:
+        res_list.append({
+            "name": r.get("name", "Morador"),
+            "email": r.get("email", ""),
+            "has_photo": bool(r.get("has_photo")),
+            "photo_preview": r.get("photo_base64", "")[:120] if r.get("has_photo") else ""
+        })
+    return {"residents": res_list}
 
 @app.get("/api/automations")
 def list_user_automations_endpoint(token_payload: dict = Depends(get_current_user_token)):

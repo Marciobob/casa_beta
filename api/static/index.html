@@ -158,14 +158,20 @@
         <div
             class="relative w-full max-w-md bg-zinc-900/95 border border-indigo-500/40 rounded-3xl p-8 text-center shadow-[0_0_80px_rgba(99,102,241,0.25)] overflow-hidden">
             <!-- Glows & Efeitos de Fundo -->
-            <div class="absolute -top-24 -left-24 w-48 h-48 bg-indigo-600/30 rounded-full blur-3xl pointer-events-none"></div>
-            <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-600/30 rounded-full blur-3xl pointer-events-none"></div>
-            <div class="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent"></div>
+            <div class="absolute -top-24 -left-24 w-48 h-48 bg-indigo-600/30 rounded-full blur-3xl pointer-events-none">
+            </div>
+            <div
+                class="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-600/30 rounded-full blur-3xl pointer-events-none">
+            </div>
+            <div
+                class="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent">
+            </div>
 
             <!-- Holograma Central Animado -->
             <div class="relative mx-auto w-24 h-24 mb-6 flex items-center justify-center">
                 <div class="absolute inset-0 rounded-full border-2 border-indigo-500/40 animate-ping opacity-30"></div>
-                <div class="absolute inset-2 rounded-full border border-purple-500/50 animate-spin" style="animation-duration: 8s;"></div>
+                <div class="absolute inset-2 rounded-full border border-purple-500/50 animate-spin"
+                    style="animation-duration: 8s;"></div>
                 <div
                     class="relative w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/50">
                     <span class="text-3xl">🤖</span>
@@ -1367,6 +1373,9 @@
                                     <label class="block text-xs text-zinc-400 mb-1">Tipo de Tarefa</label>
                                     <select id="autoFormType" onchange="handleAutoTypeChange()"
                                         class="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 transition">
+                                        <option value="video_face_recognition">📹 Reconhecer Morador na Câmera (Reconhecimento Facial)</option>
+                                        <option value="video_unknown_alert">🚨 Alerta de Visitante / Pessoa Não Cadastrada</option>
+                                        <option value="video_presence_detection">👥 Detecção de Qualquer Pessoa na Câmera</option>
                                         <option value="calendar_reminder">⏰ Lembrete de Agenda no Telegram</option>
                                         <option value="daily_summary">☀️ Resumo Diário / Matinal no Telegram</option>
                                         <option value="mqtt_schedule">💡 Agendamento de Luzes (MQTT)</option>
@@ -3277,6 +3286,23 @@
 
         let cachedAutomations = [];
         let cachedTemplates = [];
+        let cachedResidentsList = [];
+
+        async function fetchResidentsForAutomations() {
+            const token = authToken || localStorage.getItem("smartHomeToken") || "";
+            if (!token) return;
+            try {
+                const res = await fetch("/api/residents/list", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    cachedResidentsList = data.residents || [];
+                }
+            } catch (e) {
+                console.warn("[Automations] Falha ao carregar moradores:", e);
+            }
+        }
 
         function openAutomationsModal(defaultTab = 'list') {
             const modal = document.getElementById("automationsModal");
@@ -3284,7 +3310,7 @@
             switchAutomationsTab(defaultTab);
             fetchUserAutomations();
             fetchAutomationTemplates();
-            handleAutoTypeChange();
+            fetchResidentsForAutomations().then(() => handleAutoTypeChange());
         }
 
         function closeAutomationsModal() {
@@ -3350,7 +3376,7 @@
                         <div class="text-3xl mb-2">⚡</div>
                         <h4 class="text-sm font-bold text-zinc-200 mb-1">Nenhuma automação cadastrada</h4>
                         <p class="text-xs text-zinc-400 max-w-md mx-auto mb-4">
-                            Crie regras para receber avisos prévios da Google Agenda no Telegram, resumos matinais diários ou comandos automáticos.
+                            Crie regras para receber avisos prévios da Google Agenda no Telegram, resumos matinais diários, comandos automáticos ou reconhecimento facial na câmera.
                         </p>
                         <button onclick="switchAutomationsTab('new')"
                             class="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition inline-flex items-center gap-1.5 shadow-md shadow-amber-600/20">
@@ -3382,6 +3408,18 @@
                     icon = "🤖";
                     typeBadge = "Comando Agente";
                     triggerDesc = `A cada ${a.trigger_value} minutos`;
+                } else if (a.automation_type === "video_face_recognition") {
+                    icon = "📹";
+                    typeBadge = "Reconhecimento Facial";
+                    triggerDesc = `Varredura a cada ${a.trigger_value}s`;
+                } else if (a.automation_type === "video_unknown_alert") {
+                    icon = "🚨";
+                    typeBadge = "Alerta Visitante/Intruso";
+                    triggerDesc = `Varredura a cada ${a.trigger_value}s`;
+                } else if (a.automation_type === "video_presence_detection") {
+                    icon = "👥";
+                    typeBadge = "Detecção de Presença";
+                    triggerDesc = `Varredura a cada ${a.trigger_value}s`;
                 } else {
                     triggerDesc = a.trigger_value;
                 }
@@ -3427,7 +3465,7 @@
                             <div class="flex items-center gap-2">
                                 <button onclick="testAutomation(${a.id})"
                                     class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-amber-600 hover:text-white text-zinc-300 transition text-[11px] font-semibold flex items-center gap-1 border border-zinc-700">
-                                    <span>🧪</span> <span>Testar</span>
+                                    <span>🧪</span> <span>Testar Agora</span>
                                 </button>
                                 <button onclick="deleteAutomation(${a.id})"
                                     class="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-red-600 hover:text-white text-zinc-400 transition text-[11px] flex items-center gap-1 border border-zinc-700">
@@ -3489,18 +3527,126 @@
 
             handleAutoTypeChange();
 
+            // Preenche campos de payload se for automação de vídeo
+            if (t.action_payload) {
+                if (t.action_payload.target_person && document.getElementById("autoVideoTarget")) {
+                    document.getElementById("autoVideoTarget").value = t.action_payload.target_person;
+                }
+                if (t.action_payload.custom_message && document.getElementById("autoVideoCustomMsg")) {
+                    document.getElementById("autoVideoCustomMsg").value = t.action_payload.custom_message;
+                }
+                if (t.action_payload.mqtt_room && document.getElementById("autoVideoMqttRoom")) {
+                    document.getElementById("autoVideoMqttRoom").value = t.action_payload.mqtt_room;
+                }
+                if (t.action_payload.mqtt_action && document.getElementById("autoVideoMqttAction")) {
+                    document.getElementById("autoVideoMqttAction").value = t.action_payload.mqtt_action;
+                }
+            }
+
             // Rola suavemente até o formulário
             const formCard = document.querySelector("#automationsTabNew .p-5");
             if (formCard) formCard.scrollIntoView({ behavior: 'smooth' });
         }
 
         function handleAutoTypeChange() {
-            const type = document.getElementById("autoFormType")?.value || "calendar_reminder";
+            const type = document.getElementById("autoFormType")?.value || "video_face_recognition";
             const triggerLabel = document.getElementById("autoFormTriggerLabel");
             const triggerInput = document.getElementById("autoFormTriggerValue");
             const dynamicFields = document.getElementById("autoDynamicFields");
 
-            if (type === "calendar_reminder") {
+            if (type === "video_face_recognition") {
+                if (triggerLabel) triggerLabel.innerText = "Intervalo de Varredura da Câmera (Segundos)";
+                if (triggerInput && (!triggerInput.value || triggerInput.value.includes(":"))) triggerInput.value = "30";
+                
+                let residentsOptions = `<option value="todos">👥 Qualquer Morador Cadastrado</option>`;
+                if (cachedResidentsList && cachedResidentsList.length > 0) {
+                    residentsOptions += cachedResidentsList.map(r => `
+                        <option value="${r.name}">👤 ${r.name} (${r.has_photo ? 'Foto cadastrada ✅' : 'Sem foto ⚠️'})</option>
+                    `).join("");
+                }
+
+                if (dynamicFields) dynamicFields.innerHTML = `
+                    <div class="p-3.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 space-y-3">
+                        <div class="flex items-center gap-2 text-xs font-bold text-indigo-300">
+                            <span>📹</span> <span>Configurações de Reconhecimento Facial</span>
+                        </div>
+                        
+                        <div class="grid sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] text-zinc-400 mb-1">Morador Alvo para Identificar</label>
+                                <select id="autoVideoTarget" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
+                                    ${residentsOptions}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-zinc-400 mb-1">Notificação no Telegram</label>
+                                <div class="pt-2">
+                                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                                        <input type="checkbox" id="autoVideoTelegram" checked class="rounded border-zinc-700 bg-zinc-900 text-indigo-500">
+                                        <span>Anexar Foto em Tempo Real</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid sm:grid-cols-2 gap-3 pt-1 border-t border-indigo-900/40">
+                            <div>
+                                <label class="block text-[11px] text-zinc-400 mb-1">Acionamento Residencial MQTT (Opcional)</label>
+                                <select id="autoVideoMqttRoom" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
+                                    <option value="">Nenhum acionamento</option>
+                                    <option value="sala">Acender Luz da Sala</option>
+                                    <option value="externa">Acender Luz Externa / Garagem</option>
+                                    <option value="todas">Acender Todas as Luzes</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-zinc-400 mb-1">Ação MQTT</label>
+                                <select id="autoVideoMqttAction" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
+                                    <option value="ON">Ligar (ON)</option>
+                                    <option value="OFF">Desligar (OFF)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] text-zinc-400 mb-1">Mensagem de Notificação no Telegram</label>
+                            <input id="autoVideoCustomMsg" type="text" placeholder="Ex: 🎉 Morador chegou em casa e foi reconhecido!" value="🎉 Morador identificado na câmera da residência!"
+                                class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                `;
+            } else if (type === "video_unknown_alert") {
+                if (triggerLabel) triggerLabel.innerText = "Intervalo de Varredura da Câmera (Segundos)";
+                if (triggerInput && (!triggerInput.value || triggerInput.value.includes(":"))) triggerInput.value = "30";
+                if (dynamicFields) dynamicFields.innerHTML = `
+                    <div class="p-3.5 rounded-xl bg-red-950/40 border border-red-500/30 space-y-3">
+                        <div class="flex items-center gap-2 text-xs font-bold text-red-300">
+                            <span>🚨</span> <span>Alerta de Pessoa Desconhecida / Visitante</span>
+                        </div>
+                        <p class="text-[11px] text-zinc-300 leading-relaxed">
+                            A câmera monitora continuamente. Caso uma pessoa seja detectada cujo rosto <strong>não coincida</strong> com os moradores cadastrados no sistema, a IA dispara imediatamente uma foto com alerta no seu Telegram.
+                        </p>
+                        <div>
+                            <label class="block text-[11px] text-zinc-400 mb-1">Mensagem de Alerta no Telegram</label>
+                            <input id="autoVideoCustomMsg" type="text" placeholder="Ex: 🚨 Atenção: Pessoa não cadastrada detectada na câmera!" value="🚨 Atenção: Pessoa não cadastrada/visitante detectada na câmera!"
+                                class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-red-500">
+                        </div>
+                    </div>
+                `;
+            } else if (type === "video_presence_detection") {
+                if (triggerLabel) triggerLabel.innerText = "Intervalo de Varredura (Segundos)";
+                if (triggerInput && (!triggerInput.value || triggerInput.value.includes(":"))) triggerInput.value = "30";
+                if (dynamicFields) dynamicFields.innerHTML = `
+                    <div class="p-3.5 rounded-xl bg-purple-950/40 border border-purple-500/30 space-y-3">
+                        <div class="flex items-center gap-2 text-xs font-bold text-purple-300">
+                            <span>👥</span> <span>Detecção de Qualquer Presença Humana</span>
+                        </div>
+                        <p class="text-[11px] text-zinc-300 leading-relaxed">
+                            Notifica com foto e resumo descritivo da cena no Telegram sempre que qualquer movimento ou pessoa for detectada na câmera.
+                        </p>
+                    </div>
+                `;
+            } else if (type === "calendar_reminder") {
                 if (triggerLabel) triggerLabel.innerText = "Minutos de Antecedência para o Alerta";
                 if (triggerInput && (!triggerInput.value || triggerInput.value.includes(":"))) triggerInput.value = "15";
                 if (dynamicFields) dynamicFields.innerHTML = `
@@ -3574,7 +3720,26 @@
             let actionType = "telegram_alert";
             let payload = {};
 
-            if (autoType === "calendar_reminder") {
+            if (autoType.startsWith("video_")) {
+                triggerType = "interval_seconds";
+                actionType = "video_alert";
+                
+                const targetPerson = document.getElementById("autoVideoTarget")?.value || (autoType === "video_unknown_alert" ? "desconhecido" : "todos");
+                const notifyTelegram = document.getElementById("autoVideoTelegram") ? document.getElementById("autoVideoTelegram").checked : true;
+                const customMsg = document.getElementById("autoVideoCustomMsg")?.value.trim() || "";
+                const mqttRoom = document.getElementById("autoVideoMqttRoom")?.value || "";
+                const mqttAction = document.getElementById("autoVideoMqttAction")?.value || "ON";
+
+                payload = {
+                    detection_mode: autoType,
+                    target_person: targetPerson,
+                    notify_telegram: notifyTelegram,
+                    custom_message: customMsg,
+                    mqtt_room: mqttRoom,
+                    mqtt_action: mqttAction,
+                    cooldown_seconds: 300
+                };
+            } else if (autoType === "calendar_reminder") {
                 triggerType = "event_relative_minutes";
                 actionType = "telegram_alert";
                 payload = { minutes_before: parseInt(triggerVal) || 15 };

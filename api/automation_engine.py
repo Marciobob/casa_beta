@@ -28,6 +28,7 @@ try:
     )
     from api.tools.mqtt_tools import controlar_luzes, relatorio_status_casa
     from api.tools.gmail_tools import set_gmail_credentials_context, ler_emails_recentes
+    from api.video_automation import evaluate_video_automation
 except ImportError:
     from logger import system_logger
     from database import (
@@ -50,6 +51,7 @@ except ImportError:
     )
     from tools.mqtt_tools import controlar_luzes, relatorio_status_casa
     from tools.gmail_tools import set_gmail_credentials_context, ler_emails_recentes
+    from video_automation import evaluate_video_automation
 
 
 class AutomationEngine:
@@ -156,6 +158,38 @@ class AutomationEngine:
 
             if should_run:
                 self.execute_automation_action(rule, is_manual=False)
+            return
+
+        # 4. Automações de Vídeo & Visão Computacional (Reconhecimento Facial / Detecção)
+        if auto_type.startswith("video_") or action_type == "video_alert":
+            interval_secs = 30
+            if trigger_type == "interval_minutes":
+                try:
+                    interval_secs = int(trigger_val) * 60
+                except ValueError:
+                    interval_secs = 60
+            elif trigger_type == "interval_seconds":
+                try:
+                    interval_secs = int(trigger_val)
+                except ValueError:
+                    interval_secs = 30
+            
+            last_run = rule.get("last_run_at")
+            should_run = False
+            if not last_run:
+                should_run = True
+            else:
+                try:
+                    last_dt = datetime.fromisoformat(last_run.replace("Z", "+00:00"))
+                    diff = (datetime.now(timezone.utc) - last_dt).total_seconds()
+                    if diff >= interval_secs:
+                        should_run = True
+                except Exception:
+                    should_run = True
+
+            if should_run:
+                evaluate_video_automation(rule, now_local, is_manual=False)
+            return
 
     def execute_calendar_reminder(self, rule: Dict[str, Any], now_local: datetime) -> Tuple[bool, str]:
         """Verifica a Google Agenda do usuário e avisa com antecedência no Telegram."""
@@ -299,6 +333,11 @@ class AutomationEngine:
                         db_record_automation_run(auto_id, "error", f"Falha no Telegram: {resp}")
                         return False, resp
                 return False, "Telegram não configurado para envio."
+
+            # 6. Automação de Vídeo e Reconhecimento Facial
+            elif auto_type.startswith("video_") or action_type == "video_alert":
+                tz_local = dateutil.tz.tzlocal()
+                return evaluate_video_automation(rule, datetime.now(tz_local), is_manual=True)
 
             else:
                 db_record_automation_run(auto_id, "success", "Regra executada.")
