@@ -884,6 +884,8 @@
             roomStates[room.topic] = !currentState;
             renderRooms();
             updateDashboard();
+            unlockAudioContext();
+            speakResponse((newState === "ON" ? "Ligando " : "Desligando ") + room.name);
         }
 
         function renderRooms() {
@@ -1192,6 +1194,7 @@
                         </div>
                         <div class="text-[11px] text-zinc-300">${data.details}</div>
                     `;
+                    speakResponse("Telegram conectado com sucesso.");
                 } else {
                     statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
                     statusBox.innerHTML = `
@@ -1200,10 +1203,12 @@
                         </div>
                         <div class="text-[11px] text-zinc-300">${data.detail || data.details || "Verifique se o token criado no @BotFather está correto."}</div>
                     `;
+                    speakResponse("Falha na conexão com o Telegram.");
                 }
             } catch (err) {
                 statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
                 statusBox.innerHTML = `<span>Erro ao testar Telegram: ${err.message}</span>`;
+                speakResponse("Erro ao testar o Telegram.");
             } finally {
                 if (testBtn) testBtn.disabled = false;
             }
@@ -1249,6 +1254,7 @@
                             <div>• 👥 <b>Google Contatos:</b> ${data.carddav ? "Conectado" : "Aviso"}</div>
                         </div>
                     `;
+                    speakResponse("Conta Google conectada com sucesso.");
                     // Auto-salva no SQLite ao testar com sucesso
                     if (email && pwd && !pwd.includes("•") && !pwd.includes("*")) {
                         const token = getAuthToken();
@@ -1277,10 +1283,12 @@
                         </div>
                         <div class="text-[11px] text-zinc-300">${data.message || "Verifique as credenciais digitadas."}</div>
                     `;
+                    speakResponse("Falha na autenticação da conta Google.");
                 }
             } catch (err) {
                 statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
                 statusBox.innerHTML = `<span>Erro ao testar: ${err.message}</span>`;
+                speakResponse("Erro ao testar a conta Google.");
             } finally {
                 if (testBtn) testBtn.disabled = false;
             }
@@ -1370,6 +1378,7 @@
                         previewImg.src = data.snapshot_base64;
                         previewContainer.classList.remove("hidden");
                     }
+                    speakResponse("Câmera conectada e operacional.");
                 } else {
                     statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
                     statusBox.innerHTML = `
@@ -1379,10 +1388,12 @@
                         <div class="text-[11px] text-zinc-300">${data.message || "Verifique se o dispositivo está conectado ou se a URL RTSP/HTTP da câmera IP está correta."}</div>
                     `;
                     if (previewContainer) previewContainer.classList.add("hidden");
+                    speakResponse("Erro ao conectar à câmera.");
                 }
             } catch (err) {
                 statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
                 statusBox.innerHTML = `<span>Erro ao testar câmera: ${err.message}</span>`;
+                speakResponse("Erro ao testar a câmera.");
             } finally {
                 if (testBtn) testBtn.disabled = false;
             }
@@ -1982,6 +1993,7 @@
                 console.error("[API Error]:", e);
                 setVoiceStatus("❌", `Erro API: ${e.message}`, false);
                 showResponse(`Falha na API: ${e.message}`);
+                speakResponse("Desculpe, ocorreu uma falha ao processar o seu pedido.");
             } finally {
                 setTimeout(() => {
                     isProcessingCommand = false;
@@ -3035,12 +3047,15 @@
                     document.getElementById("autoFormName").value = "";
                     switchAutomationsTab('list');
                     fetchUserAutomations();
+                    speakResponse("Nova regra de automação salva com sucesso.");
                 } else {
                     const err = await res.json();
                     alert(`Erro ao criar automação: ${err.detail || 'Falha na requisição'}`);
+                    speakResponse("Erro ao criar automação.");
                 }
             } catch (err) {
                 alert(`Erro de conexão ao salvar automação: ${err.message}`);
+                speakResponse("Erro de conexão ao salvar automação.");
             }
         }
 
@@ -3053,6 +3068,7 @@
                 });
                 if (res.ok) {
                     fetchUserAutomations();
+                    speakResponse("Status da automação alterado com sucesso.");
                 }
             } catch (err) {
                 console.warn("Erro ao alternar status da automação:", err);
@@ -3078,9 +3094,11 @@
                     if (data.status === "success") {
                         statusBox.className = "px-6 py-3 bg-emerald-950/40 border-t border-emerald-500/40 text-xs text-emerald-300 flex items-center justify-between";
                         statusBox.innerHTML = `<span>✔ Teste concluído com sucesso: ${data.message}</span> <button onclick="this.parentElement.classList.add('hidden')" class="text-zinc-400 hover:text-white">✕</button>`;
+                        speakResponse("Teste da automação executado com sucesso: " + (data.message || ""));
                     } else {
                         statusBox.className = "px-6 py-3 bg-red-950/40 border-t border-red-500/40 text-xs text-red-300 flex items-center justify-between";
                         statusBox.innerHTML = `<span>✖ Erro no teste: ${data.message}</span> <button onclick="this.parentElement.classList.add('hidden')" class="text-zinc-400 hover:text-white">✕</button>`;
+                        speakResponse("Falha no teste da automação: " + (data.message || ""));
                     }
                 }
                 fetchUserAutomations();
@@ -3089,6 +3107,7 @@
                     statusBox.className = "px-6 py-3 bg-red-950/40 border-t border-red-500/40 text-xs text-red-300";
                     statusBox.innerHTML = `Erro na requisição de teste: ${err.message}`;
                 }
+                speakResponse("Erro ao executar teste da automação.");
             }
         }
 
@@ -3102,9 +3121,11 @@
                 });
                 if (res.ok) {
                     fetchUserAutomations();
+                    speakResponse("Automação excluída com sucesso.");
                 }
             } catch (err) {
                 alert(`Erro ao excluir automação: ${err.message}`);
+                speakResponse("Erro ao excluir automação.");
             }
         }
 

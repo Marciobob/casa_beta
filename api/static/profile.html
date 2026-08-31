@@ -269,6 +269,52 @@
             }
         }
 
+        async function speakProfileFeedback(text) {
+            if (!text) return;
+            const clean = text.replace(/[*#_~`]/g, "").trim();
+            const voice = localStorage.getItem("smartHomeVoice") || "pt-BR-FranciscaNeural";
+            
+            if (voice === "browser-native" || !navigator.onLine) {
+                speakNative(clean);
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/tts", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ text: clean, voice: voice })
+                });
+
+                if (!res.ok) throw new Error("Falha no TTS neural");
+                const blob = await res.blob();
+                const audioUrl = URL.createObjectURL(blob);
+                const audio = new Audio(audioUrl);
+                audio.onended = () => URL.revokeObjectURL(audioUrl);
+                audio.onerror = () => URL.revokeObjectURL(audioUrl);
+                audio.play().catch(() => speakNative(clean));
+            } catch (err) {
+                speakNative(clean);
+            }
+        }
+
+        function speakNative(text) {
+            if (!("speechSynthesis" in window)) return;
+            try {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = "pt-BR";
+                utterance.rate = 1.15;
+                const voices = window.speechSynthesis.getVoices();
+                const ptVoice = voices.find(v => v.lang === "pt-BR" || v.lang.startsWith("pt")) || null;
+                if (ptVoice) utterance.voice = ptVoice;
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {}
+        }
+
         function showToast(msg, isSuccess = true) {
             const toast = document.getElementById("toastAlert");
             toast.className = isSuccess
@@ -277,6 +323,7 @@
             toast.innerHTML = `<span>${isSuccess ? '✅' : '⚠️'}</span><span>${msg}</span>`;
             toast.classList.remove("hidden");
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            speakProfileFeedback(msg);
         }
 
         let webcamStream = null;
