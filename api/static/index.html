@@ -265,6 +265,13 @@
                     <span id="alwaysListenText">🎙️ Ouvir Sempre</span>
                 </button>
 
+                <!-- BOTAO GUIA & AJUDA DAS FERRAMENTAS -->
+                <button onclick="openFeatureGuide('visao_geral')" title="Guia do Sistema & Informações"
+                    class="bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 transition px-3.5 py-3 rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-lg shadow-indigo-600/10">
+                    <span>ℹ️</span>
+                    <span>Guia / Ajuda</span>
+                </button>
+
                 <!-- BOTAO AUTOMAÇÕES & 2º PLANO -->
                 <button onclick="openAutomationsModal()"
                     class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 transition px-3.5 py-3 rounded-2xl font-semibold text-xs sm:text-sm flex items-center gap-1.5 shadow-lg shadow-amber-500/10">
@@ -525,10 +532,16 @@
                                     <p class="text-[11px] text-zinc-400 font-mono">IMAP / SMTP SSL</p>
                                 </div>
                             </div>
-                            <span id="gmailBadgeStatus"
-                                class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conectado
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('gmail')" title="Guia do Gmail"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 transition flex items-center gap-1 border border-zinc-700/60">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span id="gmailBadgeStatus"
+                                    class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conectado
+                                </span>
+                            </div>
                         </div>
                         <p class="text-xs text-zinc-400 mb-4 leading-relaxed">
                             Leitura de e-mails recentes, busca por assunto/remetente, envio de mensagens, respostas com
@@ -561,10 +574,16 @@
                                     <p class="text-[11px] text-zinc-400 font-mono">Google CalDAV</p>
                                 </div>
                             </div>
-                            <span id="calendarBadgeStatus"
-                                class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conectado
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('calendar')" title="Guia da Agenda"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 transition flex items-center gap-1 border border-zinc-700/60">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span id="calendarBadgeStatus"
+                                    class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conectado
+                                </span>
+                            </div>
                         </div>
                         <p class="text-xs text-zinc-400 mb-4 leading-relaxed">
                             Consulta da agenda de hoje e semana, agendamento de novos eventos com data/hora e
@@ -598,10 +617,16 @@
                                     <p class="text-[11px] text-zinc-400 font-mono">Google CardDAV</p>
                                 </div>
                             </div>
-                            <span id="contactsBadgeStatus"
-                                class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conectado
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('contatos')" title="Guia de Contatos"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 transition flex items-center gap-1 border border-zinc-700/60">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span id="contactsBadgeStatus"
+                                    class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conectado
+                                </span>
+                            </div>
                         </div>
                         <p class="text-xs text-zinc-400 mb-4 leading-relaxed">
                             Busca por pessoas, telefones e e-mails na sua conta Google com envio automático de e-mails
@@ -634,11 +659,17 @@
                                     <p class="text-[11px] text-zinc-400 font-mono">To-Do & Calendar Sync</p>
                                 </div>
                             </div>
-                            <span id="tasksBadgeStatus"
-                                class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> <span
-                                    id="tasksPendingCountBadge">0 pendentes</span>
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('tarefas')" title="Guia de Tarefas"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 transition flex items-center gap-1 border border-zinc-700/60">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span id="tasksBadgeStatus"
+                                    class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> <span
+                                        id="tasksPendingCountBadge">0 pendentes</span>
+                                </span>
+                            </div>
                         </div>
                         <p class="text-xs text-zinc-400 mb-4 leading-relaxed">
                             Crie afazeres com prazos sincronizados com a Google Agenda, prioridades e conclusão por voz.
@@ -671,11 +702,17 @@
                                     <p class="text-[11px] text-zinc-400 font-mono">Google Keep & Checklists</p>
                                 </div>
                             </div>
-                            <span id="notesBadgeStatus"
-                                class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> <span id="notesCountBadge">0
-                                    notas</span>
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('keep')" title="Guia de Notas & Compras"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 transition flex items-center gap-1 border border-zinc-700/60">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span id="notesBadgeStatus"
+                                    class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> <span id="notesCountBadge">0
+                                        notas</span>
+                                </span>
+                            </div>
                         </div>
                         <p class="text-xs text-zinc-400 mb-4 leading-relaxed">
                             Crie notas de texto livre, ideias e listas de compras com adição e marcação de itens por
@@ -708,10 +745,16 @@
                                     <p class="text-[11px] text-zinc-400 font-mono">Broker Mosquitto</p>
                                 </div>
                             </div>
-                            <span id="mqttBadgeStatus"
-                                class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span> Conectando...
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('mqtt')" title="Guia de Iluminação e MQTT"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 transition flex items-center gap-1 border border-zinc-700/60">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span id="mqttBadgeStatus"
+                                    class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span> Conectando...
+                                </span>
+                            </div>
                         </div>
                         <p class="text-xs text-zinc-400 mb-4 leading-relaxed">
                             Controle em tempo real de lâmpadas, interruptores e relatório de status geral de todos os
@@ -730,7 +773,7 @@
                     </div>
                 </div>
 
-                <!-- CARD 4: PESQUISA WEB -->
+                <!-- CARD 7: PESQUISA WEB -->
                 <div class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl">
                     <div>
                         <div class="flex items-center justify-between mb-3">
@@ -744,10 +787,16 @@
                                     <p class="text-[11px] text-zinc-400 font-mono">DuckDuckGo Realtime</p>
                                 </div>
                             </div>
-                            <span
-                                class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conectado
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('visao_geral')" title="Guia de Pesquisa Web"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 transition flex items-center gap-1 border border-zinc-700/60">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span
+                                    class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conectado
+                                </span>
+                            </div>
                         </div>
                         <p class="text-xs text-zinc-400 mb-4 leading-relaxed">
                             Busca notícias em tempo real, previsão do clima, fatos atualizados, receitas, filmes e
@@ -766,7 +815,7 @@
                     </div>
                 </div>
 
-                <!-- CARD 5: PERFIL E PREFERÊNCIAS -->
+                <!-- CARD 8: PERFIL E PREFERÊNCIAS -->
                 <div class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl">
                     <div>
                         <div class="flex items-center justify-between mb-3">
@@ -780,10 +829,16 @@
                                     <p class="text-[11px] text-zinc-400 font-mono">SQLite user_profiles</p>
                                 </div>
                             </div>
-                            <span
-                                class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conectado
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('perfil')" title="Guia de Perfil"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 transition flex items-center gap-1 border border-zinc-700/60">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span
+                                    class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conectado
+                                </span>
+                            </div>
                         </div>
                         <p class="text-xs text-zinc-400 mb-4 leading-relaxed">
                             Dados pessoais, tipo sanguíneo, comidas preferidas, filmes, gostos, rotinas e notas da sua
@@ -803,7 +858,7 @@
                     </div>
                 </div>
 
-                <!-- CARD 6: VISÃO COMPUTACIONAL & CÂMERA -->
+                <!-- CARD 9: VISÃO COMPUTACIONAL & CÂMERA -->
                 <div
                     class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-cyan-950/30 via-zinc-900/60 to-zinc-900/60 border-cyan-500/20">
                     <div>
@@ -819,10 +874,16 @@
                                         Dispositivo / IP</p>
                                 </div>
                             </div>
-                            <span id="cameraStatusBadge"
-                                class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                                Ativa
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('reconhecimento_facial')" title="Guia de Reconhecimento Facial & Visão"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 transition flex items-center gap-1 border border-cyan-500/40">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span id="cameraStatusBadge"
+                                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                    Ativa
+                                </span>
+                            </div>
                         </div>
                         <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
                             Acesso à webcam e câmeras IP com reconhecimento inteligente do ambiente e cumprimento
@@ -843,7 +904,7 @@
                     </div>
                 </div>
 
-                <!-- CARD 7: TELEGRAM BOT & CONTROLE REMOTO -->
+                <!-- CARD 10: TELEGRAM BOT & CONTROLE REMOTO -->
                 <div
                     class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-sky-950/30 via-zinc-900/60 to-zinc-900/60 border-sky-500/20">
                     <div>
@@ -859,10 +920,16 @@
                                         Controle Remoto</p>
                                 </div>
                             </div>
-                            <span id="telegramStatusBadge"
-                                class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-400 border border-zinc-700">
-                                Não Configurado
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('telegram')" title="Guia de Configuração do Telegram"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-sky-950/80 hover:bg-sky-900 text-sky-300 transition flex items-center gap-1 border border-sky-500/40">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span id="telegramStatusBadge"
+                                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                    Não Configurado
+                                </span>
+                            </div>
                         </div>
                         <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
                             Controle a casa de qualquer lugar, receba fotos das câmeras e converse com a Sexta-Feira
@@ -882,7 +949,7 @@
                     </div>
                 </div>
 
-                <!-- CARD 8: MOTOR DE AUTOMAÇÕES & 2º PLANO -->
+                <!-- CARD 11: MOTOR DE AUTOMAÇÕES & 2º PLANO -->
                 <div
                     class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-amber-950/30 via-zinc-900/60 to-zinc-900/60 border-amber-500/20">
                     <div>
@@ -898,11 +965,17 @@
                                         Cron & Telegram</p>
                                 </div>
                             </div>
-                            <span id="automationsStatusBadge"
-                                class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> <span
-                                    id="automationsActiveCountBadge">0 ativas</span>
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('automacoes')" title="Guia do Motor de Automações"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-amber-950/80 hover:bg-amber-900 text-amber-300 transition flex items-center gap-1 border border-amber-500/40">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span id="automationsStatusBadge"
+                                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> <span
+                                        id="automationsActiveCountBadge">0 ativas</span>
+                                </span>
+                            </div>
                         </div>
                         <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
                             Lembretes automáticos no Telegram antes de compromissos da Google Agenda, resumos matinais
@@ -3890,6 +3963,7 @@
             }
         });
     </script>
+    <script src="/guide_modal.js"></script>
 
 </body>
 

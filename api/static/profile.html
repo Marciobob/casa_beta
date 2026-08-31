@@ -37,6 +37,10 @@
                     <a href="/" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl transition flex items-center gap-1">
                         ← Voltar ao Painel
                     </a>
+                    <button onclick="openFeatureGuide('perfil')" class="text-xs bg-indigo-600/30 hover:bg-indigo-600 border border-indigo-500/40 text-indigo-200 hover:text-white px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+                        <span>ℹ️</span>
+                        <span>Guia de Perfil</span>
+                    </button>
                 </div>
                 <h1 class="text-4xl font-black tracking-tight mt-2 flex items-center gap-3">
                     <span>👤 Perfil & Memória do Usuário</span>
@@ -84,6 +88,9 @@
                         <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono border border-indigo-500/30">
                             Morador Oficial
                         </span>
+                        <button onclick="openFeatureGuide('reconhecimento_facial')" class="text-[11px] px-2.5 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 hover:bg-cyan-900 font-bold border border-cyan-500/40 transition">
+                            ℹ️ Como Funciona o Reconhecimento
+                        </button>
                     </div>
                     <p class="text-xs text-zinc-300 leading-relaxed max-w-xl mb-4">
                         Cadastre uma foto de referência do seu rosto. O agente e as câmeras de visão computacional comparam essa foto para te <b>reconhecer como morador da casa</b>, te cumprimentar pelo nome e diferenciar de <b>visitantes não cadastrados</b>.
@@ -501,6 +508,7 @@
 
         loadProfile();
     </script>
+    <script src="/guide_modal.js"></script>
 
 </body>
 

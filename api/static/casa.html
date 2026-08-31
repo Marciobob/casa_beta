@@ -197,6 +197,13 @@
                     <span id="alwaysListenText">🎙️ Ouvir Sempre: Inativo</span>
                 </button>
 
+                <!-- BOTAO GUIA & AJUDA DAS FERRAMENTAS -->
+                <button onclick="openFeatureGuide('visao_geral')" title="Guia do Sistema & Informações"
+                    class="bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 transition px-4 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-indigo-600/10">
+                    <span>ℹ️</span>
+                    <span>Guia / Ajuda</span>
+                </button>
+
                 <!-- BOTAO AUTOMAÇÕES & 2º PLANO -->
                 <button onclick="openAutomationsModal()" title="Automações & Lembretes da Agenda"
                     class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 transition px-4 py-3 rounded-2xl font-semibold text-sm flex items-center gap-2 shadow-lg shadow-amber-500/10">
@@ -3122,6 +3129,7 @@
             requestScreenWakeLock();
         });
     </script>
+    <script src="/guide_modal.js"></script>
 
 </body>
 

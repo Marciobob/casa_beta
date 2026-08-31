@@ -46,6 +46,7 @@ try:
         executar_automacao_agora,
         set_automation_context
     )
+    from api.tools.manual_tools import consultar_manual_sistema
     from api.database import db_get_google_credentials, db_get_camera_config
 except ImportError:
     from logger import agent_logger
@@ -70,6 +71,7 @@ except ImportError:
         executar_automacao_agora,
         set_automation_context
     )
+    from tools.manual_tools import consultar_manual_sistema
     from database import db_get_google_credentials, db_get_camera_config
 
 def get_chat_model(model_name: str, api_key: str):
@@ -196,6 +198,7 @@ def processar_comando_agente(
         criar_automacao,
         excluir_automacao,
         executar_automacao_agora,
+        consultar_manual_sistema,
         ler_emails_recentes,
         buscar_emails,
         enviar_email,
@@ -257,12 +260,14 @@ Suas capacidades e ferramentas disponíveis:
    - 'criar_automacao': Use para criar novas regras de automação periódicas, de vídeo ou de agenda conforme pedido pelo usuário.
    - 'excluir_automacao': Use para apagar/excluir permanentemente uma regra de automação.
    - 'executar_automacao_agora': Use para testar ou executar uma automação sob demanda imediatamente.
-9. MEMÓRIA & PERFIL DO USUÁRIO: Use a ferramenta 'consultar_perfil_usuario' sempre que o usuário perguntar sobre seus dados pessoais, tipo sanguíneo, comidas preferidas, filmes/séries favoritos, músicas que gosta, carro, passeios ou notas de sua vida, ou quando você puder dar uma resposta ou recomendação personalizada baseada no perfil dele.
-10. HISTÓRICO DE CONVERSA: Você tem acesso ao histórico recente das últimas mensagens trocadas nesta conversa. Use esse contexto anterior para compreender referências, pronomes (ex: "ela", "disso", "o mesmo compromisso", "o mesmo e-mail", "o mesmo cômodo") e manter continuidade no diálogo.
-11. AUTOMAÇÃO RESIDENCIAL: Use a ferramenta 'controlar_luzes' para ligar ('ON') ou desligar ('OFF') as luzes dos cômodos solicitados.
+9. MANUAL E GUIA DE AJUDA DO SISTEMA:
+   - 'consultar_manual_sistema': Use sempre que o usuário perguntar como funciona o sistema, como configurar o Telegram (@BotFather), como gerar senha de app do Google, como funciona o reconhecimento facial, como funcionam as automações, luzes MQTT, vozes ou tiver dúvidas sobre as ferramentas e telas da casa inteligente.
+10. MEMÓRIA & PERFIL DO USUÁRIO: Use a ferramenta 'consultar_perfil_usuario' sempre que o usuário perguntar sobre seus dados pessoais, tipo sanguíneo, comidas preferidas, filmes/séries favoritos, músicas que gosta, carro, passeios ou notas de sua vida, ou quando você puder dar uma resposta ou recomendação personalizada baseada no perfil dele.
+11. HISTÓRICO DE CONVERSA: Você tem acesso ao histórico recente das últimas mensagens trocadas nesta conversa. Use esse contexto anterior para compreender referências, pronomes (ex: "ela", "disso", "o mesmo compromisso", "o mesmo e-mail", "o mesmo cômodo") e manter continuidade no diálogo.
+12. AUTOMAÇÃO RESIDENCIAL: Use a ferramenta 'controlar_luzes' para ligar ('ON') ou desligar ('OFF') as luzes dos cômodos solicitados.
     Cômodos cadastrados na residência: {rooms or []}
-12. RELATÓRIO DA CASA: Use a ferramenta 'relatorio_status_casa' quando o usuário perguntar quais luzes estão acesas, o que está ligado ou o status geral da residência.
-13. PESQUISA NA INTERNET: Use a ferramenta 'pesquisar_na_internet' para buscar em tempo real notícias do dia, previsão do tempo/clima, sugestões de filmes, receitas, curiosidades e fatos atualizados.
+13. RELATÓRIO DA CASA: Use a ferramenta 'relatorio_status_casa' quando o usuário perguntar quais luzes estão acesas, o que está ligado ou o status geral da residência.
+14. PESQUISA NA INTERNET: Use a ferramenta 'pesquisar_na_internet' para buscar em tempo real notícias do dia, previsão do tempo/clima, sugestões de filmes, receitas, curiosidades e fatos atualizados.
 
 REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO:
 - NUNCA use formatação Markdown (NÃO use asteriscos '**', '#' de títulos, marcadores de lista '-' ou '•', nem itálicos).

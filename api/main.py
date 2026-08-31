@@ -1579,6 +1579,15 @@ def serve_casa():
         return FileResponse(path)
     return {"message": "Casa page"}
 
+@app.get("/guide_modal.js")
+def serve_guide_modal_js():
+    path = static_dir / "guide_modal.js"
+    if not path.exists():
+        path = current_dir / "guide_modal.js"
+    if path.exists():
+        return FileResponse(path, media_type="application/javascript")
+    return {"message": "Guide script"}
+
 @app.get("/agent")
 @app.get("/agent.html")
 @app.get("/")
