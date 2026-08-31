@@ -142,5 +142,42 @@ class TestVideoAutomations(unittest.TestCase):
         self.assertIsInstance(msg, str)
         print(f"✅ [Test 03] evaluate_video_automation executado com resposta: {msg[:100]}: OK")
 
+    def test_04_agent_action_prompt_execution(self):
+        """Testa acionamento residencial com comando livre em linguagem natural."""
+        rule = db_create_automation(
+            user_email=self.test_email,
+            name="📹 Chegada com Luzes Inteligentes",
+            automation_type="video_face_recognition",
+            trigger_type="interval_seconds",
+            trigger_value="30",
+            action_type="video_alert",
+            action_payload={
+                "detection_mode": "video_face_recognition",
+                "target_person": "Marcio Morador",
+                "notify_telegram": False,
+                "agent_action_prompt": "Acender a luz da sala e da entrada",
+                "cooldown_seconds": 300,
+                "custom_message": "🎉 Morador identificado!"
+            }
+        )
+        self.assertIsNotNone(rule)
+        self.assertEqual(rule["action_payload"]["agent_action_prompt"], "Acender a luz da sala e da entrada")
+        print("✅ [Test 04] Automação com comando livre em linguagem natural: OK")
+
+    @classmethod
+    def tearDownClass(cls):
+        """Limpa dados e automações de teste criados no SQLite."""
+        try:
+            from api.database import get_db_connection
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("DELETE FROM user_automations WHERE user_email = ?", (cls.test_email,))
+            c.execute("DELETE FROM user_profiles WHERE user_email = ?", (cls.test_email,))
+            c.execute("DELETE FROM users WHERE email = ?", (cls.test_email,))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
 if __name__ == "__main__":
     unittest.main()

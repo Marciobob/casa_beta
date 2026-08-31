@@ -291,8 +291,38 @@ Responda OBRIGATORIAMENTE no formato JSON puro:
     elif notify_telegram:
         execution_reports.append("Telegram não configurado para envio de foto")
 
-    # Ação 2: Acionamento Residencial MQTT (ex: Boas-vindas ligando luzes)
-    if mqtt_room and mqtt_action:
+    agent_action_prompt = str(payload.get("agent_action_prompt") or payload.get("custom_action") or "").strip()
+
+    # Ação 2: Acionamento Residencial Inteligente em Linguagem Natural (ex: 'Acender a luz do quarto', 'Ligar a luz de fora')
+    if agent_action_prompt:
+        try:
+            try:
+                from api.agent import processar_comando_agente
+            except ImportError:
+                from agent import processar_comando_agente
+
+            broker_host = os.getenv("MQTT_BROKER", "test.mosquitto.org")
+            broker_port = int(os.getenv("MQTT_PORT", "1883"))
+
+            res_ag = processar_comando_agente(
+                pergunta=agent_action_prompt,
+                api_key=api_key,
+                modelo=model_name,
+                agent_name="Sexta-Feira",
+                rooms=[],
+                rooms_state={},
+                broker_config={"broker": broker_host, "port": broker_port},
+                user_email=user_email,
+                user_profile=user_prof
+            )
+            reply_ag = res_ag.get("reply", "") if isinstance(res_ag, dict) else str(res_ag)
+            execution_reports.append(f"Ação Residencial executada: '{agent_action_prompt}' ({reply_ag})")
+            vision_logger.info(f"[VideoAutomation] Ação do Agente executada: '{agent_action_prompt}' -> {reply_ag}")
+        except Exception as e_ag:
+            vision_logger.warning(f"[VideoAutomation] Erro ao executar ação do agente: {e_ag}")
+
+    # Ação 3: Acionamento Residencial MQTT legado (caso especificado como sala/OFF direto)
+    elif mqtt_room and mqtt_action:
         try:
             res_mqtt = controlar_luzes.invoke({"room": mqtt_room, "action": mqtt_action.upper()})
             execution_reports.append(f"Comando residencial MQTT executado ({mqtt_room} -> {mqtt_action})")

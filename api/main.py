@@ -1283,10 +1283,9 @@ AUTOMATION_TEMPLATES = [
             "detection_mode": "video_face_recognition",
             "target_person": "todos",
             "notify_telegram": True,
-            "mqtt_room": "sala",
-            "mqtt_action": "ON",
+            "agent_action_prompt": "Acender a luz da sala e da entrada",
             "cooldown_seconds": 600,
-            "custom_message": "🏠 Seja bem-vindo(a) de volta! Luzes da sala acesas para sua chegada."
+            "custom_message": "🏠 Seja bem-vindo(a) de volta! Luzes acesas para sua chegada."
         }
     }
 ]

@@ -3535,11 +3535,8 @@
                 if (t.action_payload.custom_message && document.getElementById("autoVideoCustomMsg")) {
                     document.getElementById("autoVideoCustomMsg").value = t.action_payload.custom_message;
                 }
-                if (t.action_payload.mqtt_room && document.getElementById("autoVideoMqttRoom")) {
-                    document.getElementById("autoVideoMqttRoom").value = t.action_payload.mqtt_room;
-                }
-                if (t.action_payload.mqtt_action && document.getElementById("autoVideoMqttAction")) {
-                    document.getElementById("autoVideoMqttAction").value = t.action_payload.mqtt_action;
+                if (t.action_payload.agent_action_prompt && document.getElementById("autoVideoAgentAction")) {
+                    document.getElementById("autoVideoAgentAction").value = t.action_payload.agent_action_prompt;
                 }
             }
 
@@ -3589,23 +3586,14 @@
                             </div>
                         </div>
 
-                        <div class="grid sm:grid-cols-2 gap-3 pt-1 border-t border-indigo-900/40">
-                            <div>
-                                <label class="block text-[11px] text-zinc-400 mb-1">Acionamento Residencial MQTT (Opcional)</label>
-                                <select id="autoVideoMqttRoom" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
-                                    <option value="">Nenhum acionamento</option>
-                                    <option value="sala">Acender Luz da Sala</option>
-                                    <option value="externa">Acender Luz Externa / Garagem</option>
-                                    <option value="todas">Acender Todas as Luzes</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-[11px] text-zinc-400 mb-1">Ação MQTT</label>
-                                <select id="autoVideoMqttAction" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
-                                    <option value="ON">Ligar (ON)</option>
-                                    <option value="OFF">Desligar (OFF)</option>
-                                </select>
-                            </div>
+                        <div class="pt-1 border-t border-indigo-900/40">
+                            <label class="block text-[11px] text-zinc-300 mb-1 flex items-center justify-between">
+                                <span>⚡ Acionamento Residencial / Comando da IA ao Identificar (Opcional)</span>
+                                <span class="text-[10px] text-indigo-400 font-mono">Texto Livre</span>
+                            </label>
+                            <input id="autoVideoAgentAction" type="text" placeholder="Ex: Acender a luz do quarto, acender a luz da sala, ligar a luz lá de fora"
+                                class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500 transition">
+                            <span class="text-[10px] text-zinc-400 block mt-1">A IA executará o comando em linguagem natural assim que o morador for reconhecido.</span>
                         </div>
 
                         <div>
@@ -3626,6 +3614,14 @@
                         <p class="text-[11px] text-zinc-300 leading-relaxed">
                             A câmera monitora continuamente. Caso uma pessoa seja detectada cujo rosto <strong>não coincida</strong> com os moradores cadastrados no sistema, a IA dispara imediatamente uma foto com alerta no seu Telegram.
                         </p>
+                        <div class="pt-1 border-t border-red-900/40">
+                            <label class="block text-[11px] text-zinc-300 mb-1 flex items-center justify-between">
+                                <span>⚡ Acionamento Residencial / Comando de Alerta (Opcional)</span>
+                                <span class="text-[10px] text-red-400 font-mono">Texto Livre</span>
+                            </label>
+                            <input id="autoVideoAgentAction" type="text" placeholder="Ex: Acender as luzes da garagem e entrada, trancar portas"
+                                class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-red-500 transition">
+                        </div>
                         <div>
                             <label class="block text-[11px] text-zinc-400 mb-1">Mensagem de Alerta no Telegram</label>
                             <input id="autoVideoCustomMsg" type="text" placeholder="Ex: 🚨 Atenção: Pessoa não cadastrada detectada na câmera!" value="🚨 Atenção: Pessoa não cadastrada/visitante detectada na câmera!"
@@ -3644,6 +3640,14 @@
                         <p class="text-[11px] text-zinc-300 leading-relaxed">
                             Notifica com foto e resumo descritivo da cena no Telegram sempre que qualquer movimento ou pessoa for detectada na câmera.
                         </p>
+                        <div class="pt-1 border-t border-purple-900/40">
+                            <label class="block text-[11px] text-zinc-300 mb-1 flex items-center justify-between">
+                                <span>⚡ Acionamento Residencial / Comando da IA (Opcional)</span>
+                                <span class="text-[10px] text-purple-400 font-mono">Texto Livre</span>
+                            </label>
+                            <input id="autoVideoAgentAction" type="text" placeholder="Ex: Ligar as luzes da sala"
+                                class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-purple-500 transition">
+                        </div>
                     </div>
                 `;
             } else if (type === "calendar_reminder") {
@@ -3727,16 +3731,14 @@
                 const targetPerson = document.getElementById("autoVideoTarget")?.value || (autoType === "video_unknown_alert" ? "desconhecido" : "todos");
                 const notifyTelegram = document.getElementById("autoVideoTelegram") ? document.getElementById("autoVideoTelegram").checked : true;
                 const customMsg = document.getElementById("autoVideoCustomMsg")?.value.trim() || "";
-                const mqttRoom = document.getElementById("autoVideoMqttRoom")?.value || "";
-                const mqttAction = document.getElementById("autoVideoMqttAction")?.value || "ON";
+                const agentAction = document.getElementById("autoVideoAgentAction")?.value.trim() || "";
 
                 payload = {
                     detection_mode: autoType,
                     target_person: targetPerson,
                     notify_telegram: notifyTelegram,
                     custom_message: customMsg,
-                    mqtt_room: mqttRoom,
-                    mqtt_action: mqttAction,
+                    agent_action_prompt: agentAction,
                     cooldown_seconds: 300
                 };
             } else if (autoType === "calendar_reminder") {
