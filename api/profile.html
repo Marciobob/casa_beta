@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfil do Usuário • Smart Home</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass {
+            background: rgba(24, 24, 27, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(24, 24, 27, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white min-h-screen pb-16">
+
+    <div class="max-w-4xl mx-auto p-6">
+
+        <!-- HEADER -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div>
+                <div class="flex items-center gap-2">
+                    <a href="/" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+                        ← Voltar ao Painel
+                    </a>
+                </div>
+                <h1 class="text-4xl font-black tracking-tight mt-2 flex items-center gap-3">
+                    <span>👤 Perfil & Memória do Usuário</span>
+                </h1>
+                <p class="text-zinc-400 text-sm mt-1">
+                    Cadastre suas informações pessoais para que o agente inteligente te conheça melhor
+                </p>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-2xl text-xs flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                    <span id="userNameDisplay" class="font-bold text-zinc-200">Carregando...</span>
+                </div>
+                <button onclick="handleLogout()" class="bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-red-200 px-4 py-2.5 rounded-2xl text-xs font-bold transition">
+                    Sair
+                </button>
+            </div>
+        </div>
+
+        <!-- NOTIFICAÇÃO TOAST -->
+        <div id="toastAlert" class="hidden mb-6 p-4 rounded-2xl text-xs font-semibold flex items-center gap-2 transition duration-300"></div>
+
+        <form id="profileForm" onsubmit="handleSaveProfile(event)" class="space-y-6">
+
+            <!-- SEÇÃO 1: SAÚDE E DADOS PESSOAIS -->
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-indigo-400 flex items-center gap-2 mb-4">
+                    <span>🩺</span>
+                    <span>Saúde & Informações Médicas</span>
+                </h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Tipo Sanguíneo</label>
+                        <input id="blood_type" type="text" placeholder="Ex: O+, A-, AB+" list="bloodTypeList"
+                            class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                        <datalist id="bloodTypeList">
+                            <option value="A+"><option value="A-"><option value="B+"><option value="B-">
+                            <option value="AB+"><option value="AB-"><option value="O+"><option value="O-">
+                        </datalist>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Alergias & Observações de Saúde</label>
+                        <input id="allergies_health" type="text" placeholder="Ex: Alergia a frutos do mar, intolerância a lactose"
+                            class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 2: PREFERÊNCIAS E LAZER -->
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-indigo-400 flex items-center gap-2 mb-4">
+                    <span>🎬</span>
+                    <span>Gostos, Lazer & Entretenimento</span>
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Filmes & Séries Favoritos</label>
+                        <input id="favorite_movies" type="text" placeholder="Ex: Ficção científica, Interestelar, Matrix, Breaking Bad, suspense"
+                            class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Músicas & Artistas Favoritos</label>
+                            <input id="favorite_music" type="text" placeholder="Ex: Rock clássico, Queen, MPB, Coldplay, Jazz instrumental"
+                                class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Passeios & Lugares Favoritos</label>
+                            <input id="favorite_places" type="text" placeholder="Ex: Praia no fim de semana, parques, cafeteria ao ar livre, cinema"
+                                class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 3: GASTRONOMIA E VEÍCULO -->
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-indigo-400 flex items-center gap-2 mb-4">
+                    <span>🍽️</span>
+                    <span>Gastronomia & Cotidiano</span>
+                </h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Comidas & Pratos Favoritos</label>
+                        <input id="favorite_foods" type="text" placeholder="Ex: Churrasco, comida japonesa, pizza artesanal, massas"
+                            class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Carro / Veículo que Possui</label>
+                        <input id="car_info" type="text" placeholder="Ex: Chevrolet Onix 2022 prata, Honda Civic preto"
+                            class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 4: PANORAMA GERAL DA VIDA -->
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-indigo-400 flex items-center gap-2 mb-4">
+                    <span>📝</span>
+                    <span>Panorama da Vida & Anotações Livres</span>
+                </h2>
+                <div>
+                    <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
+                        Conte detalhes sobre sua vida, rotina, hobbies ou preferências para o agente lembrar:
+                    </label>
+                    <textarea id="personal_notes" rows="4" placeholder="Ex: Trabalho com desenvolvimento de software de home office, acordo às 7h, gosto de café sem açúcar, pratico musculação e aos sábados gosto de assistir futebol com os amigos."
+                        class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl p-4 text-sm focus:outline-none transition leading-relaxed"></textarea>
+                </div>
+            </div>
+
+            <button id="saveBtn" type="submit"
+                class="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/30 transition duration-300 transform active:scale-95 flex items-center justify-center gap-2 text-base">
+                <span>Salvar Informações do Perfil</span>
+                <span>💾</span>
+            </button>
+
+        </form>
+
+    </div>
+
+    <script>
+        // Guardião de Autenticação JWT
+        const token = localStorage.getItem("smartHomeToken");
+        if (!token) {
+            alert("Faça login para acessar o perfil.");
+            location.href = "/login.html";
+        }
+
+        const userStr = localStorage.getItem("smartHomeUser");
+        if (userStr) {
+            try {
+                const u = JSON.parse(userStr);
+                document.getElementById("userNameDisplay").innerText = u.name || u.email;
+            } catch(e) {}
+        }
+
+        function handleLogout() {
+            if (confirm("Deseja realmente sair?")) {
+                localStorage.removeItem("smartHomeToken");
+                localStorage.removeItem("smartHomeUser");
+                location.href = "/login.html";
+            }
+        }
+
+        function showToast(msg, isSuccess = true) {
+            const toast = document.getElementById("toastAlert");
+            toast.className = isSuccess
+                ? "mb-6 p-4 rounded-2xl text-xs font-semibold flex items-center gap-2 bg-green-500/10 border border-green-500/30 text-green-300"
+                : "mb-6 p-4 rounded-2xl text-xs font-semibold flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-300";
+            toast.innerHTML = `<span>${isSuccess ? '✅' : '⚠️'}</span><span>${msg}</span>`;
+            toast.classList.remove("hidden");
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function loadProfile() {
+            try {
+                const res = await fetch("/api/profile", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                if (res.status === 401) {
+                    location.href = "/login.html";
+                    return;
+                }
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data) {
+                        document.getElementById("blood_type").value = data.blood_type || "";
+                        document.getElementById("allergies_health").value = data.allergies_health || "";
+                        document.getElementById("favorite_movies").value = data.favorite_movies || "";
+                        document.getElementById("favorite_music").value = data.favorite_music || "";
+                        document.getElementById("favorite_places").value = data.favorite_places || "";
+                        document.getElementById("favorite_foods").value = data.favorite_foods || "";
+                        document.getElementById("car_info").value = data.car_info || "";
+                        document.getElementById("personal_notes").value = data.personal_notes || "";
+                    }
+                }
+            } catch (err) {
+                console.error("Erro ao carregar perfil:", err);
+            }
+        }
+
+        async function handleSaveProfile(e) {
+            e.preventDefault();
+            const btn = document.getElementById("saveBtn");
+            btn.disabled = true;
+            btn.innerHTML = `<span class="animate-spin inline-block mr-2">🔄</span> Salvando...`;
+
+            const payload = {
+                blood_type: document.getElementById("blood_type").value.trim(),
+                allergies_health: document.getElementById("allergies_health").value.trim(),
+                favorite_movies: document.getElementById("favorite_movies").value.trim(),
+                favorite_music: document.getElementById("favorite_music").value.trim(),
+                favorite_places: document.getElementById("favorite_places").value.trim(),
+                favorite_foods: document.getElementById("favorite_foods").value.trim(),
+                car_info: document.getElementById("car_info").value.trim(),
+                personal_notes: document.getElementById("personal_notes").value.trim()
+            };
+
+            try {
+                const res = await fetch("/api/profile", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.detail || "Erro ao salvar perfil.");
+                }
+
+                showToast("Perfil atualizado no SQLite! O agente agora tem acesso a essas informações.", true);
+            } catch (err) {
+                showToast(err.message, false);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<span>Salvar Informações do Perfil</span><span>💾</span>`;
+            }
+        }
+
+        loadProfile();
+    </script>
+
+</body>
+
+</html>

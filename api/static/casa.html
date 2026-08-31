@@ -1,0 +1,2966 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Smart Home - Dashboard da Casa</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+    <style>
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.95);
+                opacity: 0.8;
+            }
+
+            50% {
+                transform: scale(1.3);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        @keyframes wave {
+
+            0%,
+            100% {
+                height: 6px;
+            }
+
+            50% {
+                height: 26px;
+            }
+        }
+
+        .animate-pulse-ring {
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        .wave-bar {
+            animation: wave 1.2s ease-in-out infinite;
+        }
+
+        .wave-bar:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+
+        .wave-bar:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .wave-bar:nth-child(4) {
+            animation-delay: 0.45s;
+        }
+
+        .wave-bar:nth-child(5) {
+            animation-delay: 0.6s;
+        }
+
+        .glass {
+            background: rgba(24, 24, 27, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        /* Estilo da barra de rolagem */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(24, 24, 27, 0.5);
+            border-radius: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.8);
+        }
+    </style>
+
+</head>
+
+<body class="bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white min-h-screen pb-28">
+
+    <!-- ========================================================================= -->
+    <!-- MODAL TECNOLÓGICO DE INICIALIZAÇÃO DO SISTEMA -->
+    <!-- ========================================================================= -->
+    <div id="startupTechModal"
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-2xl transition-all duration-500">
+        <div
+            class="relative w-full max-w-md bg-zinc-900/95 border border-indigo-500/40 rounded-3xl p-8 text-center shadow-[0_0_80px_rgba(99,102,241,0.25)] overflow-hidden">
+            <!-- Glows & Efeitos de Fundo -->
+            <div class="absolute -top-24 -left-24 w-48 h-48 bg-indigo-600/30 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-600/30 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent"></div>
+
+            <!-- Holograma Central Animado -->
+            <div class="relative mx-auto w-24 h-24 mb-6 flex items-center justify-center">
+                <div class="absolute inset-0 rounded-full border-2 border-indigo-500/40 animate-ping opacity-30"></div>
+                <div class="absolute inset-2 rounded-full border border-purple-500/50 animate-spin" style="animation-duration: 8s;"></div>
+                <div
+                    class="relative w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/50">
+                    <span class="text-3xl">🤖</span>
+                </div>
+            </div>
+
+            <!-- Tech Badges & Título -->
+            <div
+                class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/80 border border-indigo-500/30 text-indigo-300 text-[11px] font-mono font-bold tracking-widest uppercase mb-3">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                SISTEMA PRONTO • V2.5
+            </div>
+
+            <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight mb-2">
+                Sexta-Feira AI
+            </h2>
+
+            <p class="text-xs text-zinc-400 mb-8 leading-relaxed max-w-xs mx-auto">
+                Painel residencial e controle de cômodos. Clique abaixo para inicializar o sistema de áudio e voz.
+            </p>
+
+            <!-- Botão Futurista de Ação -->
+            <button id="btnStartSystem" onclick="initSystemFromStartupModal()"
+                class="group relative w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 bg-[length:200%_auto] hover:bg-[position:right_center] transition-all duration-500 font-bold text-sm text-white shadow-xl shadow-indigo-600/30 hover:shadow-indigo-500/50 flex items-center justify-center gap-3 border border-indigo-400/40 transform active:scale-95 cursor-pointer">
+                <span class="text-lg group-hover:scale-125 transition duration-300">⚡</span>
+                <span class="tracking-wider uppercase">Clique Aqui para Iniciar</span>
+                <span class="text-xs text-indigo-200 group-hover:translate-x-1 transition duration-300">→</span>
+            </button>
+
+            <!-- Status do Protocolo -->
+            <div class="mt-4 flex items-center justify-center gap-2 text-[10px] text-zinc-500 font-mono">
+                <span>● CANAL DE VOZ PRONTO PARA ATIVAÇÃO</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto p-6">
+
+        <!-- HEADER -->
+
+        <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-8">
+
+            <div>
+
+                <h1 class="text-5xl font-black tracking-tight flex items-center gap-3">
+                    <span>🏠 Smart Home</span>
+                    <span
+                        class="text-xs bg-indigo-900/80 text-indigo-300 border border-indigo-500/40 px-3 py-1.5 rounded-full font-mono font-semibold">Controle
+                        Residencial</span>
+                </h1>
+
+                <p class="text-zinc-400 mt-2">
+                    Painel de Lâmpadas e Cômodos • Diga <span id="headerAgentNameTag"
+                        class="text-indigo-400 font-bold">"Sexta-Feira"</span> para acionar por voz
+                </p>
+
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+
+                <!-- BOTAO RETORNAR AO DASHBOARD DO AGENTE -->
+                <a href="/"
+                    class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white transition px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/30 text-sm">
+                    <span>🤖</span>
+                    <span>Dashboard do Agente</span>
+                </a>
+
+                <!-- BADGE MQTT -->
+                <div id="mqttBadge"
+                    class="bg-zinc-800 px-4 py-3 rounded-2xl border border-zinc-700 font-medium text-sm flex items-center gap-2">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                    <span>MQTT Offline</span>
+                </div>
+
+                <!-- BOTAO MODO PAREDE / ESCUTA CONTINUA (WAKE WORD) -->
+                <button id="alwaysListenBtn" onclick="toggleAlwaysListen()" title="Ativar/Desativar escuta contínua"
+                    class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition px-4 py-3 rounded-2xl font-semibold text-sm flex items-center gap-2">
+                    <span id="alwaysListenDot" class="w-2.5 h-2.5 rounded-full bg-zinc-500"></span>
+                    <span id="alwaysListenText">🎙️ Ouvir Sempre: Inativo</span>
+                </button>
+
+                <!-- BOTAO AUTOMAÇÕES & 2º PLANO -->
+                <button onclick="openAutomationsModal()" title="Automações & Lembretes da Agenda"
+                    class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 transition px-4 py-3 rounded-2xl font-semibold text-sm flex items-center gap-2 shadow-lg shadow-amber-500/10">
+                    <span>⚡</span>
+                    <span>Automações</span>
+                </button>
+
+                <!-- BOTAO CONFIG GEMINI / OPENAI -->
+                <button onclick="openVoiceApiKeyModal()" title="Configurar Chave API"
+                    class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition px-4 py-3 rounded-2xl font-semibold text-sm flex items-center gap-2">
+                    <span>✨</span>
+                    <span>Chave API</span>
+                </button>
+
+                <!-- BOTAO PERFIL DO USUÁRIO -->
+                <a href="/profile.html"
+                    class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition px-4 py-3 rounded-2xl font-bold flex items-center gap-2 text-sm text-indigo-300">
+                    <span>👤</span>
+                    <span>Meu Perfil</span>
+                </a>
+
+                <!-- BOTAO CONFIGURACOES GERAIS -->
+                <a href="/config/config.html"
+                    class="bg-indigo-600 hover:bg-indigo-500 transition px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/30">
+                    <span>⚙️</span>
+                    <span>Configurações</span>
+                </a>
+
+                <!-- BADGE USUÁRIO & LOGOUT -->
+                <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-800 pl-3 pr-1 py-1 rounded-2xl">
+                    <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                    <span id="userNameDisplay"
+                        class="text-xs font-bold text-zinc-300 max-w-[120px] truncate">Usuário</span>
+                    <button onclick="handleLogout()" title="Sair do Sistema"
+                        class="hover:bg-red-500/20 text-red-400 p-2 rounded-xl text-xs transition">
+                        🚪
+                    </button>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- DASHBOARD -->
+
+        <div class="grid lg:grid-cols-3 gap-5 mb-8">
+
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+
+                <div class="text-zinc-400 text-sm font-semibold tracking-wider uppercase">
+                    CÔMODOS
+                </div>
+
+                <div id="totalRooms" class="text-4xl font-black mt-2">
+                    0
+                </div>
+
+            </div>
+
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+
+                <div class="text-zinc-400 text-sm font-semibold tracking-wider uppercase">
+                    LIGADOS
+                </div>
+
+                <div id="activeRooms" class="text-4xl font-black mt-2 text-yellow-400">
+                    0
+                </div>
+
+            </div>
+
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+
+                <div class="text-zinc-400 text-sm font-semibold tracking-wider uppercase">
+                    STATUS GERAL
+                </div>
+
+                <div id="houseStatus" class="text-2xl font-bold mt-3">
+                    Tudo Desligado
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- CÔMODOS LIGADOS -->
+
+        <div id="summaryCard" class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 mb-8 shadow-xl">
+
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <span>⚡</span>
+                <span>Ativos Agora</span>
+            </h2>
+
+            <div id="activeList" class="text-zinc-400 flex flex-wrap gap-2">
+                Nenhum cômodo ligado
+            </div>
+
+        </div>
+
+        <!-- CÔMODOS -->
+
+        <div id="rooms" class="grid md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- BOTAO FLUTUANTE DE VOZ (MICROFONE) -->
+    <!-- ========================================================================= -->
+    <div class="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+        <div id="micPulseEffect"
+            class="hidden absolute -inset-3 bg-indigo-500 rounded-full animate-pulse-ring opacity-75"></div>
+        <button id="floatingVoiceBtn" onclick="toggleVoiceAssistant()"
+            class="relative w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 border-2 border-indigo-300/40">
+            <svg id="micIcon" class="w-8 h-8 transition-transform duration-300" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z">
+                </path>
+            </svg>
+            <svg id="stopIcon" class="w-7 h-7 hidden text-red-200" fill="currentColor" viewBox="0 0 20 20">
+                <rect x="5" y="5" width="10" height="10" rx="2" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- HUD / PAINEL INFORMATIVO DO AGENTE LANGCHAIN -->
+    <!-- ========================================================================= -->
+    <div id="voiceHud"
+        class="fixed bottom-24 right-6 left-6 md:left-auto md:w-96 max-h-[82vh] flex flex-col glass rounded-3xl border border-indigo-500/30 p-5 shadow-2xl transition-all duration-300 z-40 hidden">
+        <div class="flex items-center justify-between pb-3 border-b border-zinc-800 shrink-0">
+            <div class="flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></div>
+                <span id="hudAgentTitle" class="font-bold text-sm text-indigo-300">Assistente LangChain</span>
+            </div>
+            <button onclick="closeVoiceHud()"
+                class="text-zinc-400 hover:text-white text-xs px-2 py-1 bg-zinc-800/80 rounded-lg">✕</button>
+        </div>
+
+        <div class="my-4 flex items-center gap-3 shrink-0">
+            <div id="voiceWaveAnimation" class="flex items-end gap-1 h-7">
+                <div class="w-1.5 bg-indigo-500 rounded-full wave-bar"></div>
+                <div class="w-1.5 bg-indigo-400 rounded-full wave-bar"></div>
+                <div class="w-1.5 bg-purple-500 rounded-full wave-bar"></div>
+                <div class="w-1.5 bg-indigo-400 rounded-full wave-bar"></div>
+                <div class="w-1.5 bg-indigo-500 rounded-full wave-bar"></div>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p id="voiceStatusText" class="text-xs text-zinc-400 font-medium">Ouvindo...</p>
+                <p id="voiceTranscriptText" class="text-sm font-semibold text-zinc-100 italic truncate mt-0.5">"..."</p>
+            </div>
+        </div>
+
+        <div id="geminiResponseBox"
+            class="hidden my-2 p-3 bg-zinc-900/90 rounded-2xl border border-indigo-500/20 text-xs text-zinc-200 flex-1 overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between font-bold text-indigo-400 mb-1.5 shrink-0">
+                <span>🤖 Resposta do Agente:</span>
+            </div>
+            <div class="overflow-y-auto max-h-48 md:max-h-56 pr-1.5 space-y-1">
+                <p id="geminiResponseText" class="leading-relaxed whitespace-pre-wrap text-zinc-300"></p>
+            </div>
+        </div>
+
+        <form id="voiceManualForm" onsubmit="handleManualCommand(event)" class="mt-2 flex gap-2 shrink-0">
+            <input id="voiceTextInput" type="text" placeholder="Digite uma instrução..."
+                class="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500">
+            <button type="submit"
+                class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">Enviar</button>
+        </form>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL DE CONFIGURAÇÃO DE CHAVE DE API, VOZ E CONTA GOOGLE -->
+    <!-- ========================================================================= -->
+    <div id="apiKeyModal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div
+            class="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto text-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold flex items-center gap-2 text-white">
+                    <span>✨</span>
+                    <span>Configurações & Conexões</span>
+                </h3>
+                <button onclick="closeVoiceApiKeyModal()" class="text-zinc-400 hover:text-white">✕</button>
+            </div>
+            <p class="text-xs text-zinc-400 mb-4">
+                Personalize os modelos de inteligência artificial, voz do assistente e conecte sua conta Google
+                individual.
+            </p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-zinc-300 mb-1">Modelo de IA</label>
+                    <input id="modalAiModelInput" list="modalAiSuggestions" type="text"
+                        placeholder="gemini-2.5-flash-lite"
+                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-mono text-white">
+                    <datalist id="modalAiSuggestions">
+                        <option value="gemini-2.5-flash-lite">
+                        <option value="gemini-2.5-flash">
+                        <option value="gemini-2.0-flash">
+                        <option value="gpt-4o-mini">
+                        <option value="gpt-4o">
+                    </datalist>
+                    <div class="flex flex-wrap gap-1.5 mt-1.5">
+                        <button type="button"
+                            onclick="document.getElementById('modalAiModelInput').value='gemini-2.5-flash-lite'"
+                            class="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2 py-0.5 rounded-lg border border-zinc-700">gemini-2.5-flash-lite</button>
+                        <button type="button" onclick="document.getElementById('modalAiModelInput').value='gpt-4o-mini'"
+                            class="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2 py-0.5 rounded-lg border border-zinc-700">gpt-4o-mini</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-zinc-300 mb-1">Chave de API (Gemini ou OpenAI)</label>
+                    <input id="modalApiKeyInput" type="password" placeholder="AIzaSy... ou sk-..."
+                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-mono text-white">
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold text-zinc-300">Voz do Agente (TTS Humano)</label>
+                        <button type="button" id="testVoiceBtn" onclick="testSelectedVoice()"
+                            class="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1 bg-indigo-950/60 px-2.5 py-1 rounded-lg border border-indigo-500/30">
+                            🔊 Ouvir Demonstração
+                        </button>
+                    </div>
+                    <select id="modalVoiceSelect" onchange="handleVoiceSelectChange(this.value)"
+                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-medium text-white">
+                        <option value="pt-BR-FranciscaNeural">👩 Francisca (Feminina - Suave e Acolhedora) ⭐ Mais
+                            Natural</option>
+                        <option value="pt-BR-ThalitaMultilingualNeural">👧 Thalita (Feminina - Jovem e Expressiva)
+                        </option>
+                        <option value="pt-BR-AntonioNeural">👨 Antonio (Masculina - Natural e Confiante)</option>
+                        <option value="browser-native">🌐 Voz do Navegador (Offline)</option>
+                    </select>
+                </div>
+
+                <!-- SEÇÃO GOOGLE ACCOUNT -->
+                <div class="pt-3 border-t border-zinc-800">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                            <span>🌐</span> Conta Google (Gmail, Agenda, Contatos, Tarefas)
+                        </label>
+                        <button type="button" id="testGoogleBtn" onclick="testGoogleConnectionFromModal()"
+                            class="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+                            🧪 Testar Conexão
+                        </button>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-zinc-400 mb-1">E-mail da Conta Google
+                                (Gmail)</label>
+                            <input id="modalGmailEmailInput" type="email" placeholder="seu_email@gmail.com"
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-mono text-white">
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-[11px] font-semibold text-zinc-400">Senha de Aplicativo Google
+                                    (16 caracteres)</label>
+                                <a href="https://myaccount.google.com/apppasswords" target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="text-[10px] text-indigo-400 hover:underline flex items-center gap-0.5">
+                                    🔑 Gerar senha de app ↗
+                                </a>
+                            </div>
+                            <div class="relative">
+                                <input id="modalGmailPasswordInput" type="password"
+                                    placeholder="ex: abcd efgh ijkl mnop"
+                                    onfocus="if(this.value.includes('•') || this.value.includes('*')) this.value = '';"
+                                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-mono text-white pr-10">
+                                <button type="button"
+                                    onclick="togglePasswordVisibility('modalGmailPasswordInput', this)"
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs">
+                                    👁️
+                                </button>
+                            </div>
+                            <div id="googleSavedBadge" class="hidden"></div>
+                        </div>
+                        <div id="googleTestStatusResult" class="text-xs hidden p-3 rounded-xl border"></div>
+                    </div>
+                </div>
+
+                <!-- SEÇÃO CÂMERA DO SISTEMA & CÂMERA IP -->
+                <div class="pt-3 border-t border-zinc-800">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                            <span>📷</span> Câmera (Local / IP) & Visão Computacional
+                        </label>
+                        <button type="button" id="testCameraBtn" onclick="testCameraConnectionFromModal()"
+                            class="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1 bg-cyan-950/60 px-2.5 py-1 rounded-lg border border-cyan-500/30">
+                            🧪 Testar Câmera
+                        </button>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Tipo de Câmera</label>
+                            <select id="modalCameraTypeSelect" onchange="handleCameraTypeChange()"
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-medium text-white">
+                                <option value="device">💻 Câmera do Dispositivo (Webcam Local)</option>
+                                <option value="ip">🌐 Câmera IP (RTSP / HTTP MJPEG)</option>
+                            </select>
+                        </div>
+
+                        <!-- Campos específicos para Câmera IP -->
+                        <div id="ipCameraFields"
+                            class="hidden space-y-2.5 bg-zinc-950/50 p-3 rounded-2xl border border-zinc-800">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-zinc-400 mb-1">URL da Câmera IP (RTSP
+                                    ou HTTP)</label>
+                                <input id="modalCameraIpUrlInput" type="text"
+                                    placeholder="ex: rtsp://192.168.1.100:554/stream1 ou http://192.168.1.50/snapshot.jpg"
+                                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-indigo-500 font-mono text-white">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-zinc-400 mb-1">Usuário
+                                        (Opcional)</label>
+                                    <input id="modalCameraUserInput" type="text" placeholder="admin"
+                                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500 font-mono text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-zinc-400 mb-1">Senha
+                                        (Opcional)</label>
+                                    <input id="modalCameraPwdInput" type="password" placeholder="senha"
+                                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500 font-mono text-white">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Opção de Cumprimento Automático de Pessoas -->
+                        <div class="flex items-center justify-between pt-1">
+                            <div>
+                                <div class="text-xs font-semibold text-zinc-300">👋 Cumprimentar Pessoas Automaticamente
+                                </div>
+                                <div class="text-[10px] text-zinc-500">O agente avisa e cumprimenta ao identificar
+                                    alguém no ambiente</div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="modalCameraAutoGreetCheckbox" checked class="sr-only peer">
+                                <div
+                                    class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600">
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Preview de Teste de Câmera -->
+                        <div id="cameraTestStatusResult" class="text-xs hidden p-3 rounded-xl border"></div>
+                        <div id="cameraPreviewContainer"
+                            class="hidden rounded-2xl overflow-hidden border border-zinc-700 relative bg-black aspect-video max-h-48 flex items-center justify-center">
+                            <img id="cameraPreviewImg" class="w-full h-full object-contain" alt="Preview da Câmera">
+                            <div
+                                class="absolute bottom-2 left-2 bg-black/70 px-2 py-0.5 rounded text-[10px] font-mono text-emerald-400">
+                                🟢 Snapshot Capturado
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SEÇÃO TELEGRAM BOT & CONTROLE REMOTO -->
+                <div class="pt-3 border-t border-zinc-800">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                            <span>📱</span> Telegram Bot & Controle Remoto
+                        </label>
+                        <button type="button" id="testTelegramBtn" onclick="testTelegramConnectionFromModal()"
+                            class="text-xs font-bold text-sky-400 hover:text-sky-300 transition flex items-center gap-1 bg-sky-950/60 px-2.5 py-1 rounded-lg border border-sky-500/30">
+                            🧪 Testar Telegram
+                        </button>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-[11px] font-semibold text-zinc-400">Token do Bot no
+                                    Telegram</label>
+                                <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer"
+                                    class="text-[10px] text-sky-400 hover:underline flex items-center gap-0.5">
+                                    🔑 Criar no @BotFather ↗
+                                </a>
+                            </div>
+                            <input id="modalTelegramTokenInput" type="password"
+                                placeholder="ex: 123456789:ABCdefGhIJKlmNoPQRstuvWxyz"
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-sky-500 font-mono text-white">
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-[11px] font-semibold text-zinc-400">Chat ID Autorizado
+                                    (Opcional)</label>
+                                <span class="text-[10px] text-zinc-500">Auto-vinculado ao enviar /start</span>
+                            </div>
+                            <input id="modalTelegramChatIdInput" type="text"
+                                placeholder="ex: 987654321 (ou envie /start no Telegram)"
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-sky-500 font-mono text-white">
+                        </div>
+
+                        <!-- Toggles do Telegram -->
+                        <div class="space-y-2 pt-1">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-semibold text-zinc-300">🟢 Ativar Bot do Telegram</div>
+                                    <div class="text-[10px] text-zinc-500">Permite controlar a casa e falar com a
+                                        Sexta-Feira pelo Telegram</div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="modalTelegramEnabledCheckbox" checked
+                                        class="sr-only peer">
+                                    <div
+                                        class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600">
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-semibold text-zinc-300">🔔 Alertas de Câmera & Presença
+                                    </div>
+                                    <div class="text-[10px] text-zinc-500">Envia fotos e avisos caso pessoas sejam
+                                        detectadas</div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="modalTelegramNotifyCameraCheckbox" checked
+                                        class="sr-only peer">
+                                    <div
+                                        class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600">
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Status do Teste do Telegram -->
+                        <div id="telegramTestStatusResult" class="text-xs hidden p-3 rounded-xl border"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-6 flex gap-3">
+                <button onclick="closeVoiceApiKeyModal()"
+                    class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-sm font-semibold transition">Cancelar</button>
+                <button onclick="saveVoiceApiKeyFromModal()"
+                    class="flex-1 bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl text-sm font-bold shadow-lg shadow-indigo-600/30 transition text-white">Salvar
+                    Configurações</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL DE MOTOR DE AUTOMAÇÕES & AGENDAMENTOS EM SEGUNDO PLANO -->
+    <!-- ========================================================================= -->
+    <div id="automationsModal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div
+            class="bg-zinc-900 border border-zinc-700/80 rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fadeIn">
+
+            <!-- HEADER DO MODAL -->
+            <div class="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/90">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl text-amber-300">
+                        ⚡
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg text-white">Motor de Automações & 2º Plano</h3>
+                        <p class="text-xs text-zinc-400">Lembretes da agenda no Telegram, resumos diários e tarefas
+                            agendadas</p>
+                    </div>
+                </div>
+                <button onclick="closeAutomationsModal()"
+                    class="text-zinc-400 hover:text-white w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-sm transition">✕</button>
+            </div>
+
+            <!-- TABS DE NAVEGAÇÃO -->
+            <div class="flex border-b border-zinc-800 bg-zinc-950/50 px-6 pt-3 gap-2">
+                <button id="tabBtnAutoList" onclick="switchAutomationsTab('list')"
+                    class="px-4 py-2.5 rounded-t-xl text-xs font-bold transition flex items-center gap-2 border-b-2 border-amber-500 text-amber-400 bg-zinc-900/80">
+                    <span>📋 Minhas Regras</span>
+                    <span id="tabAutoCountBadge"
+                        class="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300">0</span>
+                </button>
+                <button id="tabBtnAutoNew" onclick="switchAutomationsTab('new')"
+                    class="px-4 py-2.5 rounded-t-xl text-xs font-semibold transition flex items-center gap-2 text-zinc-400 hover:text-zinc-200 border-b-2 border-transparent">
+                    <span>➕ Nova Automação / Modelos</span>
+                </button>
+            </div>
+
+            <!-- CONTEÚDO SCROLLÁVEL -->
+            <div class="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-6">
+
+                <!-- ABA 1: LISTAGEM DE AUTOMAÇÕES ATIVAS -->
+                <div id="automationsTabList" class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="text-xs text-zinc-400 font-mono flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span>Motor em Segundo Plano Ativo (Verificações a cada 30s)</span>
+                        </div>
+                        <button onclick="fetchUserAutomations()"
+                            class="text-xs text-zinc-400 hover:text-amber-400 transition flex items-center gap-1 font-mono">
+                            <span>🔄</span> Atualizar
+                        </button>
+                    </div>
+
+                    <!-- CONTAINER DINÂMICO DE REGRAS -->
+                    <div id="automationsListContainer" class="space-y-3">
+                        <div class="text-center py-10 text-zinc-500 text-xs">
+                            Carregando automações...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ABA 2: CRIAR / PRESETS -->
+                <div id="automationsTabNew" class="space-y-6 hidden">
+
+                    <!-- PRESETS EM 1 CLIQUE -->
+                    <div>
+                        <h4
+                            class="text-xs font-bold uppercase tracking-wider text-amber-400 mb-3 flex items-center gap-1.5">
+                            <span>⚡</span> Modelos Prontos (Ativação Rápida em 1 Clique)
+                        </h4>
+                        <div id="automationTemplatesGrid" class="grid sm:grid-cols-2 gap-3">
+                            <!-- Injetado via JS -->
+                        </div>
+                    </div>
+
+                    <!-- FORMULÁRIO CUSTOMIZADO -->
+                    <div class="p-5 rounded-2xl bg-zinc-950/60 border border-zinc-800 space-y-4">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
+                            <span>🛠️</span> Criar Automação Personalizada
+                        </h4>
+
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs text-zinc-400 mb-1">Nome da Automação</label>
+                                <input id="autoFormName" type="text" placeholder="Ex: Avisar 15min antes de reuniões"
+                                    class="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 transition">
+                            </div>
+
+                            <div class="grid sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-zinc-400 mb-1">Tipo de Tarefa</label>
+                                    <select id="autoFormType" onchange="handleAutoTypeChange()"
+                                        class="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 transition">
+                                        <option value="calendar_reminder">⏰ Lembrete de Agenda no Telegram</option>
+                                        <option value="daily_summary">☀️ Resumo Diário / Matinal no Telegram</option>
+                                        <option value="mqtt_schedule">💡 Agendamento de Luzes (MQTT)</option>
+                                        <option value="custom_prompt">🤖 Comando Inteligente do Agente</option>
+                                    </select>
+                                </div>
+
+                                <div id="autoTriggerContainer">
+                                    <label id="autoFormTriggerLabel" class="block text-xs text-zinc-400 mb-1">Minutos de
+                                        Antecedência</label>
+                                    <input id="autoFormTriggerValue" type="text" placeholder="15" value="15"
+                                        class="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 transition">
+                                </div>
+                            </div>
+
+                            <!-- CAMPOS DINÂMICOS DEPENDENTES DO TIPO -->
+                            <div id="autoDynamicFields" class="space-y-3">
+                                <!-- Preenchido dinamicamente se necessário -->
+                            </div>
+
+                            <div class="flex items-center justify-between pt-2">
+                                <label class="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
+                                    <input type="checkbox" id="autoFormEnabled" checked
+                                        class="rounded border-zinc-700 bg-zinc-900 text-amber-500 focus:ring-0">
+                                    <span>Ativar imediatamente após salvar</span>
+                                </label>
+
+                                <button onclick="submitAutomationForm()"
+                                    class="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-amber-600/20 transition flex items-center gap-1.5">
+                                    <span>💾</span> <span>Salvar Automação</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- FOOTER COM FEEDBACK STATUS -->
+            <div id="automationGlobalStatus" class="px-6 py-3 bg-zinc-950/80 border-t border-zinc-800 text-xs hidden">
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let client;
+        const roomStates = {};
+        let recognitionInstance = null;
+        let isListening = false;
+        let isSpeakingTTS = false;
+        let isProcessingCommand = false;
+        let wakeWordTimer = null;
+        let isWaitingCommandAfterWakeWord = false;
+        let watchdogInterval = null;
+        let lastActivityTimestamp = Date.now();
+        let wakeLock = null;
+        let alwaysListen = localStorage.getItem("alwaysListenSmartHome") === "true";
+
+        // =========================================================================
+        // GUARDIÃO DE AUTENTICAÇÃO JWT
+        // =========================================================================
+        const authToken = localStorage.getItem("smartHomeToken");
+        if (!authToken) {
+            location.href = "/login.html";
+        }
+
+        const userObjStr = localStorage.getItem("smartHomeUser");
+        if (userObjStr) {
+            try {
+                const user = JSON.parse(userObjStr);
+                const nameEl = document.getElementById("userNameDisplay");
+                if (nameEl) nameEl.innerText = user.name || user.email;
+            } catch (e) { }
+        }
+
+        function handleLogout() {
+            if (confirm("Deseja realmente sair do sistema?")) {
+                localStorage.removeItem("smartHomeToken");
+                localStorage.removeItem("smartHomeUser");
+                location.href = "/login.html";
+            }
+        }
+
+        const config = JSON.parse(localStorage.getItem("smartHomeConfig"));
+
+        if (!config) {
+            alert("Configure o sistema primeiro.");
+            location.href = "/config/config.html";
+        }
+
+        function getAgentName() {
+            return (config && config.agentName) || localStorage.getItem("smartHomeAgentName") || "Sexta-Feira";
+        }
+
+        function updateDashboard() {
+            const total = config.rooms.length;
+            const active = config.rooms.filter(room => roomStates[room.topic]);
+
+            document.getElementById("totalRooms").innerText = total;
+            document.getElementById("activeRooms").innerText = active.length;
+            document.getElementById("houseStatus").innerText = active.length ? "Casa Ativa" : "Tudo Desligado";
+
+            document.getElementById("activeList").innerHTML = active.length
+                ? active.map(room => `<div class="mb-2">💡 ${room.name}</div>`).join("")
+                : "Nenhum cômodo ligado";
+        }
+
+        function connectMQTT() {
+            client = mqtt.connect(`wss://${config.broker}:${config.port}`);
+
+            client.on("connect", () => {
+                document.getElementById("mqttBadge").innerHTML =
+                    `<span class="inline-block w-2.5 h-2.5 rounded-full bg-green-400"></span><span>🟢 MQTT Online</span>`;
+                client.subscribe("pensador/casa/+/state");
+            });
+
+            client.on("message", (topic, payload) => {
+                const state = payload.toString();
+                const room = topic.split("/")[2];
+                roomStates[room] = (state === "ON");
+                renderRooms();
+                updateDashboard();
+            });
+
+            client.on("error", () => {
+                document.getElementById("mqttBadge").innerHTML =
+                    `<span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500"></span><span>🔴 MQTT Offline</span>`;
+            });
+        }
+
+        function toggleRoom(index) {
+            const room = config.rooms[index];
+            const currentState = roomStates[room.topic];
+            const newState = currentState ? "OFF" : "ON";
+            if (client) {
+                client.publish(`pensador/casa/${room.topic}/set`, newState);
+            }
+            roomStates[room.topic] = !currentState;
+            renderRooms();
+            updateDashboard();
+        }
+
+        function renderRooms() {
+            document.getElementById("rooms").innerHTML = config.rooms.map((room, index) => {
+                const active = roomStates[room.topic];
+                return `
+                <div class="bg-zinc-900 border ${active ? 'border-yellow-500/50 shadow-yellow-500/10' : 'border-zinc-800'} rounded-3xl p-6 shadow-xl transition-all duration-300">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <div class="font-black text-2xl tracking-tight">${room.name}</div>
+                            <div class="text-xs text-zinc-500 font-mono mt-1">${room.topic}</div>
+                        </div>
+                        <div class="text-3xl">${active ? '💡' : '🌑'}</div>
+                    </div>
+                    <button onclick="toggleRoom(${index})" class="w-full ${active ? 'bg-yellow-500 hover:bg-yellow-400 text-black font-bold' : 'bg-zinc-800 hover:bg-zinc-700 text-white font-medium'} py-4 rounded-2xl transition duration-300 flex items-center justify-center gap-2">
+                        <span>${active ? 'Apagar Luz' : 'Acender Luz'}</span>
+                    </button>
+                </div>
+            `;
+            }).join("");
+        }
+
+        // =========================================================================
+        // RECONHECIMENTO DE VOZ & WAKE WORD
+        // =========================================================================
+        function getApiKey() {
+            return localStorage.getItem("geminiApiKey") || (config && config.geminiApiKey) || "";
+        }
+
+        function getAiModel() {
+            return (config && config.aiModel) || localStorage.getItem("smartHomeAiModel") || "gemini-2.5-flash-lite";
+        }
+
+        function getSelectedVoice() {
+            return localStorage.getItem("smartHomeVoice") || "pt-BR-FranciscaNeural";
+        }
+
+        function handleVoiceSelectChange(newVoice) {
+            if (!newVoice) return;
+            localStorage.setItem("smartHomeVoice", newVoice);
+
+            // Auto-salva imediatamente no banco de dados SQLite
+            const token = getAuthToken();
+            if (token) {
+                fetch("/api/user/ai-config", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        voice: newVoice
+                    })
+                }).catch(e => console.warn("Aviso ao sincronizar voz:", e));
+            }
+        }
+
+        async function syncUserAiConfig() {
+            // Inicializa visualmente o select com a voz local de imediato
+            const voiceSelect = document.getElementById("modalVoiceSelect");
+            const localVoice = localStorage.getItem("smartHomeVoice") || "pt-BR-FranciscaNeural";
+            if (voiceSelect) {
+                voiceSelect.value = localVoice;
+            }
+
+            const token = getAuthToken();
+            if (!token) return;
+            try {
+                const res = await fetch("/api/user/ai-config", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const aiData = await res.json();
+                    if (aiData.voice && aiData.voice.trim()) {
+                        localStorage.setItem("smartHomeVoice", aiData.voice);
+                        if (voiceSelect) voiceSelect.value = aiData.voice;
+                    } else if (localVoice) {
+                        fetch("/api/user/ai-config", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ voice: localVoice })
+                        }).catch(() => { });
+                    }
+                    if (aiData.ai_model) {
+                        localStorage.setItem("smartHomeAiModel", aiData.ai_model);
+                        const modelInput = document.getElementById("modalAiModelInput");
+                        if (modelInput) modelInput.value = aiData.ai_model;
+                    }
+                    if (aiData.api_key) {
+                        localStorage.setItem("geminiApiKey", aiData.api_key);
+                        const keyInput = document.getElementById("modalApiKeyInput");
+                        if (keyInput) keyInput.value = aiData.api_key;
+                    }
+                }
+            } catch (e) {
+                console.warn("Erro na sincronização de IA na inicialização:", e);
+            }
+        }
+
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            if (input.type === "password") {
+                input.type = "text";
+                btn.innerText = "🙈";
+            } else {
+                input.type = "password";
+                btn.innerText = "👁️";
+            }
+        }
+
+        function handleCameraTypeChange() {
+            const select = document.getElementById("modalCameraTypeSelect");
+            const ipFields = document.getElementById("ipCameraFields");
+            if (!select || !ipFields) return;
+            if (select.value === "ip") {
+                ipFields.classList.remove("hidden");
+            } else {
+                ipFields.classList.add("hidden");
+            }
+        }
+
+        async function openVoiceApiKeyModal() {
+            const modal = document.getElementById("apiKeyModal");
+            const input = document.getElementById("modalApiKeyInput");
+            const modelInput = document.getElementById("modalAiModelInput");
+            const voiceSelect = document.getElementById("modalVoiceSelect");
+            const gmailInput = document.getElementById("modalGmailEmailInput");
+            const pwdInput = document.getElementById("modalGmailPasswordInput");
+            const statusBox = document.getElementById("googleTestStatusResult");
+
+            const camTypeSelect = document.getElementById("modalCameraTypeSelect");
+            const camIpInput = document.getElementById("modalCameraIpUrlInput");
+            const camUserInput = document.getElementById("modalCameraUserInput");
+            const camPwdInput = document.getElementById("modalCameraPwdInput");
+            const camAutoGreet = document.getElementById("modalCameraAutoGreetCheckbox");
+            const camStatusBox = document.getElementById("cameraTestStatusResult");
+            const camPreview = document.getElementById("cameraPreviewContainer");
+
+            if (input) input.value = getApiKey();
+            if (modelInput) modelInput.value = getAiModel();
+            if (voiceSelect) voiceSelect.value = getSelectedVoice();
+            if (statusBox) statusBox.classList.add("hidden");
+            if (camStatusBox) camStatusBox.classList.add("hidden");
+            if (camPreview) camPreview.classList.add("hidden");
+
+            const token = getAuthToken();
+
+            // Carrega configurações de IA (API Key, Modelo, Voz) do banco de dados SQLite do usuário
+            if (token) {
+                try {
+                    const aiRes = await fetch("/api/user/ai-config", {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    if (aiRes.ok) {
+                        const aiData = await aiRes.json();
+                        if (input && aiData.api_key) {
+                            input.value = aiData.api_key;
+                        } else if (input && aiData.configured) {
+                            input.placeholder = `Chave salva no banco (${aiData.masked_key})`;
+                        }
+                        if (modelInput && aiData.ai_model) {
+                            modelInput.value = aiData.ai_model;
+                            localStorage.setItem("smartHomeAiModel", aiData.ai_model);
+                        }
+                        if (voiceSelect && aiData.voice) {
+                            voiceSelect.value = aiData.voice;
+                            localStorage.setItem("smartHomeVoice", aiData.voice);
+                        }
+                        if (aiData.api_key) {
+                            localStorage.setItem("geminiApiKey", aiData.api_key);
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Erro ao buscar configurações de IA do usuário:", err);
+                }
+            }
+
+            // Carrega credenciais Google do banco de dados
+            const googleBadge = document.getElementById("googleSavedBadge");
+            if (googleBadge) googleBadge.classList.add("hidden");
+
+            try {
+                if (token) {
+                    const res = await fetch("/api/user/google-credentials", {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (gmailInput) gmailInput.value = data.gmail_email || "";
+                        if (pwdInput) {
+                            if (data.configured) {
+                                pwdInput.value = "••••••••••••••••";
+                                pwdInput.placeholder = "Senha configurada no banco (preencha para alterar)";
+                                if (googleBadge) {
+                                    googleBadge.classList.remove("hidden");
+                                    googleBadge.className = "text-[11px] font-semibold text-emerald-400 flex items-center gap-1.5 mt-1.5 bg-emerald-950/50 px-2.5 py-1.5 rounded-xl border border-emerald-500/30";
+                                    googleBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Senha salva e sincronizada no banco SQLite`;
+                                }
+                            } else {
+                                pwdInput.value = "";
+                                pwdInput.placeholder = "ex: abcd efgh ijkl mnop";
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn("Erro ao buscar credenciais Google:", err);
+            }
+
+            // Carrega configurações de Câmera do banco de dados
+            try {
+                const token = getAuthToken();
+                if (token) {
+                    const camRes = await fetch("/api/user/camera-config", {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    if (camRes.ok) {
+                        const camData = await camRes.json();
+                        if (camTypeSelect) camTypeSelect.value = camData.camera_type || "device";
+                        if (camIpInput) camIpInput.value = camData.camera_ip_url || "";
+                        if (camUserInput) camUserInput.value = camData.camera_username || "";
+                        if (camPwdInput && !camPwdInput.value && camData.masked_password) {
+                            camPwdInput.placeholder = "Senha salva (preencha para alterar)";
+                        }
+                        if (camAutoGreet) camAutoGreet.checked = (camData.camera_auto_greeting !== false);
+                        handleCameraTypeChange();
+                    }
+                }
+            } catch (err) {
+                console.warn("Erro ao buscar configurações de câmera:", err);
+            }
+
+            // Carrega configurações do Telegram do banco de dados
+            const tgTokenInput = document.getElementById("modalTelegramTokenInput");
+            const tgChatIdInput = document.getElementById("modalTelegramChatIdInput");
+            const tgEnabled = document.getElementById("modalTelegramEnabledCheckbox");
+            const tgNotifCam = document.getElementById("modalTelegramNotifyCameraCheckbox");
+            const tgStatusBox = document.getElementById("telegramTestStatusResult");
+            if (tgStatusBox) tgStatusBox.classList.add("hidden");
+
+            try {
+                const token = getAuthToken();
+                if (token) {
+                    const tgRes = await fetch("/api/user/telegram-config", {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    if (tgRes.ok) {
+                        const tgData = await tgRes.json();
+                        if (tgTokenInput) {
+                            tgTokenInput.value = tgData.bot_token || "";
+                            if (tgData.configured && !tgTokenInput.value) tgTokenInput.placeholder = "Token configurado no banco";
+                        }
+                        if (tgChatIdInput) tgChatIdInput.value = tgData.chat_id || "";
+                        if (tgEnabled) tgEnabled.checked = (tgData.enabled !== false);
+                        if (tgNotifCam) tgNotifCam.checked = (tgData.notify_camera !== false);
+                    }
+                }
+            } catch (err) {
+                console.warn("Erro ao buscar configurações do Telegram:", err);
+            }
+
+            if (modal) modal.classList.remove("hidden");
+        }
+
+        function closeVoiceApiKeyModal() {
+            const modal = document.getElementById("apiKeyModal");
+            if (modal) modal.classList.add("hidden");
+        }
+
+        async function testTelegramConnectionFromModal() {
+            const tokenInput = document.getElementById("modalTelegramTokenInput");
+            const chatIdInput = document.getElementById("modalTelegramChatIdInput");
+            const testBtn = document.getElementById("testTelegramBtn");
+            const statusBox = document.getElementById("telegramTestStatusResult");
+
+            const token = tokenInput ? tokenInput.value.trim() : "";
+            const chatId = chatIdInput ? chatIdInput.value.trim() : "";
+
+            if (!statusBox) return;
+            statusBox.classList.remove("hidden");
+            statusBox.className = "text-xs p-3 rounded-xl border bg-zinc-800/80 border-zinc-700 text-zinc-300 flex items-center gap-2";
+            statusBox.innerHTML = `<span class="animate-spin">⏳</span> <span>Validando token do Telegram e enviando teste...</span>`;
+            if (testBtn) testBtn.disabled = true;
+
+            try {
+                const authToken = getAuthToken();
+                const res = await fetch("/api/user/telegram-config/test", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ bot_token: token, chat_id: chatId })
+                });
+
+                const data = await res.json();
+                if (res.ok && data.status === "success") {
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-sky-950/40 border-sky-500/50 text-sky-300";
+                    statusBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-sky-400">
+                            <span>✅</span> <span>Bot Conectado: @${data.bot_username || data.bot_name}</span>
+                        </div>
+                        <div class="text-[11px] text-zinc-300">${data.details}</div>
+                    `;
+                } else {
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
+                    statusBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-red-400">
+                            <span>❌</span> <span>Falha na Conexão do Telegram</span>
+                        </div>
+                        <div class="text-[11px] text-zinc-300">${data.detail || data.details || "Verifique se o token criado no @BotFather está correto."}</div>
+                    `;
+                }
+            } catch (err) {
+                statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
+                statusBox.innerHTML = `<span>Erro ao testar Telegram: ${err.message}</span>`;
+            } finally {
+                if (testBtn) testBtn.disabled = false;
+            }
+        }
+
+        async function testGoogleConnectionFromModal() {
+            const gmailInput = document.getElementById("modalGmailEmailInput");
+            const pwdInput = document.getElementById("modalGmailPasswordInput");
+            const testBtn = document.getElementById("testGoogleBtn");
+            const statusBox = document.getElementById("googleTestStatusResult");
+
+            const email = gmailInput ? gmailInput.value.trim() : "";
+            const pwd = pwdInput ? pwdInput.value.trim() : "";
+
+            if (!statusBox) return;
+            statusBox.classList.remove("hidden");
+            statusBox.className = "text-xs p-3 rounded-xl border bg-zinc-800/80 border-zinc-700 text-zinc-300 flex items-center gap-2";
+            statusBox.innerHTML = `<span class="animate-spin">⏳</span> <span>Testando conexões com Gmail, Agenda e Contatos...</span>`;
+            if (testBtn) testBtn.disabled = true;
+
+            try {
+                const token = getAuthToken();
+                const pwdToSend = (pwd && !pwd.includes("•") && !pwd.includes("*")) ? pwd : "";
+                const res = await fetch("/api/user/google-credentials/test", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ gmail_email: email, gmail_app_password: pwdToSend })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-emerald-950/40 border-emerald-500/50 text-emerald-300";
+                    statusBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-emerald-400">
+                            <span>✅</span> <span>Conta Google Conectada com Sucesso!</span>
+                        </div>
+                        <div class="text-[11px] text-zinc-300 space-y-0.5">
+                            <div>• 📧 <b>Gmail:</b> ${data.imap ? "Conectado" : "Aviso"}</div>
+                            <div>• 📅 <b>Google Agenda:</b> ${data.caldav ? "Conectado" : "Aviso"}</div>
+                            <div>• 👥 <b>Google Contatos:</b> ${data.carddav ? "Conectado" : "Aviso"}</div>
+                        </div>
+                    `;
+                    // Auto-salva no SQLite ao testar com sucesso
+                    if (email && pwd && !pwd.includes("•") && !pwd.includes("*")) {
+                        const token = getAuthToken();
+                        fetch("/api/user/google-credentials", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ gmail_email: email, gmail_app_password: pwd })
+                        }).then(() => {
+                            if (pwdInput) pwdInput.value = "••••••••••••••••";
+                            const googleBadge = document.getElementById("googleSavedBadge");
+                            if (googleBadge) {
+                                googleBadge.classList.remove("hidden");
+                                googleBadge.className = "text-[11px] font-semibold text-emerald-400 flex items-center gap-1.5 mt-1.5 bg-emerald-950/50 px-2.5 py-1.5 rounded-xl border border-emerald-500/30";
+                                googleBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Senha salva e sincronizada no banco SQLite`;
+                            }
+                        }).catch(() => { });
+                    }
+                } else {
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
+                    statusBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-red-400">
+                            <span>❌</span> <span>Falha na Autenticação</span>
+                        </div>
+                        <div class="text-[11px] text-zinc-300">${data.message || "Verifique as credenciais digitadas."}</div>
+                    `;
+                }
+            } catch (err) {
+                statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
+                statusBox.innerHTML = `<span>Erro ao testar: ${err.message}</span>`;
+            } finally {
+                if (testBtn) testBtn.disabled = false;
+            }
+        }
+
+        async function captureBrowserWebcamSnapshot() {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                const video = document.createElement("video");
+                video.srcObject = stream;
+                await video.play();
+                const canvas = document.createElement("canvas");
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+                stream.getTracks().forEach(track => track.stop());
+
+                // Envia para o backend
+                const token = getAuthToken();
+                await fetch("/api/camera/snapshot", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ image_base64: dataUrl })
+                });
+                return dataUrl;
+            } catch (err) {
+                console.warn("Navegador não pôde capturar webcam diretamente:", err);
+                return null;
+            }
+        }
+
+        async function testCameraConnectionFromModal() {
+            const camType = document.getElementById("modalCameraTypeSelect")?.value || "device";
+            const camIpUrl = document.getElementById("modalCameraIpUrlInput")?.value.trim() || "";
+            const camUser = document.getElementById("modalCameraUserInput")?.value.trim() || "";
+            const camPwd = document.getElementById("modalCameraPwdInput")?.value.trim() || "";
+            const autoGreet = document.getElementById("modalCameraAutoGreetCheckbox")?.checked;
+
+            const testBtn = document.getElementById("testCameraBtn");
+            const statusBox = document.getElementById("cameraTestStatusResult");
+            const previewContainer = document.getElementById("cameraPreviewContainer");
+            const previewImg = document.getElementById("cameraPreviewImg");
+
+            if (!statusBox) return;
+            statusBox.classList.remove("hidden");
+            statusBox.className = "text-xs p-3 rounded-xl border bg-zinc-800/80 border-zinc-700 text-zinc-300 flex items-center gap-2";
+            statusBox.innerHTML = `<span class="animate-spin">⏳</span> <span>Testando captura da ${camType === 'ip' ? 'Câmera IP' : 'Câmera Local'}...</span>`;
+            if (testBtn) testBtn.disabled = true;
+
+            if (camType === "device") {
+                await captureBrowserWebcamSnapshot();
+            }
+
+            try {
+                const token = getAuthToken();
+                const res = await fetch("/api/user/camera-config/test", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        camera_type: camType,
+                        camera_ip_url: camIpUrl,
+                        camera_username: camUser,
+                        camera_password: camPwd,
+                        camera_auto_greeting: autoGreet
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success && data.snapshot_base64) {
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-emerald-950/40 border-emerald-500/50 text-emerald-300";
+                    statusBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-emerald-400">
+                            <span>✅</span> <span>Câmera Conectada e Operacional!</span>
+                        </div>
+                        <div class="text-[11px] text-zinc-300">${data.message}</div>
+                    `;
+                    if (previewContainer && previewImg) {
+                        previewImg.src = data.snapshot_base64;
+                        previewContainer.classList.remove("hidden");
+                    }
+                } else {
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
+                    statusBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-red-400">
+                            <span>❌</span> <span>Erro ao Conectar à Câmera</span>
+                        </div>
+                        <div class="text-[11px] text-zinc-300">${data.message || "Verifique se o dispositivo está conectado ou se a URL RTSP/HTTP da câmera IP está correta."}</div>
+                    `;
+                    if (previewContainer) previewContainer.classList.add("hidden");
+                }
+            } catch (err) {
+                statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
+                statusBox.innerHTML = `<span>Erro ao testar câmera: ${err.message}</span>`;
+            } finally {
+                if (testBtn) testBtn.disabled = false;
+            }
+        }
+
+        async function saveVoiceApiKeyFromModal() {
+            const key = document.getElementById("modalApiKeyInput").value.trim();
+            const model = document.getElementById("modalAiModelInput").value.trim() || "gemini-2.5-flash-lite";
+            const voice = document.getElementById("modalVoiceSelect").value || "pt-BR-FranciscaNeural";
+            const gmailEmail = document.getElementById("modalGmailEmailInput")?.value.trim() || "";
+            const gmailPwd = document.getElementById("modalGmailPasswordInput")?.value.trim() || "";
+
+            const camType = document.getElementById("modalCameraTypeSelect")?.value || "device";
+            const camIpUrl = document.getElementById("modalCameraIpUrlInput")?.value.trim() || "";
+            const camUser = document.getElementById("modalCameraUserInput")?.value.trim() || "";
+            const camPwd = document.getElementById("modalCameraPwdInput")?.value.trim() || "";
+            const camAutoGreet = document.getElementById("modalCameraAutoGreetCheckbox")?.checked;
+
+            const tgToken = document.getElementById("modalTelegramTokenInput")?.value.trim() || "";
+            const tgChatId = document.getElementById("modalTelegramChatIdInput")?.value.trim() || "";
+            const tgEnabled = document.getElementById("modalTelegramEnabledCheckbox")?.checked;
+            const tgNotifCam = document.getElementById("modalTelegramNotifyCameraCheckbox")?.checked;
+
+            if (key) {
+                localStorage.setItem("geminiApiKey", key);
+            }
+            localStorage.setItem("smartHomeAiModel", model);
+            localStorage.setItem("smartHomeVoice", voice);
+            if (config) {
+                config.aiModel = model;
+                config.geminiApiKey = key || config.geminiApiKey;
+                localStorage.setItem("smartHomeConfig", JSON.stringify(config));
+            }
+
+            const token = getAuthToken();
+
+            // Salva preferências de IA (API Key, Modelo e Voz) no banco de dados SQLite do usuário
+            if (token) {
+                try {
+                    const aiPayload = {
+                        ai_model: model,
+                        voice: voice
+                    };
+                    if (key && !key.includes("...") && !key.includes("•")) {
+                        aiPayload.api_key = key;
+                    }
+                    await fetch("/api/user/ai-config", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify(aiPayload)
+                    });
+                } catch (err) {
+                    console.warn("Aviso ao salvar configuração de IA no banco de dados:", err);
+                }
+            }
+
+            // Salva credenciais Google se preenchidas
+            if (gmailEmail && token) {
+                try {
+                    const pwdToSend = (gmailPwd && !gmailPwd.includes("•") && !gmailPwd.includes("*")) ? gmailPwd : "";
+                    await fetch("/api/user/google-credentials", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ gmail_email: gmailEmail, gmail_app_password: pwdToSend })
+                    });
+                } catch (err) {
+                    console.warn("Aviso ao salvar credenciais Google:", err);
+                }
+            }
+
+            // Salva configurações de Câmera
+            if (token) {
+                try {
+                    await fetch("/api/user/camera-config", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            camera_type: camType,
+                            camera_ip_url: camIpUrl,
+                            camera_username: camUser,
+                            camera_password: camPwd,
+                            camera_auto_greeting: camAutoGreet
+                        })
+                    });
+                } catch (err) {
+                    console.warn("Aviso ao salvar configurações de câmera:", err);
+                }
+
+                // Salva configurações do Telegram
+                try {
+                    await fetch("/api/user/telegram-config", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            bot_token: tgToken,
+                            chat_id: tgChatId,
+                            enabled: tgEnabled,
+                            notify_camera: tgNotifCam,
+                            notify_tasks: true
+                        })
+                    });
+                } catch (err) {
+                    console.warn("Aviso ao salvar configurações do Telegram:", err);
+                }
+            }
+
+            closeVoiceApiKeyModal();
+            setVoiceStatus("✅", `Configurações salvas: ${model}`, false);
+        }
+
+        function showVoiceHud() {
+            const hud = document.getElementById("voiceHud");
+            if (hud) hud.classList.remove("hidden");
+        }
+
+        function closeVoiceHud() {
+            const hud = document.getElementById("voiceHud");
+            if (hud) hud.classList.add("hidden");
+        }
+
+        function setVoiceStatus(icon, text, isAnimatingWave) {
+            const statusEl = document.getElementById("voiceStatusText");
+            const wave = document.getElementById("voiceWaveAnimation");
+            if (statusEl) statusEl.innerText = `${icon} ${text}`;
+            if (wave) {
+                if (isAnimatingWave) wave.classList.remove("opacity-20");
+                else wave.classList.add("opacity-20");
+            }
+        }
+
+        function setVoiceTranscript(text, isItalic) {
+            const el = document.getElementById("voiceTranscriptText");
+            if (el) {
+                el.innerText = text;
+                if (isItalic) el.classList.add("italic");
+                else el.classList.remove("italic");
+            }
+        }
+
+        function showResponse(text) {
+            const box = document.getElementById("geminiResponseBox");
+            const textEl = document.getElementById("geminiResponseText");
+            if (textEl) textEl.innerText = text;
+            if (box) box.classList.remove("hidden");
+        }
+
+        async function requestScreenWakeLock() {
+            try {
+                if ("wakeLock" in navigator) {
+                    wakeLock = await navigator.wakeLock.request("screen");
+                }
+            } catch (e) { }
+        }
+
+        function updateAgentNamesInUI() {
+            const agentName = getAgentName();
+            const tag = document.getElementById("headerAgentNameTag");
+            if (tag) tag.innerText = `"${agentName}"`;
+            const hudTitle = document.getElementById("hudAgentTitle");
+            if (hudTitle) hudTitle.innerText = `Assistente "${agentName}"`;
+        }
+
+        function updateAlwaysListenUI() {
+            const agentName = getAgentName();
+            const dot = document.getElementById("alwaysListenDot");
+            const text = document.getElementById("alwaysListenText");
+            const btn = document.getElementById("alwaysListenBtn");
+
+            if (alwaysListen) {
+                if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-green-400 animate-ping";
+                if (text) text.innerHTML = `🟢 Ouvindo: <b>"${agentName}"</b>`;
+                if (btn) btn.className = "bg-indigo-900/60 border border-indigo-500 text-indigo-200 transition px-4 py-3 rounded-2xl font-semibold text-sm flex items-center gap-2 shadow-lg shadow-indigo-500/20";
+                requestScreenWakeLock();
+            } else {
+                if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-zinc-500";
+                if (text) text.innerHTML = `🎙️ Ouvir Sempre: Inativo`;
+                if (btn) btn.className = "bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition px-4 py-3 rounded-2xl font-semibold text-sm flex items-center gap-2";
+            }
+        }
+
+        function toggleAlwaysListen() {
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                openVoiceApiKeyModal();
+                return;
+            }
+
+            alwaysListen = !alwaysListen;
+            localStorage.setItem("alwaysListenSmartHome", alwaysListen ? "true" : "false");
+            updateAlwaysListenUI();
+
+            if (alwaysListen) {
+                showVoiceHud();
+                const agentName = getAgentName();
+                setVoiceStatus("👂", `Ouvindo... Diga "${agentName}"`, true);
+                setVoiceTranscript(`Aguardando palavra de ativação "${agentName}"...`, true);
+                startVoiceRecognition();
+            } else {
+                stopVoiceRecognition();
+                setVoiceStatus("⏹️", "Escuta contínua pausada", false);
+            }
+        }
+
+        function createFreshRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("Seu navegador não suporta reconhecimento de voz. Utilize o Google Chrome ou Edge.");
+                return null;
+            }
+
+            if (recognitionInstance) {
+                try {
+                    recognitionInstance.onstart = null;
+                    recognitionInstance.onresult = null;
+                    recognitionInstance.onerror = null;
+                    recognitionInstance.onend = null;
+                    recognitionInstance.abort();
+                } catch (e) { }
+                recognitionInstance = null;
+            }
+
+            const rec = new SpeechRecognition();
+            rec.lang = "pt-BR";
+            rec.continuous = false;
+            rec.interimResults = true;
+            rec.maxAlternatives = 1;
+
+            let latestHeardText = "";
+
+            rec.onstart = () => {
+                primeAudioEngine();
+                isListening = true;
+                latestHeardText = "";
+                lastActivityTimestamp = Date.now();
+                document.getElementById("micPulseEffect").classList.remove("hidden");
+                document.getElementById("micIcon").classList.add("hidden");
+                document.getElementById("stopIcon").classList.remove("hidden");
+
+                if (alwaysListen) {
+                    const agentName = getAgentName();
+                    if (!isWaitingCommandAfterWakeWord) {
+                        setVoiceStatus("👂", `Ouvindo... Diga "${agentName}"`, true);
+                    }
+                } else {
+                    setVoiceStatus("🎙️", "Ouvindo... Fale agora", true);
+                }
+            };
+
+            rec.onresult = (event) => {
+                primeAudioEngine();
+                lastActivityTimestamp = Date.now();
+                if (isSpeakingTTS) return;
+
+                let interim = "";
+                let finalStr = "";
+
+                for (let i = 0; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalStr += event.results[i][0].transcript + " ";
+                    } else {
+                        interim += event.results[i][0].transcript + " ";
+                    }
+                }
+
+                const currentText = (finalStr || interim).trim();
+                if (currentText) {
+                    latestHeardText = currentText;
+                    setVoiceTranscript(`"${currentText}"`, false);
+                }
+            };
+
+            rec.onerror = (event) => {
+                console.warn("[Speech onerror]:", event.error);
+                lastActivityTimestamp = Date.now();
+                if (event.error === "not-allowed") {
+                    setVoiceStatus("⚠️", "Permissão de microfone negada", false);
+                    alwaysListen = false;
+                    updateAlwaysListenUI();
+                }
+            };
+
+            rec.onend = () => {
+                isListening = false;
+                document.getElementById("micPulseEffect").classList.add("hidden");
+                document.getElementById("micIcon").classList.remove("hidden");
+                document.getElementById("stopIcon").classList.add("hidden");
+
+                if (latestHeardText && !isSpeakingTTS && !isProcessingCommand) {
+                    const textToProcess = latestHeardText;
+                    latestHeardText = "";
+                    if (alwaysListen) {
+                        handleWakeWordDetection(textToProcess);
+                    } else {
+                        processCommandWithApi(textToProcess);
+                    }
+                }
+
+                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand) {
+                    setTimeout(() => {
+                        if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand) {
+                            startVoiceRecognition();
+                        }
+                    }, 120);
+                }
+            };
+
+            return rec;
+        }
+
+        function normalizeText(text) {
+            return text
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .trim();
+        }
+
+        function handleWakeWordDetection(text) {
+            if (isProcessingCommand || isSpeakingTTS) return;
+
+            const agentName = getAgentName();
+            const normalizedText = normalizeText(text);
+            const normalizedAgentName = normalizeText(agentName);
+
+            const rawPatterns = new Set([
+                normalizedAgentName,
+                normalizedAgentName.replace(/[-\s_]+/g, " "),
+                normalizedAgentName.replace(/[-\s_]+/g, "-"),
+                normalizedAgentName.replace(/[-\s_]+/g, ""),
+                "sexta-feira",
+                "sexta feira",
+                "sextafeira",
+                "sexta",
+                "meu agente",
+                "meu gente",
+                "agente",
+                "jarvis",
+                "casa"
+            ]);
+
+            const patternList = Array.from(rawPatterns).filter(Boolean);
+            const escapedNames = patternList.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
+            const regex = new RegExp(`(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
+
+            const wakeMatch = normalizedText.match(regex);
+
+            if (wakeMatch) {
+                const commandAfterWakeWord = wakeMatch[1].trim();
+
+                if (commandAfterWakeWord.length > 1) {
+                    clearTimeout(wakeWordTimer);
+                    isWaitingCommandAfterWakeWord = false;
+                    showVoiceHud();
+                    setVoiceStatus("✨", "Processando comando...", true);
+                    setVoiceTranscript(`"${agentName}, ${commandAfterWakeWord}"`, false);
+                    processCommandWithApi(commandAfterWakeWord);
+                    return;
+                }
+
+                if (!isWaitingCommandAfterWakeWord) {
+                    isWaitingCommandAfterWakeWord = true;
+                    showVoiceHud();
+                    setVoiceStatus("⚡", `Sim! Diga o comando agora...`, true);
+                    setVoiceTranscript(`"${agentName}..." (Aguardando instrução...)`, false);
+
+                    speakResponse("Olá, como posso ajudar?");
+
+                    clearTimeout(wakeWordTimer);
+                    wakeWordTimer = setTimeout(() => {
+                        isWaitingCommandAfterWakeWord = false;
+                        setVoiceStatus("👂", `Aguardando "${agentName}"...`, true);
+                    }, 10000);
+                }
+                return;
+            }
+
+            if (isWaitingCommandAfterWakeWord && text.trim()) {
+                clearTimeout(wakeWordTimer);
+                isWaitingCommandAfterWakeWord = false;
+                showVoiceHud();
+                setVoiceStatus("✨", "Processando comando...", true);
+                setVoiceTranscript(`"${text.trim()}"`, false);
+                processCommandWithApi(text.trim());
+            }
+        }
+
+        function toggleVoiceAssistant() {
+            showVoiceHud();
+
+            if (isListening) {
+                stopVoiceRecognition();
+            } else {
+                startVoiceRecognition();
+            }
+        }
+
+        function startVoiceRecognition() {
+            if (isSpeakingTTS || isProcessingCommand) return;
+
+            try {
+                recognitionInstance = createFreshRecognition();
+                if (recognitionInstance) {
+                    recognitionInstance.start();
+                    lastActivityTimestamp = Date.now();
+                }
+            } catch (e) {
+                console.warn("[Speech] Reiniciando escuta:", e);
+                setTimeout(() => {
+                    if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand) {
+                        startVoiceRecognition();
+                    }
+                }, 200);
+            }
+        }
+
+        function stopVoiceRecognition() {
+            if (recognitionInstance) {
+                try {
+                    recognitionInstance.abort();
+                } catch (e) { }
+            }
+            isListening = false;
+            document.getElementById("micPulseEffect").classList.add("hidden");
+            document.getElementById("micIcon").classList.add("hidden");
+            document.getElementById("stopIcon").classList.remove("hidden");
+        }
+
+        function initVoiceWatchdog() {
+            if (watchdogInterval) clearInterval(watchdogInterval);
+
+            watchdogInterval = setInterval(() => {
+                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand && !isListening) {
+                    startVoiceRecognition();
+                }
+            }, 2000);
+        }
+
+        initVoiceWatchdog();
+
+        function handleManualCommand(e) {
+            e.preventDefault();
+            const input = document.getElementById("voiceTextInput");
+            const cmd = input.value.trim();
+            if (!cmd) return;
+
+            input.value = "";
+            setVoiceTranscript(`"${cmd}"`, false);
+            processCommandWithApi(cmd);
+        }
+
+        // =========================================================================
+        // CHAMADA AO AGENTE FASTAPI / LANGCHAIN (/api/chat)
+        // =========================================================================
+        async function processCommandWithApi(userCommand) {
+            primeAudioEngine();
+            console.log("[processCommandWithApi]: Enviando para FastAPI + LangChain:", `"${userCommand}"`);
+
+            if (isProcessingCommand) return;
+            isProcessingCommand = true;
+
+            // Reseta a fila de áudio anterior para iniciar novo ciclo
+            clearSpeechQueue();
+
+            const apiKey = getApiKey();
+            const agentName = getAgentName();
+            setVoiceStatus("✨", `Processando com Agente LangChain...`, true);
+
+            const allRooms = config.rooms || [];
+            const roomsPayload = allRooms.map(r => ({ name: r.name, topic: r.topic }));
+            const currentAiModel = (config && config.aiModel) || "gemini-2.5-flash-lite";
+
+            let currentUserEmail = "";
+            try {
+                const userObj = JSON.parse(localStorage.getItem("smartHomeUser") || "{}");
+                currentUserEmail = userObj.email || "";
+            } catch (e) { }
+
+            const payload = {
+                message: userCommand,
+                api_key: apiKey,
+                model: currentAiModel,
+                agent_name: agentName,
+                rooms: roomsPayload,
+                rooms_state: roomStates,
+                broker: config.broker || "test.mosquitto.org",
+                port: 1883,
+                user_email: currentUserEmail
+            };
+
+            try {
+                const apiUrl = (window.location.protocol.startsWith("http") && window.location.port)
+                    ? "/api/chat/stream"
+                    : "http://localhost:8000/api/chat/stream";
+
+                console.log("[API Request Stream]: POST", apiUrl, payload);
+
+                const currentToken = localStorage.getItem("smartHomeToken") || "";
+
+                const res = await fetch(apiUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        alert("Sessão expirada. Faça login novamente.");
+                        location.href = "/login.html";
+                        return;
+                    }
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.detail || `HTTP ${res.status}`);
+                }
+
+                let finalReply = "";
+                let finalActions = [];
+
+                if (res.body && res.body.getReader) {
+                    const reader = res.body.getReader();
+                    const decoder = new TextDecoder("utf-8");
+                    let buffer = "";
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split("\n\n");
+                        buffer = lines.pop();
+
+                        for (const block of lines) {
+                            for (const line of block.split("\n")) {
+                                if (line.startsWith("data: ")) {
+                                    const jsonStr = line.slice(6).trim();
+                                    if (!jsonStr) continue;
+                                    try {
+                                        const ev = JSON.parse(jsonStr);
+                                        if (ev.type === "status") {
+                                            setVoiceStatus("🔄", ev.message, true);
+                                            showResponse(`⏳ ${ev.message}`);
+                                            speakIntermediateStatus(ev.message);
+                                        } else if (ev.type === "final") {
+                                            finalReply = ev.reply || "";
+                                            finalActions = ev.actions || [];
+                                        } else if (ev.type === "error") {
+                                            throw new Error(ev.message || "Erro no processamento do agente");
+                                        }
+                                    } catch (errJson) {
+                                        console.warn("Aviso ao processar evento de stream:", errJson);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    const data = await res.json();
+                    finalReply = data.reply || "";
+                    finalActions = data.actions || [];
+                }
+
+                // Executa ações retornadas pelo agente
+                if (finalActions && Array.isArray(finalActions)) {
+                    for (const action of finalActions) {
+                        const targetRoom = config.rooms.find(
+                            r => r.topic === action.topic || r.name.toLowerCase() === action.topic.toLowerCase()
+                        );
+                        const topic = targetRoom ? targetRoom.topic : action.topic;
+                        const statePayload = (action.state === "ON" || action.state === "on") ? "ON" : "OFF";
+
+                        if (client) {
+                            client.publish(`pensador/casa/${topic}/set`, statePayload);
+                        }
+                        roomStates[topic] = (statePayload === "ON");
+                    }
+                    renderRooms();
+                    updateDashboard();
+                }
+
+                const reply = finalReply || "Comando processado com sucesso.";
+                setVoiceStatus("✅", "Concluído! 🤖", false);
+                showResponse(reply);
+
+                console.log("[TTS]: Falando resposta:", `"${reply}"`);
+                speakResponse(reply);
+
+            } catch (e) {
+                console.error("[API Error]:", e);
+                setVoiceStatus("❌", `Erro API: ${e.message}`, false);
+                showResponse(`Falha na API: ${e.message}`);
+            } finally {
+                setTimeout(() => {
+                    isProcessingCommand = false;
+                }, 800);
+            }
+        }
+
+        function cleanTextForSpeech(text) {
+            if (!text) return "";
+            return text
+                .replace(/```[\s\S]*?```/g, "")
+                .replace(/`([^`]+)`/g, "$1")
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+                .replace(/^#{1,6}\s+/gm, "")
+                .replace(/\*\*([^*]+)\*\*/g, "$1")
+                .replace(/\*([^*]+)\*/g, "$1")
+                .replace(/__([^_]+)__/g, "$1")
+                .replace(/_([^_]+)_/g, "$1")
+                .replace(/^\s*[-*+]\s+/gm, "")
+                .replace(/[*#_~`]/g, "")
+                .trim();
+        }
+
+        // =========================================================================
+        // MOTOR DE ÁUDIO & AUTO-DESBLOQUEIO NO LOAD (WEB AUDIO API + MEDIASTREAM)
+        // =========================================================================
+        let sharedAudioContext = null;
+        let silentGainNode = null;
+        let silentOscillator = null;
+        let micStreamSource = null;
+        let currentAudioPlayer = null;
+        let currentAudioSourceNode = null;
+        let ttsSafetyTimeout = null;
+
+        function initSystemFromStartupModal() {
+            primeAudioEngine();
+            unlockAudioContext();
+
+            const modal = document.getElementById("startupTechModal");
+            if (modal) {
+                modal.classList.add("opacity-0", "scale-105", "pointer-events-none");
+                setTimeout(() => modal.classList.add("hidden"), 500);
+            }
+
+            if (alwaysListen) {
+                startVoiceRecognition();
+            }
+        }
+
+        function getSharedAudioContext() {
+            if (!sharedAudioContext) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) {
+                    sharedAudioContext = new AudioCtx();
+                }
+            }
+            return sharedAudioContext;
+        }
+
+        function primeKeepAliveNode(ctx) {
+            if (!ctx) return;
+            try {
+                if (!silentGainNode) {
+                    silentGainNode = ctx.createGain();
+                    silentGainNode.gain.value = 0.00001; // Inaudível
+                    silentGainNode.connect(ctx.destination);
+
+                    silentOscillator = ctx.createOscillator();
+                    silentOscillator.frequency.value = 440;
+                    silentOscillator.connect(silentGainNode);
+                    try { silentOscillator.start(0); } catch (e) { }
+                }
+            } catch (e) { }
+        }
+
+        async function autoUnlockAudioOnLoad() {
+            try {
+                const ctx = getSharedAudioContext();
+                if (!ctx) return;
+
+                // 1. Tenta resume direto do contexto
+                try {
+                    await ctx.resume();
+                } catch (e) { }
+
+                if (ctx.state === 'running') {
+                    primeKeepAliveNode(ctx);
+                    return;
+                }
+
+                // 2. Desbloqueia 100% automaticamente via MediaStream de Microfone autorizado
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            audio: {
+                                echoCancellation: true,
+                                noiseSuppression: true,
+                                autoGainControl: true
+                            }
+                        });
+                        if (stream && ctx) {
+                            if (!micStreamSource) {
+                                micStreamSource = ctx.createMediaStreamSource(stream);
+                                const nullGain = ctx.createGain();
+                                nullGain.gain.value = 0.0; // Silêncio total do mic nos falantes
+                                micStreamSource.connect(nullGain);
+                                nullGain.connect(ctx.destination);
+                            }
+                            await ctx.resume();
+                            primeKeepAliveNode(ctx);
+                            console.log("[Auto-Audio-Unlock]: Áudio ativado 100% automaticamente na abertura da tela!");
+                        }
+                    } catch (streamErr) {
+                        console.warn("[Auto-Audio-Unlock MediaStream]:", streamErr);
+                    }
+                }
+            } catch (err) {
+                console.warn("[Auto-Audio-Unlock general]:", err);
+            }
+        }
+
+        function unlockAudioContext() {
+            try {
+                const ctx = getSharedAudioContext();
+                if (ctx && ctx.state === 'suspended') {
+                    ctx.resume().catch(() => { });
+                }
+                if ("speechSynthesis" in window && window.speechSynthesis.paused) {
+                    window.speechSynthesis.resume();
+                }
+            } catch (e) { }
+        }
+
+        function getGlobalAudioElement() {
+            let audio = document.getElementById("globalTtsPlayer");
+            if (!audio) {
+                audio = document.createElement("audio");
+                audio.id = "globalTtsPlayer";
+                audio.setAttribute("preload", "auto");
+                audio.setAttribute("playsinline", "");
+                document.body.appendChild(audio);
+            }
+            return audio;
+        }
+
+        function primeAudioEngine() {
+            unlockAudioContext();
+            try {
+                const audio = getGlobalAudioElement();
+                const ctx = getSharedAudioContext();
+                if (ctx && ctx.state === 'running') {
+                    primeKeepAliveNode(ctx);
+                }
+            } catch (e) { }
+        }
+
+        // Desbloqueia e prepara o motor de áudio em qualquer interação do usuário ou evento do sistema
+        if (typeof window !== "undefined") {
+            ['click', 'touchstart', 'touchend', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'keydown', 'keyup', 'focus', 'mousemove', 'pointermove', 'wheel', 'scroll'].forEach(evt => {
+                window.addEventListener(evt, primeAudioEngine, { passive: true });
+                document.addEventListener(evt, primeAudioEngine, { passive: true });
+            });
+            document.addEventListener("visibilitychange", () => {
+                if (document.visibilityState === "visible") {
+                    unlockAudioContext();
+                    primeAudioEngine();
+                }
+            });
+            window.addEventListener("focus", () => {
+                unlockAudioContext();
+                primeAudioEngine();
+            });
+        }
+
+        function playAudioBlob(blob) {
+            return new Promise((resolve) => {
+                if (!blob) {
+                    resolve(false);
+                    return;
+                }
+                try {
+                    primeAudioEngine();
+                    const audio = getGlobalAudioElement();
+                    const audioUrl = URL.createObjectURL(blob);
+                    audio.src = audioUrl;
+
+                    let isDone = false;
+                    let safetyWatchdog = null;
+
+                    const cleanup = (success) => {
+                        if (!isDone) {
+                            isDone = true;
+                            if (safetyWatchdog) clearTimeout(safetyWatchdog);
+                            audio.onended = null;
+                            audio.onerror = null;
+                            try { URL.revokeObjectURL(audioUrl); } catch (e) { }
+                            resolve(success);
+                        }
+                    };
+
+                    audio.onended = () => cleanup(true);
+                    audio.onerror = (err) => {
+                        console.warn("[Global HTML5 Audio Error]:", err);
+                        cleanup(false);
+                    };
+
+                    // Watchdog de segurança
+                    safetyWatchdog = setTimeout(() => cleanup(true), 25000);
+
+                    const playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            // Tocou normalmente
+                        }).catch(err => {
+                            console.warn("[Global HTML5 Audio Play Rejected]:", err);
+                            cleanup(false);
+                        });
+                    }
+                } catch (e) {
+                    resolve(false);
+                }
+            });
+        }
+
+        // =========================================================================
+        // MOTOR DE ÁUDIO SEQUENCIAL & FILA DE PROCESSAMENTO (AUDIO QUEUE PIPELINE)
+        // =========================================================================
+        let speechQueue = [];
+        let isProcessingQueue = false;
+        let lastEnqueuedText = "";
+        const audioBufferCache = new Map();
+
+        async function fetchAudioItem(text, voice) {
+            const cacheKey = `${voice}:::${text}`;
+            if (audioBufferCache.has(cacheKey)) {
+                return audioBufferCache.get(cacheKey);
+            }
+
+            unlockAudioContext();
+            const token = getAuthToken ? getAuthToken() : (localStorage.getItem("smartHomeToken") || "");
+            const res = await fetch("/api/tts", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    text: text,
+                    voice: voice,
+                    rate: "+12%"
+                })
+            });
+
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const blob = await res.blob();
+            const ctx = getSharedAudioContext();
+            let audioBuffer = null;
+
+            if (ctx) {
+                try {
+                    const arrayBuffer = await blob.slice(0).arrayBuffer();
+                    audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+                } catch (decodeErr) {
+                    console.warn("[AudioBuffer Decode Error]:", decodeErr);
+                }
+            }
+
+            const itemResult = { blob, audioBuffer };
+            if (audioBufferCache.size < 200) {
+                audioBufferCache.set(cacheKey, itemResult);
+            }
+            return itemResult;
+        }
+
+        function enqueueSpeech(text, isFinal = false) {
+            const cleanText = cleanTextForSpeech(text);
+            if (!cleanText) return;
+
+            // Evita duplicatas consecutivas idênticas
+            if (!isFinal && cleanText === lastEnqueuedText) return;
+            lastEnqueuedText = cleanText;
+
+            const selectedVoice = getSelectedVoice();
+
+            // Inicia imediatamente o pré-carregamento do áudio em paralelo
+            const itemPromise = (selectedVoice !== "browser-native" && typeof window !== "undefined")
+                ? fetchAudioItem(cleanText, selectedVoice).catch(err => {
+                    console.warn("[TTS Queue Fetch Error]:", err);
+                    return null;
+                })
+                : Promise.resolve(null);
+
+            speechQueue.push({
+                text: cleanText,
+                isFinal: isFinal,
+                voice: selectedVoice,
+                itemPromise: itemPromise
+            });
+
+            if (!isProcessingQueue) {
+                processSpeechQueue();
+            }
+        }
+
+        async function processSpeechQueue() {
+            if (speechQueue.length === 0) {
+                isProcessingQueue = false;
+                isSpeakingTTS = false;
+                if (ttsSafetyTimeout) clearTimeout(ttsSafetyTimeout);
+                lastActivityTimestamp = Date.now();
+                if (alwaysListen) startVoiceRecognition();
+                return;
+            }
+
+            isProcessingQueue = true;
+            isSpeakingTTS = true;
+            stopVoiceRecognition();
+
+            const item = speechQueue.shift();
+
+            if (ttsSafetyTimeout) clearTimeout(ttsSafetyTimeout);
+            ttsSafetyTimeout = setTimeout(() => {
+                console.warn("[TTS Watchdog]: Destravando fila de áudio por timeout.");
+                clearSpeechQueue();
+                if (alwaysListen) startVoiceRecognition();
+            }, 30000);
+
+            try {
+                if (item.voice === "browser-native" || !navigator.onLine) {
+                    await speakWithBrowserNativeAsync(item.text);
+                } else {
+                    const audioData = await item.itemPromise;
+                    let played = false;
+
+                    const ctx = getSharedAudioContext();
+
+                    // Camada 1: Web Audio API (Desbloqueado 100% automaticamente na abertura da tela)
+                    if (audioData && audioData.audioBuffer && ctx && ctx.state === 'running') {
+                        played = await playAudioBufferAsync(audioData.audioBuffer);
+                    }
+
+                    // Camada 2: HTML5 Audio Global no DOM (Blob)
+                    if (!played && audioData && audioData.blob) {
+                        played = await playAudioBlob(audioData.blob);
+                    }
+
+                    // Camada 3: Web Audio API fallback se o Blob falhou
+                    if (!played && audioData && audioData.audioBuffer) {
+                        played = await playAudioBufferAsync(audioData.audioBuffer);
+                    }
+
+                    // Camada 4: Síntese Nativa do Navegador com watchdog anti-congelamento
+                    if (!played) {
+                        await speakWithBrowserNativeAsync(item.text);
+                    }
+                }
+            } catch (err) {
+                console.warn("[TTS Queue Play Error]:", err);
+                try {
+                    await speakWithBrowserNativeAsync(item.text);
+                } catch (e) { }
+            }
+
+            // Processa próximo áudio da fila sequencial
+            processSpeechQueue();
+        }
+
+        function playAudioBufferAsync(audioBuffer) {
+            return new Promise(async (resolve) => {
+                unlockAudioContext();
+                const ctx = getSharedAudioContext();
+                if (!ctx) {
+                    resolve(false);
+                    return;
+                }
+
+                if (ctx.state === 'suspended') {
+                    try { await ctx.resume(); } catch (e) { }
+                }
+
+                if (ctx.state !== 'running') {
+                    resolve(false);
+                    return;
+                }
+
+                if (currentAudioSourceNode) {
+                    try { currentAudioSourceNode.stop(); } catch (e) { }
+                    currentAudioSourceNode = null;
+                }
+
+                let isDone = false;
+                const finish = (success = true) => {
+                    if (!isDone) {
+                        isDone = true;
+                        if (currentAudioSourceNode === source) {
+                            currentAudioSourceNode = null;
+                        }
+                        resolve(success);
+                    }
+                };
+
+                const source = ctx.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(ctx.destination);
+                currentAudioSourceNode = source;
+
+                source.onended = () => finish(true);
+
+                // Watchdog por buffer para evitar travamento em caso de suspensão
+                const durationSec = (audioBuffer && audioBuffer.duration) ? audioBuffer.duration : 3;
+                const bufferWatchdog = setTimeout(() => {
+                    console.warn("[TTS Buffer Watchdog]: Liberando buffer por tempo limite.");
+                    finish(true);
+                }, Math.ceil(durationSec * 1000) + 1200);
+
+                try {
+                    source.start(0);
+                } catch (e) {
+                    clearTimeout(bufferWatchdog);
+                    finish(false);
+                }
+            });
+        }
+
+        function speakWithBrowserNativeAsync(text) {
+            return new Promise((resolve) => {
+                if (!("speechSynthesis" in window)) {
+                    resolve();
+                    return;
+                }
+                try {
+                    window.speechSynthesis.cancel();
+                    window.speechSynthesis.resume();
+
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = "pt-BR";
+                    utterance.rate = 1.15;
+                    const voices = window.speechSynthesis.getVoices();
+                    const ptVoice = voices.find(v => v.lang === "pt-BR" || v.lang.startsWith("pt")) || null;
+                    if (ptVoice) utterance.voice = ptVoice;
+
+                    let isDone = false;
+                    let resumeInterval = null;
+                    let watchdog = null;
+
+                    const finish = () => {
+                        if (!isDone) {
+                            isDone = true;
+                            if (resumeInterval) clearInterval(resumeInterval);
+                            if (watchdog) clearTimeout(watchdog);
+                            utterance.onend = null;
+                            utterance.onerror = null;
+                            resolve();
+                        }
+                    };
+
+                    utterance.onend = finish;
+                    utterance.onerror = finish;
+
+                    // Descongela periodicamente caso Chromium pause a síntese em 2º plano
+                    resumeInterval = setInterval(() => {
+                        if (window.speechSynthesis && window.speechSynthesis.speaking) {
+                            window.speechSynthesis.resume();
+                        } else {
+                            finish();
+                        }
+                    }, 1000);
+
+                    // Watchdog de segurança: NUNCA trava a fila se a janela estiver em segundo plano
+                    const maxDurationMs = Math.max(3000, Math.min(text.length * 100, 15000));
+                    watchdog = setTimeout(finish, maxDurationMs);
+
+                    window.speechSynthesis.speak(utterance);
+                } catch (e) {
+                    resolve();
+                }
+            });
+        }
+
+        function clearSpeechQueue() {
+            speechQueue = [];
+            isProcessingQueue = false;
+            isSpeakingTTS = false;
+            lastEnqueuedText = "";
+            if (ttsSafetyTimeout) clearTimeout(ttsSafetyTimeout);
+            if (currentAudioSourceNode) {
+                try { currentAudioSourceNode.stop(); } catch (e) { }
+                currentAudioSourceNode = null;
+            }
+            const globalAudio = document.getElementById("globalTtsPlayer");
+            if (globalAudio) {
+                try { globalAudio.pause(); } catch (e) { }
+            }
+            if ("speechSynthesis" in window) {
+                try { window.speechSynthesis.cancel(); } catch (e) { }
+            }
+        }
+
+        function speakResponse(text) {
+            enqueueSpeech(text, true);
+        }
+
+        function speakIntermediateStatus(text) {
+            enqueueSpeech(text, false);
+        }
+
+        async function testSelectedVoice() {
+            unlockAudioContext();
+            const select = document.getElementById("modalVoiceSelect");
+            const voice = select ? select.value : getSelectedVoice();
+            const btn = document.getElementById("testVoiceBtn");
+            const originalText = btn ? btn.innerHTML : "🔊 Ouvir Demonstração";
+            if (btn) btn.innerHTML = "⏳ Gerando...";
+
+            const phrase = "Olá! Eu sou a Sexta-Feira, sua assistente inteligente. Esta é uma demonstração da minha voz!";
+
+            if (voice === "browser-native") {
+                await speakWithBrowserNativeAsync(phrase);
+                if (btn) btn.innerHTML = originalText;
+                return;
+            }
+
+            try {
+                const currentToken = getAuthToken();
+                const res = await fetch("/api/tts", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify({
+                        text: phrase,
+                        voice: voice
+                    })
+                });
+
+                if (!res.ok) throw new Error("Erro na geração da voz neural");
+
+                const blob = await res.blob();
+                if (btn) btn.innerHTML = "🔊 Reproduzindo...";
+
+                await playAudioBlob(blob);
+                if (btn) btn.innerHTML = originalText;
+
+            } catch (e) {
+                alert("Erro ao testar voz: " + e.message);
+                if (btn) btn.innerHTML = originalText;
+            }
+        }
+
+        // =========================================================================
+        // JAVASCRIPT: MOTOR DE AUTOMAÇÕES E TAREFAS EM SEGUNDO PLANO
+        // =========================================================================
+
+        let cachedAutomations = [];
+        let cachedTemplates = [];
+
+        function openAutomationsModal(defaultTab = 'list') {
+            const modal = document.getElementById("automationsModal");
+            if (modal) modal.classList.remove("hidden");
+            switchAutomationsTab(defaultTab);
+            fetchUserAutomations();
+            fetchAutomationTemplates();
+            handleAutoTypeChange();
+        }
+
+        function closeAutomationsModal() {
+            const modal = document.getElementById("automationsModal");
+            if (modal) modal.classList.add("hidden");
+        }
+
+        function switchAutomationsTab(tab) {
+            const listTab = document.getElementById("automationsTabList");
+            const newTab = document.getElementById("automationsTabNew");
+            const btnList = document.getElementById("tabBtnAutoList");
+            const btnNew = document.getElementById("tabBtnAutoNew");
+
+            if (tab === 'list') {
+                if (listTab) listTab.classList.remove("hidden");
+                if (newTab) newTab.classList.add("hidden");
+                if (btnList) {
+                    btnList.className = "px-4 py-2.5 rounded-t-xl text-xs font-bold transition flex items-center gap-2 border-b-2 border-amber-500 text-amber-400 bg-zinc-900/80";
+                }
+                if (btnNew) {
+                    btnNew.className = "px-4 py-2.5 rounded-t-xl text-xs font-semibold transition flex items-center gap-2 text-zinc-400 hover:text-zinc-200 border-b-2 border-transparent";
+                }
+            } else {
+                if (listTab) listTab.classList.add("hidden");
+                if (newTab) newTab.classList.remove("hidden");
+                if (btnNew) {
+                    btnNew.className = "px-4 py-2.5 rounded-t-xl text-xs font-bold transition flex items-center gap-2 border-b-2 border-amber-500 text-amber-400 bg-zinc-900/80";
+                }
+                if (btnList) {
+                    btnList.className = "px-4 py-2.5 rounded-t-xl text-xs font-semibold transition flex items-center gap-2 text-zinc-400 hover:text-zinc-200 border-b-2 border-transparent";
+                }
+            }
+        }
+
+        async function fetchUserAutomations() {
+            const container = document.getElementById("automationsListContainer");
+            const badge = document.getElementById("tabAutoCountBadge");
+            const token = getAuthToken ? getAuthToken() : (localStorage.getItem("smartHomeToken") || "");
+            try {
+                const res = await fetch("/api/automations", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    cachedAutomations = data.automations || [];
+                    if (badge) badge.innerText = cachedAutomations.length;
+                    renderAutomationsList(cachedAutomations);
+                }
+            } catch (err) {
+                if (container) {
+                    container.innerHTML = `<div class="text-center py-6 text-red-400 text-xs font-mono">Erro ao carregar automações: ${err.message}</div>`;
+                }
+            }
+        }
+
+        function renderAutomationsList(automations) {
+            const container = document.getElementById("automationsListContainer");
+            if (!container) return;
+
+            if (!automations || automations.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 px-4 rounded-2xl bg-zinc-950/40 border border-zinc-800/80">
+                        <div class="text-3xl mb-2">⚡</div>
+                        <h4 class="text-sm font-bold text-zinc-200 mb-1">Nenhuma automação cadastrada</h4>
+                        <p class="text-xs text-zinc-400 max-w-md mx-auto mb-4">
+                            Crie regras para receber avisos prévios da Google Agenda no Telegram, resumos matinais diários ou comandos automáticos.
+                        </p>
+                        <button onclick="switchAutomationsTab('new')"
+                            class="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition inline-flex items-center gap-1.5 shadow-md shadow-amber-600/20">
+                            <span>➕</span> <span>Criar Primeira Automação</span>
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = automations.map(a => {
+                let icon = "⚡";
+                let typeBadge = "Tarefa";
+                let triggerDesc = "";
+
+                if (a.automation_type === "calendar_reminder") {
+                    icon = "📅";
+                    typeBadge = "Agenda & Telegram";
+                    triggerDesc = `${a.trigger_value} minutos antes`;
+                } else if (a.automation_type === "daily_summary") {
+                    icon = "☀️";
+                    typeBadge = "Resumo Diário";
+                    triggerDesc = `Todo dia às ${a.trigger_value}`;
+                } else if (a.automation_type === "mqtt_schedule") {
+                    icon = "💡";
+                    typeBadge = "Automação MQTT";
+                    triggerDesc = `Diariamente às ${a.trigger_value}`;
+                } else if (a.automation_type === "custom_prompt") {
+                    icon = "🤖";
+                    typeBadge = "Comando Agente";
+                    triggerDesc = `A cada ${a.trigger_value} minutos`;
+                } else {
+                    triggerDesc = a.trigger_value;
+                }
+
+                let statusBadge = "";
+                if (a.last_status === "success") {
+                    statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">✔ Executado</span>`;
+                } else if (a.last_status === "error") {
+                    statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-red-500/10 text-red-400 border border-red-500/30">✖ Erro</span>`;
+                } else if (a.last_status === "warning") {
+                    statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/30">⚠ Aviso</span>`;
+                }
+
+                const lastRunText = a.last_run_at ? new Date(a.last_run_at).toLocaleString("pt-BR") : "Ainda não executado";
+
+                return `
+                    <div class="p-4 rounded-2xl bg-zinc-950/70 border ${a.is_enabled ? 'border-zinc-700/80 shadow-md' : 'border-zinc-800/40 opacity-70'} transition flex flex-col gap-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-xl">
+                                    ${icon}
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <h4 class="font-bold text-sm text-white">${a.name}</h4>
+                                        <span class="text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700">${typeBadge}</span>
+                                        ${statusBadge}
+                                    </div>
+                                    <p class="text-xs text-zinc-400 font-mono mt-0.5">Gatilho: <span class="text-amber-300 font-semibold">${triggerDesc}</span></p>
+                                </div>
+                            </div>
+                            
+                            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input type="checkbox" ${a.is_enabled ? 'checked' : ''} onchange="toggleAutomation(${a.id})" class="sr-only peer">
+                                <div class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                            </label>
+                        </div>
+
+                        ${a.last_result ? `<div class="text-[11px] text-zinc-400 bg-zinc-900/90 rounded-lg p-2 font-mono border border-zinc-800 truncate">${a.last_result}</div>` : ''}
+
+                        <div class="flex items-center justify-between text-[11px] text-zinc-500 pt-2 border-t border-zinc-900">
+                            <span>Última execução: ${lastRunText}</span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="testAutomation(${a.id})"
+                                    class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-amber-600 hover:text-white text-zinc-300 transition text-[11px] font-semibold flex items-center gap-1 border border-zinc-700">
+                                    <span>🧪</span> <span>Testar</span>
+                                </button>
+                                <button onclick="deleteAutomation(${a.id})"
+                                    class="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-red-600 hover:text-white text-zinc-400 transition text-[11px] flex items-center gap-1 border border-zinc-700">
+                                    <span>🗑️</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        async function fetchAutomationTemplates() {
+            try {
+                const res = await fetch("/api/automations/templates");
+                if (res.ok) {
+                    const data = await res.json();
+                    cachedTemplates = data.templates || [];
+                    renderAutomationTemplates(cachedTemplates);
+                }
+            } catch (err) {
+                console.warn("Erro ao buscar modelos de automação:", err);
+            }
+        }
+
+        function renderAutomationTemplates(templates) {
+            const grid = document.getElementById("automationTemplatesGrid");
+            if (!grid) return;
+
+            grid.innerHTML = templates.map(t => `
+                <div onclick="applyAutomationTemplate('${t.id}')"
+                    class="p-3.5 rounded-xl bg-zinc-950/70 hover:bg-zinc-800/80 border border-zinc-800 hover:border-amber-500/40 cursor-pointer transition flex flex-col justify-between group">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="text-lg">${t.icon || '⚡'}</span>
+                            <h5 class="text-xs font-bold text-zinc-200 group-hover:text-amber-300 transition">${t.name}</h5>
+                        </div>
+                        <p class="text-[11px] text-zinc-400 line-clamp-2 leading-relaxed">${t.description}</p>
+                    </div>
+                    <div class="mt-2.5 pt-2 border-t border-zinc-900 flex items-center justify-between text-[10px] text-amber-400 font-mono">
+                        <span>Gatilho: ${t.trigger_value}</span>
+                        <span class="text-zinc-500 group-hover:text-zinc-300">Usar modelo →</span>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        function applyAutomationTemplate(templateId) {
+            const t = cachedTemplates.find(x => x.id === templateId);
+            if (!t) return;
+
+            const nameInput = document.getElementById("autoFormName");
+            const typeSelect = document.getElementById("autoFormType");
+            const triggerInput = document.getElementById("autoFormTriggerValue");
+
+            if (nameInput) nameInput.value = t.name;
+            if (typeSelect) typeSelect.value = t.automation_type;
+            if (triggerInput) triggerInput.value = t.trigger_value;
+
+            handleAutoTypeChange();
+
+            const formCard = document.querySelector("#automationsTabNew .p-5");
+            if (formCard) formCard.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function handleAutoTypeChange() {
+            const type = document.getElementById("autoFormType")?.value || "calendar_reminder";
+            const triggerLabel = document.getElementById("autoFormTriggerLabel");
+            const triggerInput = document.getElementById("autoFormTriggerValue");
+            const dynamicFields = document.getElementById("autoDynamicFields");
+
+            if (type === "calendar_reminder") {
+                if (triggerLabel) triggerLabel.innerText = "Minutos de Antecedência para o Alerta";
+                if (triggerInput && (!triggerInput.value || triggerInput.value.includes(":"))) triggerInput.value = "15";
+                if (dynamicFields) dynamicFields.innerHTML = `
+                    <div class="text-[11px] text-zinc-400 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl">
+                        💡 Quando qualquer compromisso da sua <strong>Google Agenda</strong> estiver a <strong>${triggerInput?.value || 15} minutos</strong> do início, a assistente enviará uma notificação elegante no seu Telegram com título, horário e notas.
+                    </div>
+                `;
+            } else if (type === "daily_summary") {
+                if (triggerLabel) triggerLabel.innerText = "Horário Diário de Envio (HH:MM)";
+                if (triggerInput && (!triggerInput.value || !triggerInput.value.includes(":"))) triggerInput.value = "08:00";
+                if (dynamicFields) dynamicFields.innerHTML = `
+                    <div class="text-[11px] text-zinc-400 bg-blue-500/10 border border-blue-500/20 p-2.5 rounded-xl">
+                        ☀️ Todos os dias no horário configurado, a assistente envia no seu Telegram o resumo com compromissos de hoje, tarefas pendentes e status da casa.
+                    </div>
+                `;
+            } else if (type === "mqtt_schedule") {
+                if (triggerLabel) triggerLabel.innerText = "Horário de Acionamento (HH:MM)";
+                if (triggerInput && (!triggerInput.value || !triggerInput.value.includes(":"))) triggerInput.value = "23:30";
+                if (dynamicFields) dynamicFields.innerHTML = `
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-zinc-400 mb-1">Cômodo / Lâmpada</label>
+                            <select id="autoMqttRoom" class="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-amber-500">
+                                <option value="todas">Todas as Lâmpadas</option>
+                                <option value="sala">Sala de Estar</option>
+                                <option value="quarto1">Quarto 1</option>
+                                <option value="quarto2">Quarto 2</option>
+                                <option value="cozinha">Cozinha</option>
+                                <option value="banheiro">Banheiro</option>
+                                <option value="garagem">Garagem / Externa</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-zinc-400 mb-1">Ação</label>
+                            <select id="autoMqttAction" class="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-amber-500">
+                                <option value="OFF">Desligar (OFF)</option>
+                                <option value="ON">Ligar (ON)</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            } else if (type === "custom_prompt") {
+                if (triggerLabel) triggerLabel.innerText = "Intervalo em Minutos";
+                if (triggerInput && (!triggerInput.value || triggerInput.value.includes(":"))) triggerInput.value = "60";
+                if (dynamicFields) dynamicFields.innerHTML = `
+                    <div>
+                        <label class="block text-xs text-zinc-400 mb-1">Instrução / Comando em Linguagem Natural para o Agente</label>
+                        <input id="autoCustomPrompt" type="text" placeholder="Ex: Verifique se tenho novos e-mails e me avise no Telegram"
+                            class="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-amber-500">
+                    </div>
+                `;
+            }
+        }
+
+        async function submitAutomationForm() {
+            const name = document.getElementById("autoFormName")?.value.trim();
+            const autoType = document.getElementById("autoFormType")?.value;
+            const triggerVal = document.getElementById("autoFormTriggerValue")?.value.trim();
+            const enabled = document.getElementById("autoFormEnabled")?.checked;
+            const token = getAuthToken ? getAuthToken() : (localStorage.getItem("smartHomeToken") || "");
+
+            if (!name) {
+                alert("Por favor, informe um nome para a automação.");
+                return;
+            }
+            if (!triggerVal) {
+                alert("Por favor, preencha o valor do gatilho.");
+                return;
+            }
+
+            let triggerType = "daily_time";
+            let actionType = "telegram_alert";
+            let payload = {};
+
+            if (autoType === "calendar_reminder") {
+                triggerType = "event_relative_minutes";
+                actionType = "telegram_alert";
+                payload = { minutes_before: parseInt(triggerVal) || 15 };
+            } else if (autoType === "daily_summary") {
+                triggerType = "daily_time";
+                actionType = "telegram_alert";
+                payload = {};
+            } else if (autoType === "mqtt_schedule") {
+                triggerType = "daily_time";
+                actionType = "mqtt_command";
+                const room = document.getElementById("autoMqttRoom")?.value || "todas";
+                const action = document.getElementById("autoMqttAction")?.value || "OFF";
+                payload = { room, action, notify_telegram: true };
+            } else if (autoType === "custom_prompt") {
+                triggerType = "interval_minutes";
+                actionType = "agent_prompt";
+                const prompt = document.getElementById("autoCustomPrompt")?.value.trim() || name;
+                payload = { prompt };
+            }
+
+            try {
+                const res = await fetch("/api/automations", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        name,
+                        automation_type: autoType,
+                        trigger_type: triggerType,
+                        trigger_value: triggerVal,
+                        action_type: actionType,
+                        action_payload: payload,
+                        is_enabled: enabled
+                    })
+                });
+
+                if (res.ok) {
+                    document.getElementById("autoFormName").value = "";
+                    switchAutomationsTab('list');
+                    fetchUserAutomations();
+                } else {
+                    const err = await res.json();
+                    alert(`Erro ao criar automação: ${err.detail || 'Falha na requisição'}`);
+                }
+            } catch (err) {
+                alert(`Erro de conexão ao salvar automação: ${err.message}`);
+            }
+        }
+
+        async function toggleAutomation(autoId) {
+            const token = getAuthToken ? getAuthToken() : (localStorage.getItem("smartHomeToken") || "");
+            try {
+                const res = await fetch(`/api/automations/${autoId}/toggle`, {
+                    method: "PATCH",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    fetchUserAutomations();
+                }
+            } catch (err) {
+                console.warn("Erro ao alternar status da automação:", err);
+            }
+        }
+
+        async function testAutomation(autoId) {
+            const statusBox = document.getElementById("automationGlobalStatus");
+            const token = getAuthToken ? getAuthToken() : (localStorage.getItem("smartHomeToken") || "");
+            if (statusBox) {
+                statusBox.classList.remove("hidden");
+                statusBox.className = "px-6 py-3 bg-zinc-950/90 border-t border-zinc-800 text-xs text-amber-300 flex items-center gap-2";
+                statusBox.innerHTML = `<span class="animate-spin">⏳</span> <span>Disparando execução de teste da automação ID ${autoId}...</span>`;
+            }
+
+            try {
+                const res = await fetch(`/api/automations/${autoId}/run`, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (statusBox) {
+                    if (data.status === "success") {
+                        statusBox.className = "px-6 py-3 bg-emerald-950/40 border-t border-emerald-500/40 text-xs text-emerald-300 flex items-center justify-between";
+                        statusBox.innerHTML = `<span>✔ Teste concluído com sucesso: ${data.message}</span> <button onclick="this.parentElement.classList.add('hidden')" class="text-zinc-400 hover:text-white">✕</button>`;
+                    } else {
+                        statusBox.className = "px-6 py-3 bg-red-950/40 border-t border-red-500/40 text-xs text-red-300 flex items-center justify-between";
+                        statusBox.innerHTML = `<span>✖ Erro no teste: ${data.message}</span> <button onclick="this.parentElement.classList.add('hidden')" class="text-zinc-400 hover:text-white">✕</button>`;
+                    }
+                }
+                fetchUserAutomations();
+            } catch (err) {
+                if (statusBox) {
+                    statusBox.className = "px-6 py-3 bg-red-950/40 border-t border-red-500/40 text-xs text-red-300";
+                    statusBox.innerHTML = `Erro na requisição de teste: ${err.message}`;
+                }
+            }
+        }
+
+        async function deleteAutomation(autoId) {
+            if (!confirm("Deseja realmente excluir esta automação?")) return;
+            const token = getAuthToken ? getAuthToken() : (localStorage.getItem("smartHomeToken") || "");
+            try {
+                const res = await fetch(`/api/automations/${autoId}`, {
+                    method: "DELETE",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    fetchUserAutomations();
+                }
+            } catch (err) {
+                alert(`Erro ao excluir automação: ${err.message}`);
+            }
+        }
+
+        // Inicialização
+        autoUnlockAudioOnLoad();
+        syncUserAiConfig();
+        updateAgentNamesInUI();
+        renderRooms();
+        updateDashboard();
+        connectMQTT();
+
+        if (alwaysListen) {
+            updateAlwaysListenUI();
+            setTimeout(() => {
+                startVoiceRecognition();
+            }, 1000);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            autoUnlockAudioOnLoad();
+            syncUserAiConfig();
+            requestScreenWakeLock();
+        });
+    </script>
+
+</body>
+
+</html>

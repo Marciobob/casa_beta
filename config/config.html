@@ -11,13 +11,30 @@
 
 </head>
 
-<body class="bg-zinc-950 text-white min-h-screen">
+<body class="bg-zinc-950 text-white min-h-screen pb-16">
 
 <div class="max-w-5xl mx-auto p-6">
 
-    <h1 class="text-4xl font-bold mb-8">
-        ⚙️ Configuração da Casa
-    </h1>
+    <!-- HEADER COM INFORMAÇÕES DO USUÁRIO E LOGOUT -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+            <h1 class="text-4xl font-bold">
+                ⚙️ Configuração da Casa
+            </h1>
+            <p id="userGreeting" class="text-zinc-400 text-sm mt-1">Gerencie os parâmetros da residência e da IA</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div id="userBadge" class="bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-2xl text-xs flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                <span id="userNameDisplay" class="font-bold text-zinc-200">Usuário</span>
+            </div>
+            <button onclick="handleLogout()" class="bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-red-200 px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-1.5">
+                <span>🚪</span>
+                <span>Sair</span>
+            </button>
+        </div>
+    </div>
 
     <div class="bg-zinc-900 rounded-3xl p-6">
 
@@ -54,11 +71,11 @@
 
         </div>
 
-        <h2 class="text-xl font-bold mt-6 mb-4 text-zinc-300">
+        <h2 class="text-xl font-bold mt-8 mb-4 text-zinc-300">
             🎙️ Assistente de Voz & Inteligência Artificial
         </h2>
 
-        <div class="grid md:grid-cols-2 gap-4">
+        <div class="grid md:grid-cols-3 gap-4">
 
             <div>
                 <label class="block mb-2 text-sm text-zinc-400">
@@ -68,26 +85,53 @@
                 <input
                     id="agentName"
                     class="w-full bg-zinc-800 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Meu Agente"
+                    placeholder="Sexta-Feira"
                 >
                 <p class="text-xs text-zinc-500 mt-1">
-                    Exemplos: <i>Meu Agente</i>, <i>Jarvis</i>, <i>Casa</i>, <i>Sexta-Feira</i>.
+                    Ex: <i>Sexta-Feira</i>, <i>Meu Agente</i>, <i>Jarvis</i>.
                 </p>
             </div>
 
             <div>
                 <label class="block mb-2 text-sm text-zinc-400">
-                    Chave de API do Gemini (Google AI Studio)
+                    Modelo de Inteligência Artificial
+                </label>
+
+                <input
+                    id="aiModel"
+                    list="aiModelSuggestions"
+                    class="w-full bg-zinc-800 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                    placeholder="gemini-2.5-flash-lite"
+                >
+                <datalist id="aiModelSuggestions">
+                    <option value="gemini-2.5-flash-lite">
+                    <option value="gemini-2.5-flash">
+                    <option value="gemini-2.0-flash">
+                    <option value="gemini-1.5-flash">
+                    <option value="gpt-4o-mini">
+                    <option value="gpt-4o">
+                </datalist>
+
+                <div class="flex flex-wrap gap-1.5 mt-2">
+                    <button type="button" onclick="document.getElementById('aiModel').value='gemini-2.5-flash-lite'" class="text-[11px] bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2.5 py-1 rounded-lg border border-zinc-700 transition">gemini-2.5-flash-lite</button>
+                    <button type="button" onclick="document.getElementById('aiModel').value='gemini-2.5-flash'" class="text-[11px] bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2.5 py-1 rounded-lg border border-zinc-700 transition">gemini-2.5-flash</button>
+                    <button type="button" onclick="document.getElementById('aiModel').value='gpt-4o-mini'" class="text-[11px] bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2.5 py-1 rounded-lg border border-zinc-700 transition">gpt-4o-mini</button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block mb-2 text-sm text-zinc-400">
+                    Chave de API (Gemini ou OpenAI)
                 </label>
 
                 <input
                     id="geminiApiKey"
                     type="password"
                     class="w-full bg-zinc-800 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
-                    placeholder="AIzaSy..."
+                    placeholder="AIzaSy... ou sk-..."
                 >
                 <p class="text-xs text-zinc-500 mt-1">
-                    Obtenha gratuitamente em <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-400 hover:underline">aistudio.google.com</a>.
+                    Chave do Google AI Studio ou OpenAI.
                 </p>
             </div>
 
@@ -124,7 +168,7 @@
     </button>
 
     <a
-        href="../index.html"
+        href="/"
         class="block text-center mt-4 text-blue-400 hover:text-blue-300 font-semibold"
     >
         Abrir Painel Principal →
@@ -134,10 +178,35 @@
 
 <script>
 
+// =========================================================================
+// GUARDIÃO DE AUTENTICAÇÃO JWT
+// =========================================================================
+const token = localStorage.getItem("smartHomeToken");
+if (!token) {
+    alert("Acesso restrito. Faça login para continuar.");
+    location.href = "/login.html";
+}
+
+const userObjStr = localStorage.getItem("smartHomeUser");
+if (userObjStr) {
+    try {
+        const user = JSON.parse(userObjStr);
+        document.getElementById("userNameDisplay").innerText = user.name || user.email;
+        document.getElementById("userGreeting").innerText = `Logado como ${user.email}`;
+    } catch(e) {}
+}
+
+function handleLogout() {
+    if (confirm("Deseja realmente sair do sistema?")) {
+        localStorage.removeItem("smartHomeToken");
+        localStorage.removeItem("smartHomeUser");
+        location.href = "/login.html";
+    }
+}
+
 let rooms = [];
 
 function slugify(text) {
-
     return text
         .toLowerCase()
         .normalize("NFD")
@@ -147,10 +216,7 @@ function slugify(text) {
 }
 
 function addRoom() {
-
-    const roomName =
-        prompt("Nome do cômodo (ex: Sala, Quarto, Cozinha):");
-
+    const roomName = prompt("Nome do cômodo (ex: Sala, Quarto, Cozinha):");
     if(!roomName || !roomName.trim()) return;
 
     rooms.push({
@@ -163,123 +229,59 @@ function addRoom() {
 }
 
 function removeRoom(id) {
-
-    rooms =
-        rooms.filter(
-            room => room.id !== id
-        );
-
+    rooms = rooms.filter(room => room.id !== id);
     renderRooms();
 }
 
 function renderRooms() {
-
-    document
-        .getElementById("rooms")
-        .innerHTML = rooms.length ? rooms.map(room => `
-
-        <div
-            class="bg-zinc-800 p-4 rounded-xl flex justify-between items-center">
-
+    document.getElementById("rooms").innerHTML = rooms.length ? rooms.map(room => `
+        <div class="bg-zinc-800 p-4 rounded-xl flex justify-between items-center">
             <div>
-
-                <div class="font-bold">
-                    ${room.name}
-                </div>
-
-                <div class="text-sm text-zinc-400 font-mono">
-                    Tópico MQTT: pensador/casa/${room.topic}/set
-                </div>
-
+                <div class="font-bold">${room.name}</div>
+                <div class="text-sm text-zinc-400 font-mono">Tópico MQTT: pensador/casa/${room.topic}/set</div>
             </div>
-
-            <button
-                onclick="removeRoom(${room.id})"
-                class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-lg font-medium transition"
-            >
+            <button onclick="removeRoom(${room.id})" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-lg font-medium transition">
                 Remover
             </button>
-
         </div>
-
     `).join("") : `<div class="text-zinc-500 italic p-4 text-center">Nenhum cômodo adicionado ainda.</div>`;
 }
 
 function saveConfig() {
-
     const agentNameInput = document.getElementById("agentName").value.trim();
+    const aiModelInput = document.getElementById("aiModel").value.trim();
 
     const config = {
-
-        broker:
-            document
-            .getElementById("broker")
-            .value.trim() || "test.mosquitto.org",
-
-        port:
-            document
-            .getElementById("port")
-            .value.trim() || "8080",
-
-        agentName:
-            agentNameInput || "Meu Agente",
-
-        geminiApiKey:
-            document
-            .getElementById("geminiApiKey")
-            .value.trim(),
-
+        broker: document.getElementById("broker").value.trim() || "test.mosquitto.org",
+        port: document.getElementById("port").value.trim() || "8080",
+        agentName: agentNameInput || "Sexta-Feira",
+        aiModel: aiModelInput || "gemini-2.5-flash-lite",
+        geminiApiKey: document.getElementById("geminiApiKey").value.trim(),
         rooms
-
     };
 
-    localStorage.setItem(
-        "smartHomeConfig",
-        JSON.stringify(config)
-    );
-
+    localStorage.setItem("smartHomeConfig", JSON.stringify(config));
     if (config.geminiApiKey) {
         localStorage.setItem("geminiApiKey", config.geminiApiKey);
     }
+    if (config.agentName) {
+        localStorage.setItem("smartHomeAgentName", config.agentName);
+    }
 
-    alert("Configuração salva com sucesso!");
+    alert("Configurações salvas com sucesso!");
 }
 
 function loadConfig() {
-
-    const saved =
-        localStorage.getItem(
-            "smartHomeConfig"
-        );
-
+    const saved = localStorage.getItem("smartHomeConfig");
     if(!saved) return;
 
-    const config =
-        JSON.parse(saved);
-
-    document
-        .getElementById("broker")
-        .value =
-        config.broker || "";
-
-    document
-        .getElementById("port")
-        .value =
-        config.port || "8080";
-
-    document
-        .getElementById("agentName")
-        .value =
-        config.agentName || "Meu Agente";
-
-    document
-        .getElementById("geminiApiKey")
-        .value =
-        config.geminiApiKey || localStorage.getItem("geminiApiKey") || "";
-
-    rooms =
-        config.rooms || [];
-
+    const config = JSON.parse(saved);
+    document.getElementById("broker").value = config.broker || "test.mosquitto.org";
+    document.getElementById("port").value = config.port || "8080";
+    document.getElementById("agentName").value = config.agentName || "Sexta-Feira";
+    document.getElementById("aiModel").value = config.aiModel || "gemini-2.5-flash-lite";
+    document.getElementById("geminiApiKey").value = config.geminiApiKey || localStorage.getItem("geminiApiKey") || "";
+    rooms = config.rooms || [];
     renderRooms();
 }
 

@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfil do Usuário • Smart Home</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass {
+            background: rgba(24, 24, 27, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(24, 24, 27, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white min-h-screen pb-16">
+
+    <div class="max-w-4xl mx-auto p-6">
+
+        <!-- HEADER -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div>
+                <div class="flex items-center gap-2">
+                    <a href="/" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+                        ← Voltar ao Painel
+                    </a>
+                </div>
+                <h1 class="text-4xl font-black tracking-tight mt-2 flex items-center gap-3">
+                    <span>👤 Perfil & Memória do Usuário</span>
+                </h1>
+                <p class="text-zinc-400 text-sm mt-1">
+                    Cadastre suas informações pessoais para que o agente inteligente te conheça melhor
+                </p>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-2xl text-xs flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                    <span id="userNameDisplay" class="font-bold text-zinc-200">Carregando...</span>
+                </div>
+                <button onclick="handleLogout()" class="bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-red-200 px-4 py-2.5 rounded-2xl text-xs font-bold transition">
+                    Sair
+                </button>
+            </div>
+        </div>
+
+        <!-- NOTIFICAÇÃO TOAST -->
+        <div id="toastAlert" class="hidden mb-6 p-4 rounded-2xl text-xs font-semibold flex items-center gap-2 transition duration-300"></div>
+
+        <!-- SEÇÃO 0: FOTO DE PERFIL & RECONHECIMENTO FACIAL DE MORADOR -->
+        <div class="bg-gradient-to-br from-indigo-950/40 via-zinc-900/90 to-zinc-900/90 border border-indigo-500/30 rounded-3xl p-6 shadow-2xl mb-6 relative overflow-hidden">
+            <div class="flex flex-col sm:flex-row items-center gap-6">
+                <!-- AVATAR CONTAINER COM PREVIEW -->
+                <div class="relative group">
+                    <div id="avatarContainer" class="w-28 h-28 rounded-3xl bg-zinc-800 border-2 border-indigo-500/40 flex items-center justify-center overflow-hidden shadow-xl shadow-indigo-950/50">
+                        <img id="avatarImage" class="w-full h-full object-cover hidden" alt="Foto do Morador">
+                        <span id="avatarPlaceholder" class="text-4xl">👤</span>
+                    </div>
+                    <div id="avatarBadge" class="absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40">
+                        Sem Foto
+                    </div>
+                </div>
+
+                <!-- INFORMAÇÕES E BOTÕES DE AÇÃO -->
+                <div class="flex-1 text-center sm:text-left">
+                    <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <span>📸</span>
+                            <span>Foto de Perfil & Reconhecimento Facial</span>
+                        </h2>
+                        <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono border border-indigo-500/30">
+                            Morador Oficial
+                        </span>
+                    </div>
+                    <p class="text-xs text-zinc-300 leading-relaxed max-w-xl mb-4">
+                        Cadastre uma foto de referência do seu rosto. O agente e as câmeras de visão computacional comparam essa foto para te <b>reconhecer como morador da casa</b>, te cumprimentar pelo nome e diferenciar de <b>visitantes não cadastrados</b>.
+                    </p>
+
+                    <!-- BOTÕES DE UPLOAD / WEBCAM -->
+                    <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                        <input type="file" id="photoFileInput" accept="image/*" class="hidden" onchange="handlePhotoFileUpload(event)">
+                        <button type="button" onclick="document.getElementById('photoFileInput').click()"
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition">
+                            <span>📁</span> <span>Enviar Foto do Arquivo</span>
+                        </button>
+                        <button type="button" onclick="openWebcamModal()"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-cyan-300 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 border border-cyan-500/30 transition">
+                            <span>📸</span> <span>Tirar Foto com a Câmera</span>
+                        </button>
+                        <button type="button" id="removePhotoBtn" onclick="handleDeletePhoto()"
+                            class="hidden bg-red-950/60 hover:bg-red-900/80 text-red-300 text-xs font-bold py-2.5 px-3 rounded-xl flex items-center gap-1.5 border border-red-800/40 transition">
+                            <span>🗑️</span> <span>Remover</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DE CAPTURA DE FOTO PELA WEBCAM -->
+        <div id="webcamModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+            <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-md w-full shadow-2xl">
+                <div class="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
+                    <h3 class="font-bold text-base text-white flex items-center gap-2">
+                        <span>📸</span> <span>Capturar Foto para Reconhecimento</span>
+                    </h3>
+                    <button type="button" onclick="closeWebcamModal()" class="text-zinc-400 hover:text-white text-lg">✕</button>
+                </div>
+                <div class="rounded-2xl overflow-hidden bg-black aspect-video relative mb-4 border border-zinc-800 flex items-center justify-center">
+                    <video id="webcamVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+                    <div class="absolute inset-0 border-2 border-indigo-500/40 rounded-2xl pointer-events-none flex items-center justify-center">
+                        <div class="w-36 h-36 rounded-full border border-dashed border-indigo-400/60"></div>
+                    </div>
+                </div>
+                <p class="text-[11px] text-zinc-400 text-center mb-4">
+                    Posicione seu rosto dentro da área demarcada e clique em capturar.
+                </p>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeWebcamModal()"
+                        class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-2.5 rounded-xl text-xs font-semibold transition text-zinc-300">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="captureWebcamPhoto()"
+                        class="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-xl text-xs font-bold transition text-white flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/30">
+                        <span>📸</span> <span>Capturar Selfie</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <form id="profileForm" onsubmit="handleSaveProfile(event)" class="space-y-6">
+
+            <!-- SEÇÃO 1: SAÚDE E DADOS PESSOAIS -->
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-indigo-400 flex items-center gap-2 mb-4">
+                    <span>🩺</span>
+                    <span>Saúde & Informações Médicas</span>
+                </h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Tipo Sanguíneo</label>
+                        <input id="blood_type" type="text" placeholder="Ex: O+, A-, AB+" list="bloodTypeList"
+                            class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                        <datalist id="bloodTypeList">
+                            <option value="A+"><option value="A-"><option value="B+"><option value="B-">
+                            <option value="AB+"><option value="AB-"><option value="O+"><option value="O-">
+                        </datalist>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Alergias & Observações de Saúde</label>
+                        <input id="allergies_health" type="text" placeholder="Ex: Alergia a frutos do mar, intolerância a lactose"
+                            class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 2: PREFERÊNCIAS E LAZER -->
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-indigo-400 flex items-center gap-2 mb-4">
+                    <span>🎬</span>
+                    <span>Gostos, Lazer & Entretenimento</span>
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Filmes & Séries Favoritos</label>
+                        <input id="favorite_movies" type="text" placeholder="Ex: Ficção científica, Interestelar, Matrix, Breaking Bad, suspense"
+                            class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Músicas & Artistas Favoritos</label>
+                            <input id="favorite_music" type="text" placeholder="Ex: Rock clássico, Queen, MPB, Coldplay, Jazz instrumental"
+                                class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Passeios & Lugares Favoritos</label>
+                            <input id="favorite_places" type="text" placeholder="Ex: Praia no fim de semana, parques, cafeteria ao ar livre, cinema"
+                                class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 3: GASTRONOMIA E VEÍCULO -->
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-indigo-400 flex items-center gap-2 mb-4">
+                    <span>🍽️</span>
+                    <span>Gastronomia & Cotidiano</span>
+                </h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Comidas & Pratos Favoritos</label>
+                        <input id="favorite_foods" type="text" placeholder="Ex: Churrasco, comida japonesa, pizza artesanal, massas"
+                            class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Carro / Veículo que Possui</label>
+                        <input id="car_info" type="text" placeholder="Ex: Chevrolet Onix 2022 prata, Honda Civic preto"
+                            class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm focus:outline-none transition">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 4: PANORAMA GERAL DA VIDA -->
+            <div class="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 shadow-xl">
+                <h2 class="text-lg font-bold text-indigo-400 flex items-center gap-2 mb-4">
+                    <span>📝</span>
+                    <span>Panorama da Vida & Anotações Livres</span>
+                </h2>
+                <div>
+                    <label class="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
+                        Conte detalhes sobre sua vida, rotina, hobbies ou preferências para o agente lembrar:
+                    </label>
+                    <textarea id="personal_notes" rows="4" placeholder="Ex: Trabalho com desenvolvimento de software de home office, acordo às 7h, gosto de café sem açúcar, pratico musculação e aos sábados gosto de assistir futebol com os amigos."
+                        class="w-full bg-zinc-800/90 border border-zinc-700/80 focus:border-indigo-500 rounded-2xl p-4 text-sm focus:outline-none transition leading-relaxed"></textarea>
+                </div>
+            </div>
+
+            <button id="saveBtn" type="submit"
+                class="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-600/30 transition duration-300 transform active:scale-95 flex items-center justify-center gap-2 text-base">
+                <span>Salvar Informações do Perfil</span>
+                <span>💾</span>
+            </button>
+
+        </form>
+
+    </div>
+
+    <script>
+        // Guardião de Autenticação JWT
+        const token = localStorage.getItem("smartHomeToken");
+        if (!token) {
+            alert("Faça login para acessar o perfil.");
+            location.href = "/login.html";
+        }
+
+        const userStr = localStorage.getItem("smartHomeUser");
+        if (userStr) {
+            try {
+                const u = JSON.parse(userStr);
+                document.getElementById("userNameDisplay").innerText = u.name || u.email;
+            } catch(e) {}
+        }
+
+        function handleLogout() {
+            if (confirm("Deseja realmente sair?")) {
+                localStorage.removeItem("smartHomeToken");
+                localStorage.removeItem("smartHomeUser");
+                location.href = "/login.html";
+            }
+        }
+
+        function showToast(msg, isSuccess = true) {
+            const toast = document.getElementById("toastAlert");
+            toast.className = isSuccess
+                ? "mb-6 p-4 rounded-2xl text-xs font-semibold flex items-center gap-2 bg-green-500/10 border border-green-500/30 text-green-300"
+                : "mb-6 p-4 rounded-2xl text-xs font-semibold flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-300";
+            toast.innerHTML = `<span>${isSuccess ? '✅' : '⚠️'}</span><span>${msg}</span>`;
+            toast.classList.remove("hidden");
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        let webcamStream = null;
+
+        function updateAvatarDisplay(photoBase64) {
+            const img = document.getElementById("avatarImage");
+            const placeholder = document.getElementById("avatarPlaceholder");
+            const badge = document.getElementById("avatarBadge");
+            const removeBtn = document.getElementById("removePhotoBtn");
+
+            if (photoBase64 && photoBase64.length > 50) {
+                if (img) {
+                    img.src = photoBase64;
+                    img.classList.remove("hidden");
+                }
+                if (placeholder) placeholder.classList.add("hidden");
+                if (badge) {
+                    badge.className = "absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-lg flex items-center gap-1";
+                    badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Morador com Foto`;
+                }
+                if (removeBtn) removeBtn.classList.remove("hidden");
+            } else {
+                if (img) {
+                    img.src = "";
+                    img.classList.add("hidden");
+                }
+                if (placeholder) placeholder.classList.remove("hidden");
+                if (badge) {
+                    badge.className = "absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40";
+                    badge.innerText = "Sem Foto";
+                }
+                if (removeBtn) removeBtn.classList.add("hidden");
+            }
+        }
+
+        async function loadProfile() {
+            try {
+                const res = await fetch("/api/profile", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                if (res.status === 401) {
+                    location.href = "/login.html";
+                    return;
+                }
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data) {
+                        document.getElementById("blood_type").value = data.blood_type || "";
+                        document.getElementById("allergies_health").value = data.allergies_health || "";
+                        document.getElementById("favorite_movies").value = data.favorite_movies || "";
+                        document.getElementById("favorite_music").value = data.favorite_music || "";
+                        document.getElementById("favorite_places").value = data.favorite_places || "";
+                        document.getElementById("favorite_foods").value = data.favorite_foods || "";
+                        document.getElementById("car_info").value = data.car_info || "";
+                        document.getElementById("personal_notes").value = data.personal_notes || "";
+                        updateAvatarDisplay(data.photo_base64 || "");
+                    }
+                }
+            } catch (err) {
+                console.error("Erro ao carregar perfil:", err);
+            }
+        }
+
+        async function sendPhotoToBackend(dataUrl) {
+            try {
+                const res = await fetch("/api/user/photo", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ photo_base64: dataUrl })
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.detail || "Falha ao salvar foto de perfil.");
+                }
+
+                const result = await res.json();
+                updateAvatarDisplay(result.photo_base64);
+                showToast("Foto de perfil atualizada com sucesso! O agente agora reconhece você como morador.", true);
+            } catch (err) {
+                showToast(err.message, false);
+            }
+        }
+
+        function handlePhotoFileUpload(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    const maxDim = 400;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > maxDim) {
+                            height *= maxDim / width;
+                            width = maxDim;
+                        }
+                    } else {
+                        if (height > maxDim) {
+                            width *= maxDim / height;
+                            height = maxDim;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext("2d");
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const resizedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+                    sendPhotoToBackend(resizedDataUrl);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = "";
+        }
+
+        async function openWebcamModal() {
+            const modal = document.getElementById("webcamModal");
+            const video = document.getElementById("webcamVideo");
+            if (!modal || !video) return;
+
+            try {
+                webcamStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: "user" },
+                    audio: false
+                });
+                video.srcObject = webcamStream;
+                modal.classList.remove("hidden");
+            } catch (err) {
+                alert("Não foi possível acessar a webcam do dispositivo: " + err.message);
+            }
+        }
+
+        function closeWebcamModal() {
+            const modal = document.getElementById("webcamModal");
+            if (modal) modal.classList.add("hidden");
+            if (webcamStream) {
+                webcamStream.getTracks().forEach(track => track.stop());
+                webcamStream = null;
+            }
+        }
+
+        function captureWebcamPhoto() {
+            const video = document.getElementById("webcamVideo");
+            if (!video) return;
+
+            const canvas = document.createElement("canvas");
+            canvas.width = 400;
+            canvas.height = 400;
+            const ctx = canvas.getContext("2d");
+
+            // Crop quadrado central da imagem da webcam
+            const minDim = Math.min(video.videoWidth, video.videoHeight);
+            const sx = (video.videoWidth - minDim) / 2;
+            const sy = (video.videoHeight - minDim) / 2;
+            ctx.drawImage(video, sx, sy, minDim, minDim, 0, 0, 400, 400);
+
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+            closeWebcamModal();
+            sendPhotoToBackend(dataUrl);
+        }
+
+        async function handleDeletePhoto() {
+            if (!confirm("Deseja realmente remover sua foto de referência de morador?")) return;
+            try {
+                const res = await fetch("/api/user/photo", {
+                    method: "DELETE",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    updateAvatarDisplay("");
+                    showToast("Foto de perfil removida com sucesso.", true);
+                }
+            } catch (err) {
+                showToast("Erro ao remover foto: " + err.message, false);
+            }
+        }
+
+        async function handleSaveProfile(e) {
+            e.preventDefault();
+            const btn = document.getElementById("saveBtn");
+            btn.disabled = true;
+            btn.innerHTML = `<span class="animate-spin inline-block mr-2">🔄</span> Salvando...`;
+
+            const payload = {
+                blood_type: document.getElementById("blood_type").value.trim(),
+                allergies_health: document.getElementById("allergies_health").value.trim(),
+                favorite_movies: document.getElementById("favorite_movies").value.trim(),
+                favorite_music: document.getElementById("favorite_music").value.trim(),
+                favorite_places: document.getElementById("favorite_places").value.trim(),
+                favorite_foods: document.getElementById("favorite_foods").value.trim(),
+                car_info: document.getElementById("car_info").value.trim(),
+                personal_notes: document.getElementById("personal_notes").value.trim()
+            };
+
+            try {
+                const res = await fetch("/api/profile", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.detail || "Erro ao salvar perfil.");
+                }
+
+                showToast("Perfil atualizado no SQLite! O agente agora tem acesso a essas informações.", true);
+            } catch (err) {
+                showToast(err.message, false);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<span>Salvar Informações do Perfil</span><span>💾</span>`;
+            }
+        }
+
+        loadProfile();
+    </script>
+
+</body>
+
+</html>
