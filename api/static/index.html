@@ -2661,16 +2661,20 @@
 
             rec.onend = () => {
                 isListening = false;
-                document.getElementById("micPulseEffect").classList.add("hidden");
-                document.getElementById("micIcon").classList.remove("hidden");
-                document.getElementById("stopIcon").classList.add("hidden");
-                const wave = document.getElementById("voiceWaveBar");
-                if (wave) {
-                    wave.classList.add("hidden");
-                    wave.classList.remove("flex");
+
+                // Só esconde os elementos visuais se o modo "Ouvir Sempre" não estiver ativo
+                if (!alwaysListen) {
+                    document.getElementById("micPulseEffect").classList.add("hidden");
+                    document.getElementById("micIcon").classList.remove("hidden");
+                    document.getElementById("stopIcon").classList.add("hidden");
+                    const wave = document.getElementById("voiceWaveBar");
+                    if (wave) {
+                        wave.classList.add("hidden");
+                        wave.classList.remove("flex");
+                    }
+                    const lbl = document.getElementById("terminalVoiceLabel");
+                    if (lbl) lbl.innerText = "Falar por Voz";
                 }
-                const lbl = document.getElementById("terminalVoiceLabel");
-                if (lbl) lbl.innerText = "Falar por Voz";
 
                 if (latestHeardText && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive) {
                     const textToProcess = latestHeardText;
@@ -2684,11 +2688,12 @@
 
                 if (alwaysListen && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                     clearTimeout(voiceRestartTimeout);
+                    // Reinício rápido e contínuo (80ms) para não ter lacunas e não cortar o áudio do morador
                     voiceRestartTimeout = setTimeout(() => {
                         if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                             startVoiceRecognition();
                         }
-                    }, 800);
+                    }, 80);
                 }
             };
 
@@ -2713,7 +2718,7 @@
                 normalizedAgentName,
                 normalizedAgentName.replace(/[-\s_]+/g, " "),
                 "sexta-feira", "sexta feira", "sextafeira", "sexta",
-                "agente", "jarvis"
+                "agente", "jarvis", "casa"
             ]);
 
             const patternList = Array.from(rawPatterns).filter(Boolean);
@@ -2775,6 +2780,15 @@
             document.getElementById("micPulseEffect").classList.add("hidden");
             document.getElementById("micIcon").classList.remove("hidden");
             document.getElementById("stopIcon").classList.add("hidden");
+            if (!alwaysListen) {
+                const wave = document.getElementById("voiceWaveBar");
+                if (wave) {
+                    wave.classList.add("hidden");
+                    wave.classList.remove("flex");
+                }
+                const lbl = document.getElementById("terminalVoiceLabel");
+                if (lbl) lbl.innerText = "Falar por Voz";
+            }
         }
 
         function updateAlwaysListenUI() {
@@ -2782,15 +2796,28 @@
             const dot = document.getElementById("alwaysListenDot");
             const text = document.getElementById("alwaysListenText");
             const btn = document.getElementById("alwaysListenBtn");
+            const wave = document.getElementById("voiceWaveBar");
+            const wText = document.getElementById("voiceWaveText");
 
             if (alwaysListen) {
                 if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping";
                 if (text) text.innerHTML = `🟢 Ouvindo: <b>"${agentName}"</b>`;
                 if (btn) btn.className = "bg-indigo-900/60 border border-indigo-500 text-indigo-200 transition px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-indigo-500/20";
+                if (wave) {
+                    wave.classList.remove("hidden");
+                    wave.classList.add("flex");
+                }
+                if (wText && (!wText.innerText || wText.innerText.trim() === '""')) {
+                    wText.innerText = `Ouvindo... Diga "${agentName}"`;
+                }
             } else {
                 if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-zinc-500";
                 if (text) text.innerHTML = `🎙️ Ouvir Sempre`;
                 if (btn) btn.className = "bg-zinc-800/90 hover:bg-zinc-700/90 border border-zinc-700/80 transition px-4 py-3 rounded-2xl font-semibold text-xs sm:text-sm flex items-center gap-2";
+                if (wave && !isListening) {
+                    wave.classList.add("hidden");
+                    wave.classList.remove("flex");
+                }
             }
         }
 
