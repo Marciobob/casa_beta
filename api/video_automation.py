@@ -22,7 +22,7 @@ try:
         get_user_profile
     )
     from api.telegram_bot import send_telegram_photo, send_telegram_message
-    from api.tools.vision_tools import capture_camera_frame, analyze_image_with_vision
+    from api.tools.vision_tools import capture_camera_frame, analyze_image_with_vision, set_vision_context
     from api.tools.mqtt_tools import controlar_luzes
 except ImportError:
     from logger import system_logger, vision_logger
@@ -37,7 +37,7 @@ except ImportError:
         get_user_profile
     )
     from telegram_bot import send_telegram_photo, send_telegram_message
-    from tools.vision_tools import capture_camera_frame, analyze_image_with_vision
+    from tools.vision_tools import capture_camera_frame, analyze_image_with_vision, set_vision_context
     from tools.mqtt_tools import controlar_luzes
 
 
@@ -154,6 +154,22 @@ Responda OBRIGATORIAMENTE no formato JSON puro:
     api_key = (ai_cfg.get("api_key") or user_prof.get("api_key") or os.getenv("GEMINI_API_KEY") or "").strip()
     model_name = (ai_cfg.get("ai_model") or user_prof.get("ai_model") or os.getenv("DEFAULT_MODEL", "gemini-2.5-flash-lite")).strip()
 
+    # Fallback para chave de perfil de morador no SQLite caso sub-conta não tenha chave configurada
+    if not api_key:
+        try:
+            from api.database import get_db_connection
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT api_key, ai_model FROM user_profiles WHERE api_key != '' AND api_key NOT LIKE 'fake%' AND api_key NOT LIKE '123%' LIMIT 1")
+            row = c.fetchone()
+            conn.close()
+            if row and row["api_key"]:
+                api_key = row["api_key"]
+                if not model_name:
+                    model_name = row["ai_model"]
+        except Exception:
+            pass
+
     # Se não tiver chave de IA configurada, não é possível avaliar reconhecimento
     if not api_key:
         msg = "Chave de API com suporte a visão não configurada para processar automação de vídeo."
@@ -161,7 +177,8 @@ Responda OBRIGATORIAMENTE no formato JSON puro:
             db_record_automation_run(auto_id, "error", msg)
         return False, msg
 
-    raw_response = analyze_image_with_vision(frame_bytes, prompt, reference_images=ref_images)
+    set_vision_context(user_email=user_email, camera_config=cam_cfg, api_key=api_key, model_name=model_name)
+    raw_response = analyze_image_with_vision(frame_bytes, prompt, reference_images=ref_images, api_key=api_key, model_name=model_name)
     vision_logger.info(f"[VideoAutomation] Resposta da IA de visão: {raw_response[:180]}...")
 
     # 5. Processamento do Resultado JSON

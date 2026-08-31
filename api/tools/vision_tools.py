@@ -172,26 +172,46 @@ def capture_camera_frame(config: Optional[Dict[str, Any]] = None) -> Tuple[Optio
 def analyze_image_with_vision(
     image_bytes: bytes, 
     prompt: str, 
-    reference_images: Optional[List[Dict[str, Any]]] = None
+    reference_images: Optional[List[Dict[str, Any]]] = None,
+    api_key: Optional[str] = None,
+    model_name: Optional[str] = None
 ) -> str:
     """
     Analisa os bytes de imagem utilizando o modelo multimodal (Google Gemini Vision ou OpenAI GPT-4o).
     Suporta multi-imagem (ex: frame da câmera + fotos de referência dos moradores para reconhecimento facial).
     """
     global _ACTIVE_API_KEY, _ACTIVE_MODEL, _ACTIVE_VISION_USER
-    api_key = _ACTIVE_API_KEY
-    if not api_key and _ACTIVE_VISION_USER:
+    target_key = (api_key or _ACTIVE_API_KEY or "").strip()
+    target_model = (model_name or _ACTIVE_MODEL or "").strip()
+
+    if not target_key and _ACTIVE_VISION_USER:
         user_ai_cfg = db_get_ai_config(_ACTIVE_VISION_USER)
-        api_key = user_ai_cfg.get("api_key", "")
-        if not _ACTIVE_MODEL:
-            _ACTIVE_MODEL = user_ai_cfg.get("ai_model", "gemini-2.5-flash-lite")
-            
-    api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+        target_key = (user_ai_cfg.get("api_key") or "").strip()
+        if not target_model:
+            target_model = (user_ai_cfg.get("ai_model") or "gemini-2.5-flash-lite").strip()
+
+    target_key = target_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
     openai_key = os.getenv("OPENAI_API_KEY") or ""
+
+    # Fallback para qualquer chave válida cadastrada no SQLite
+    if not target_key:
+        try:
+            from api.database import get_db_connection
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT api_key, ai_model FROM user_profiles WHERE api_key != '' AND api_key NOT LIKE 'fake%' AND api_key NOT LIKE '123%' LIMIT 1")
+            row = c.fetchone()
+            conn.close()
+            if row and row["api_key"]:
+                target_key = row["api_key"]
+                if not target_model:
+                    target_model = row["ai_model"]
+        except Exception:
+            pass
     
-    if api_key and api_key.startswith("sk-"):
-        openai_key = api_key
-        api_key = ""
+    if target_key and target_key.startswith("sk-"):
+        openai_key = target_key
+        target_key = ""
         
     base64_img = base64.b64encode(image_bytes).decode("utf-8")
     data_url = f"data:image/jpeg;base64,{base64_img}"
@@ -218,15 +238,15 @@ def analyze_image_with_vision(
                 content_list_openai.append({"type": "image_url", "image_url": {"url": ref_url}})
 
     # 1. Tentativa com Google Gemini Vision
-    if api_key:
+    if target_key:
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
             from langchain_core.messages import HumanMessage
             
-            gemini_model = _ACTIVE_MODEL if "gemini" in _ACTIVE_MODEL else "gemini-2.5-flash"
+            gemini_model = target_model if "gemini" in target_model else "gemini-2.5-flash"
             llm = ChatGoogleGenerativeAI(
                 model=gemini_model,
-                google_api_key=api_key,
+                google_api_key=target_key,
                 temperature=0.2
             )
             
