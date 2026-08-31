@@ -1805,7 +1805,7 @@
                     recognitionInstance.onresult = null;
                     recognitionInstance.onerror = null;
                     recognitionInstance.onend = null;
-                    recognitionInstance.abort();
+                    try { recognitionInstance.stop(); } catch (e) { }
                 } catch (e) { }
                 recognitionInstance = null;
             }
@@ -2046,45 +2046,16 @@
                 const ctx = getSharedAudioContext();
                 if (!ctx) return;
 
-                // 1. Tenta resume direto do contexto
-                try {
-                    await ctx.resume();
-                } catch (e) { }
+                if (ctx.state === 'suspended') {
+                    try {
+                        await ctx.resume();
+                    } catch (e) { }
+                }
 
                 if (ctx.state === 'running') {
                     primeKeepAliveNode(ctx);
-                    return;
                 }
-
-                // 2. Desbloqueia 100% automaticamente via MediaStream de Microfone autorizado
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({
-                            audio: {
-                                echoCancellation: true,
-                                noiseSuppression: true,
-                                autoGainControl: true
-                            }
-                        });
-                        if (stream && ctx) {
-                            if (!micStreamSource) {
-                                micStreamSource = ctx.createMediaStreamSource(stream);
-                                const nullGain = ctx.createGain();
-                                nullGain.gain.value = 0.0; // Silêncio total do mic nos falantes
-                                micStreamSource.connect(nullGain);
-                                nullGain.connect(ctx.destination);
-                            }
-                            await ctx.resume();
-                            primeKeepAliveNode(ctx);
-                            console.log("[Auto-Audio-Unlock]: Áudio ativado 100% automaticamente na abertura da tela!");
-                        }
-                    } catch (streamErr) {
-                        console.warn("[Auto-Audio-Unlock MediaStream]:", streamErr);
-                    }
-                }
-            } catch (err) {
-                console.warn("[Auto-Audio-Unlock general]:", err);
-            }
+            } catch (err) { }
         }
 
         function unlockAudioContext() {
@@ -2099,22 +2070,9 @@
             } catch (e) { }
         }
 
-        function getGlobalAudioElement() {
-            let audio = document.getElementById("globalTtsPlayer");
-            if (!audio) {
-                audio = document.createElement("audio");
-                audio.id = "globalTtsPlayer";
-                audio.setAttribute("preload", "auto");
-                audio.setAttribute("playsinline", "");
-                document.body.appendChild(audio);
-            }
-            return audio;
-        }
-
         function primeAudioEngine() {
             unlockAudioContext();
             try {
-                const audio = getGlobalAudioElement();
                 const ctx = getSharedAudioContext();
                 if (ctx && ctx.state === 'running') {
                     primeKeepAliveNode(ctx);
@@ -2122,25 +2080,24 @@
             } catch (e) { }
         }
 
-        // Desbloqueia e prepara o motor de áudio em qualquer interação do usuário ou evento do sistema
+        // Desbloqueia e prepara o motor de áudio em interações reais do usuário
         if (typeof window !== "undefined") {
-            ['click', 'touchstart', 'touchend', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'keydown', 'keyup', 'focus', 'mousemove', 'pointermove', 'wheel', 'scroll'].forEach(evt => {
+            ['click', 'touchstart', 'touchend', 'keydown'].forEach(evt => {
                 window.addEventListener(evt, primeAudioEngine, { passive: true });
                 document.addEventListener(evt, primeAudioEngine, { passive: true });
             });
             document.addEventListener("visibilitychange", () => {
                 if (document.visibilityState === "visible") {
                     unlockAudioContext();
-                    primeAudioEngine();
                 }
             });
             window.addEventListener("focus", () => {
                 unlockAudioContext();
-                primeAudioEngine();
             });
         }
 
         let isAudioPlayingActive = false;
+        let currentPlayingAudio = null;
 
         function playAudioBlob(blob) {
             return new Promise((resolve) => {
@@ -2152,9 +2109,18 @@
                     isAudioPlayingActive = true;
                     stopVoiceRecognition();
 
-                    const audio = getGlobalAudioElement();
+                    if (currentPlayingAudio) {
+                        try {
+                            currentPlayingAudio.pause();
+                            currentPlayingAudio.src = "";
+                        } catch (e) { }
+                        currentPlayingAudio = null;
+                    }
+
                     const audioUrl = URL.createObjectURL(blob);
-                    audio.src = audioUrl;
+                    const audio = new Audio(audioUrl);
+                    currentPlayingAudio = audio;
+                    audio.preload = "auto";
 
                     let isDone = false;
                     let safetyWatchdog = null;
@@ -2166,6 +2132,9 @@
                             audio.onended = null;
                             audio.onerror = null;
                             audio.onpause = null;
+                            if (currentPlayingAudio === audio) {
+                                currentPlayingAudio = null;
+                            }
                             try { URL.revokeObjectURL(audioUrl); } catch (e) { }
                             resolve(success);
                         }
@@ -2173,21 +2142,22 @@
 
                     audio.onended = () => cleanup(true);
                     audio.onerror = (err) => {
-                        console.warn("[Global HTML5 Audio Error]:", err);
+                        console.warn("[Isolated HTML5 Audio Error]:", err);
                         cleanup(false);
                     };
 
                     // Watchdog de segurança
-                    safetyWatchdog = setTimeout(() => cleanup(true), 30000);
+                    safetyWatchdog = setTimeout(() => cleanup(true), 40000);
 
                     const playPromise = audio.play();
                     if (playPromise !== undefined) {
                         playPromise.catch(err => {
-                            console.warn("[Global HTML5 Audio Play Rejected]:", err);
+                            console.warn("[Isolated HTML5 Audio Play Rejected]:", err);
                             cleanup(false);
                         });
                     }
                 } catch (e) {
+                    isAudioPlayingActive = false;
                     resolve(false);
                 }
             });
