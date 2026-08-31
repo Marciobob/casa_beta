@@ -38,6 +38,14 @@ try:
     )
     from api.tools.vision_tools import ver_camera, detectar_e_cumprimentar_pessoas, identificar_morador_ou_visitante, status_camera, set_vision_context
     from api.tools.telegram_tools import enviar_mensagem_telegram, enviar_foto_telegram, set_telegram_context
+    from api.tools.automation_tools import (
+        listar_automacoes,
+        controlar_automacao,
+        criar_automacao,
+        excluir_automacao,
+        executar_automacao_agora,
+        set_automation_context
+    )
     from api.database import db_get_google_credentials, db_get_camera_config
 except ImportError:
     from logger import agent_logger
@@ -54,6 +62,14 @@ except ImportError:
     )
     from tools.vision_tools import ver_camera, detectar_e_cumprimentar_pessoas, identificar_morador_ou_visitante, status_camera, set_vision_context
     from tools.telegram_tools import enviar_mensagem_telegram, enviar_foto_telegram, set_telegram_context
+    from tools.automation_tools import (
+        listar_automacoes,
+        controlar_automacao,
+        criar_automacao,
+        excluir_automacao,
+        executar_automacao_agora,
+        set_automation_context
+    )
     from database import db_get_google_credentials, db_get_camera_config
 
 def get_chat_model(model_name: str, api_key: str):
@@ -133,13 +149,14 @@ def processar_comando_agente(
         f"Usuário: '{user_email}' | Mensagens no Histórico: {history_count}"
     )
     
-    # Configura o contexto das ferramentas MQTT, Perfil, Tarefas, Notas, Visão e Credenciais Google
+    # Configura o contexto das ferramentas MQTT, Perfil, Tarefas, Notas, Visão, Telegram, Automações e Credenciais Google
     set_execution_context(rooms_state or {}, broker_config or {})
     set_profile_context(user_email=user_email or "", profile_data=user_profile)
     set_task_context(user_email=user_email or "")
     set_keep_context(user_email=user_email or "")
     set_vision_context(user_email=user_email or "", api_key=api_key or "", model_name=modelo or "")
     set_telegram_context(user_email=user_email or "")
+    set_automation_context(user_email=user_email or "")
     
     # Carrega credenciais do Google do usuário ativo
     gmail_user, gmail_pwd = db_get_google_credentials(user_email or "")
@@ -174,6 +191,11 @@ def processar_comando_agente(
         status_camera,
         enviar_mensagem_telegram,
         enviar_foto_telegram,
+        listar_automacoes,
+        controlar_automacao,
+        criar_automacao,
+        excluir_automacao,
+        executar_automacao_agora,
         ler_emails_recentes,
         buscar_emails,
         enviar_email,
@@ -229,12 +251,18 @@ Suas capacidades e ferramentas disponíveis:
 7. TELEGRAM & NOTIFICAÇÕES EXTERNAS:
    - 'enviar_mensagem_telegram': Use quando o usuário pedir para enviar um aviso, mensagem ou notificação externa para o Telegram dele (ex: "Me envie uma mensagem no Telegram avisando disso").
    - 'enviar_foto_telegram': Use quando o usuário pedir para capturar a câmera e enviar a foto diretamente no Telegram dele.
-8. MEMÓRIA & PERFIL DO USUÁRIO: Use a ferramenta 'consultar_perfil_usuario' sempre que o usuário perguntar sobre seus dados pessoais, tipo sanguíneo, comidas preferidas, filmes/séries favoritos, músicas que gosta, carro, passeios ou notas de sua vida, ou quando você puder dar uma resposta ou recomendação personalizada baseada no perfil dele.
-9. HISTÓRICO DE CONVERSA: Você tem acesso ao histórico recente das últimas mensagens trocadas nesta conversa. Use esse contexto anterior para compreender referências, pronomes (ex: "ela", "disso", "o mesmo compromisso", "o mesmo e-mail", "o mesmo cômodo") e manter continuidade no diálogo.
-10. AUTOMAÇÃO RESIDENCIAL: Use a ferramenta 'controlar_luzes' para ligar ('ON') ou desligar ('OFF') as luzes dos cômodos solicitados.
+8. CONTROLE DE AUTOMAÇÕES E SEGUNDO PLANO:
+   - 'listar_automacoes': Use quando o usuário perguntar quais automações estão ativas, o que está agendado, pedir para ver suas regras de segundo plano, regras de câmera/vídeo, lembretes ou resumos.
+   - 'controlar_automacao': Use para ativar ('ativar') ou desativar ('desativar') uma regra de automação existente pelo nome ou ID (ex: "Desative a automação do quarto", "Ative a regra de reconhecimento facial", "Desligue o lembrete de reuniões").
+   - 'criar_automacao': Use para criar novas regras de automação periódicas, de vídeo ou de agenda conforme pedido pelo usuário.
+   - 'excluir_automacao': Use para apagar/excluir permanentemente uma regra de automação.
+   - 'executar_automacao_agora': Use para testar ou executar uma automação sob demanda imediatamente.
+9. MEMÓRIA & PERFIL DO USUÁRIO: Use a ferramenta 'consultar_perfil_usuario' sempre que o usuário perguntar sobre seus dados pessoais, tipo sanguíneo, comidas preferidas, filmes/séries favoritos, músicas que gosta, carro, passeios ou notas de sua vida, ou quando você puder dar uma resposta ou recomendação personalizada baseada no perfil dele.
+10. HISTÓRICO DE CONVERSA: Você tem acesso ao histórico recente das últimas mensagens trocadas nesta conversa. Use esse contexto anterior para compreender referências, pronomes (ex: "ela", "disso", "o mesmo compromisso", "o mesmo e-mail", "o mesmo cômodo") e manter continuidade no diálogo.
+11. AUTOMAÇÃO RESIDENCIAL: Use a ferramenta 'controlar_luzes' para ligar ('ON') ou desligar ('OFF') as luzes dos cômodos solicitados.
     Cômodos cadastrados na residência: {rooms or []}
-11. RELATÓRIO DA CASA: Use a ferramenta 'relatorio_status_casa' quando o usuário perguntar quais luzes estão acesas, o que está ligado ou o status geral da residência.
-12. PESQUISA NA INTERNET: Use a ferramenta 'pesquisar_na_internet' para buscar em tempo real notícias do dia, previsão do tempo/clima, sugestões de filmes, receitas, curiosidades e fatos atualizados.
+12. RELATÓRIO DA CASA: Use a ferramenta 'relatorio_status_casa' quando o usuário perguntar quais luzes estão acesas, o que está ligado ou o status geral da residência.
+13. PESQUISA NA INTERNET: Use a ferramenta 'pesquisar_na_internet' para buscar em tempo real notícias do dia, previsão do tempo/clima, sugestões de filmes, receitas, curiosidades e fatos atualizados.
 
 REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO:
 - NUNCA use formatação Markdown (NÃO use asteriscos '**', '#' de títulos, marcadores de lista '-' ou '•', nem itálicos).
