@@ -1628,7 +1628,10 @@
 
             rec.onresult = (event) => {
                 lastActivityTimestamp = Date.now();
-                if (isSpeakingTTS || isProcessingCommand) return;
+                if (isSpeakingTTS || isProcessingCommand || isAudioPlayingActive) {
+                    latestHeardText = "";
+                    return;
+                }
 
                 let interim = "";
                 let finalStr = "";
@@ -1664,7 +1667,7 @@
                 document.getElementById("micIcon").classList.add("hidden");
                 document.getElementById("stopIcon").classList.remove("hidden");
 
-                if (latestHeardText && !isSpeakingTTS && !isProcessingCommand) {
+                if (latestHeardText && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive) {
                     const textToProcess = latestHeardText;
                     latestHeardText = "";
                     if (alwaysListen) {
@@ -1674,13 +1677,13 @@
                     }
                 }
 
-                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand && speechQueue.length === 0) {
+                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                     clearTimeout(voiceRestartTimeout);
                     voiceRestartTimeout = setTimeout(() => {
-                        if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && speechQueue.length === 0) {
+                        if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                             startVoiceRecognition();
                         }
-                    }, 500);
+                    }, 800);
                 }
             };
 
@@ -1696,7 +1699,7 @@
         }
 
         function handleWakeWordDetection(text) {
-            if (isProcessingCommand || isSpeakingTTS) return;
+            if (isProcessingCommand || isSpeakingTTS || isAudioPlayingActive) return;
 
             const agentName = getAgentName();
             const normalizedText = normalizeText(text);
@@ -1775,7 +1778,7 @@
         }
 
         function startVoiceRecognition() {
-            if (isListening || isSpeakingTTS || isProcessingCommand || speechQueue.length > 0) return;
+            if (isListening || isSpeakingTTS || isProcessingCommand || isAudioPlayingActive || speechQueue.length > 0) return;
 
             try {
                 recognitionInstance = createFreshRecognition();
@@ -1787,10 +1790,10 @@
                 console.warn("[Speech] Reiniciando escuta:", e);
                 clearTimeout(voiceRestartTimeout);
                 voiceRestartTimeout = setTimeout(() => {
-                    if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && speechQueue.length === 0) {
+                    if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                         startVoiceRecognition();
                     }
-                }, 500);
+                }, 800);
             }
         }
 
@@ -2137,6 +2140,8 @@
             });
         }
 
+        let isAudioPlayingActive = false;
+
         function playAudioBlob(blob) {
             return new Promise((resolve) => {
                 if (!blob) {
@@ -2144,7 +2149,9 @@
                     return;
                 }
                 try {
-                    primeAudioEngine();
+                    isAudioPlayingActive = true;
+                    stopVoiceRecognition();
+
                     const audio = getGlobalAudioElement();
                     const audioUrl = URL.createObjectURL(blob);
                     audio.src = audioUrl;
@@ -2158,6 +2165,7 @@
                             if (safetyWatchdog) clearTimeout(safetyWatchdog);
                             audio.onended = null;
                             audio.onerror = null;
+                            audio.onpause = null;
                             try { URL.revokeObjectURL(audioUrl); } catch (e) { }
                             resolve(success);
                         }
@@ -2170,13 +2178,11 @@
                     };
 
                     // Watchdog de segurança
-                    safetyWatchdog = setTimeout(() => cleanup(true), 25000);
+                    safetyWatchdog = setTimeout(() => cleanup(true), 30000);
 
                     const playPromise = audio.play();
                     if (playPromise !== undefined) {
-                        playPromise.then(() => {
-                            // Tocou normalmente
-                        }).catch(err => {
+                        playPromise.catch(err => {
                             console.warn("[Global HTML5 Audio Play Rejected]:", err);
                             cleanup(false);
                         });
@@ -2270,24 +2276,25 @@
         async function processSpeechQueue() {
             if (speechQueue.length === 0) {
                 isProcessingQueue = false;
-                if (!isProcessingCommand) {
-                    isSpeakingTTS = false;
-                    if (ttsSafetyTimeout) clearTimeout(ttsSafetyTimeout);
-                    lastActivityTimestamp = Date.now();
-                    if (alwaysListen) {
-                        clearTimeout(voiceRestartTimeout);
-                        voiceRestartTimeout = setTimeout(() => {
-                            if (!isSpeakingTTS && !isProcessingCommand && speechQueue.length === 0 && alwaysListen) {
-                                startVoiceRecognition();
-                            }
-                        }, 700);
-                    }
+                isSpeakingTTS = false;
+                isAudioPlayingActive = false;
+                if (ttsSafetyTimeout) clearTimeout(ttsSafetyTimeout);
+                lastActivityTimestamp = Date.now();
+                clearTimeout(voiceRestartTimeout);
+
+                if (alwaysListen && !isProcessingCommand) {
+                    voiceRestartTimeout = setTimeout(() => {
+                        if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                            startVoiceRecognition();
+                        }
+                    }, 800);
                 }
                 return;
             }
 
             isProcessingQueue = true;
             isSpeakingTTS = true;
+            isAudioPlayingActive = true;
             stopVoiceRecognition();
 
             const item = speechQueue.shift();
@@ -2306,24 +2313,18 @@
                     const audioData = await item.itemPromise;
                     let played = false;
 
-                    const ctx = getSharedAudioContext();
-
-                    // Camada 1: Web Audio API (Desbloqueado 100% automaticamente na abertura da tela)
-                    if (audioData && audioData.audioBuffer && ctx && ctx.state === 'running') {
-                        played = await playAudioBufferAsync(audioData.audioBuffer);
-                    }
-
-                    // Camada 2: HTML5 Audio Global no DOM (Blob)
-                    if (!played && audioData && audioData.blob) {
+                    // Camada 1: HTML5 Audio Global no DOM (Blob) - Resiliente e imune a resets de Web Audio
+                    if (audioData && audioData.blob) {
                         played = await playAudioBlob(audioData.blob);
                     }
 
-                    // Camada 3: Web Audio API fallback se o Blob falhou
-                    if (!played && audioData && audioData.audioBuffer) {
+                    // Camada 2: Web Audio API
+                    const ctx = getSharedAudioContext();
+                    if (!played && audioData && audioData.audioBuffer && ctx && ctx.state === 'running') {
                         played = await playAudioBufferAsync(audioData.audioBuffer);
                     }
 
-                    // Camada 4: Síntese Nativa do Navegador com watchdog anti-congelamento
+                    // Camada 3: Síntese Nativa do Navegador com watchdog anti-congelamento
                     if (!played) {
                         await speakWithBrowserNativeAsync(item.text);
                     }
@@ -2341,6 +2342,10 @@
 
         function playAudioBufferAsync(audioBuffer) {
             return new Promise(async (resolve) => {
+                if (!audioBuffer) {
+                    resolve(false);
+                    return;
+                }
                 unlockAudioContext();
                 const ctx = getSharedAudioContext();
                 if (!ctx) {
@@ -2356,6 +2361,9 @@
                     resolve(false);
                     return;
                 }
+
+                isAudioPlayingActive = true;
+                stopVoiceRecognition();
 
                 if (currentAudioSourceNode) {
                     try { currentAudioSourceNode.stop(); } catch (e) { }
@@ -2383,9 +2391,8 @@
                 // Watchdog por buffer para evitar travamento em caso de suspensão
                 const durationSec = (audioBuffer && audioBuffer.duration) ? audioBuffer.duration : 3;
                 const bufferWatchdog = setTimeout(() => {
-                    console.warn("[TTS Buffer Watchdog]: Liberando buffer por tempo limite.");
                     finish(true);
-                }, Math.ceil(durationSec * 1000) + 1200);
+                }, Math.ceil(durationSec * 1000) + 1500);
 
                 try {
                     source.start(0);
@@ -2403,6 +2410,9 @@
                     return;
                 }
                 try {
+                    isAudioPlayingActive = true;
+                    stopVoiceRecognition();
+
                     window.speechSynthesis.cancel();
                     window.speechSynthesis.resume();
 
@@ -2440,8 +2450,8 @@
                         }
                     }, 1000);
 
-                    // Watchdog de segurança: NUNCA trava a fila se a janela estiver em segundo plano
-                    const maxDurationMs = Math.max(3000, Math.min(text.length * 100, 15000));
+                    // Watchdog de segurança
+                    const maxDurationMs = Math.max(3000, Math.min(text.length * 100, 20000));
                     watchdog = setTimeout(finish, maxDurationMs);
 
                     window.speechSynthesis.speak(utterance);
@@ -2455,7 +2465,9 @@
             speechQueue = [];
             isProcessingQueue = false;
             isSpeakingTTS = false;
+            isAudioPlayingActive = false;
             lastEnqueuedText = "";
+            clearTimeout(voiceRestartTimeout);
             if (ttsSafetyTimeout) clearTimeout(ttsSafetyTimeout);
             if (currentAudioSourceNode) {
                 try { currentAudioSourceNode.stop(); } catch (e) { }
