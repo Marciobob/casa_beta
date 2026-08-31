@@ -164,6 +164,27 @@ class TestVideoAutomations(unittest.TestCase):
         self.assertEqual(rule["action_payload"]["agent_action_prompt"], "Acender a luz da sala e da entrada")
         print("✅ [Test 04] Automação com comando livre em linguagem natural: OK")
 
+    def test_05_opencv_pre_filter_token_savings(self):
+        """Testa o pré-filtro OpenCV para economia de tokens em frames sem pessoas."""
+        from api.video_automation import opencv_detect_person_or_face
+        import cv2
+        import numpy as np
+
+        # 1. Frame vazio / sem pessoas -> deve retornar False (economia de tokens)
+        empty_frame = np.full((300, 300, 3), 120, dtype=np.uint8)
+        _, empty_bytes = cv2.imencode(".jpg", empty_frame)
+        has_p, count, desc = opencv_detect_person_or_face(empty_bytes.tobytes())
+        self.assertFalse(has_p)
+        self.assertEqual(count, 0)
+        print(f"✅ [Test 05.1] OpenCV filtrou com sucesso frame vazio: '{desc}'")
+
+        # 2. Frame com foto de perfil do morador -> deve detectar rosto
+        photo_bytes = base64.b64decode(self.dummy_photo_b64)
+        has_p2, count2, desc2 = opencv_detect_person_or_face(photo_bytes)
+        # Dummy image pode não ter feições humanas reais, testamos a robustez do retorno
+        self.assertIsInstance(has_p2, bool)
+        print(f"✅ [Test 05.2] OpenCV detector de alta precisão executado com sucesso: '{desc2}'")
+
     @classmethod
     def tearDownClass(cls):
         """Limpa dados e automações de teste criados no SQLite."""

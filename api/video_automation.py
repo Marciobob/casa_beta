@@ -45,6 +45,100 @@ except ImportError:
 # Formato: { "auto_id_event_key": timestamp_float }
 _VIDEO_COOLDOWN_CACHE: Dict[str, float] = {}
 
+MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
+YUNET_MODEL_PATH = os.path.join(MODEL_DIR, "face_detection_yunet_2023mar.onnx")
+_YUNET_DETECTOR = None
+_LAST_DETECTOR_SIZE = (0, 0)
+
+
+def _ensure_yunet_model_downloaded() -> bool:
+    """Garante que o modelo ONNX leve (230KB) do YuNet esteja baixado localmente para o OpenCV."""
+    if os.path.exists(YUNET_MODEL_PATH) and os.path.getsize(YUNET_MODEL_PATH) > 100000:
+        return True
+    try:
+        os.makedirs(MODEL_DIR, exist_ok=True)
+        import urllib.request
+        url = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp, open(YUNET_MODEL_PATH, "wb") as f:
+            f.write(resp.read())
+        return os.path.exists(YUNET_MODEL_PATH) and os.path.getsize(YUNET_MODEL_PATH) > 100000
+    except Exception as e:
+        vision_logger.warning(f"[OpenCV Pre-Filter] Falha ao baixar modelo YuNet: {e}")
+        return False
+
+
+def opencv_detect_person_or_face(
+    frame_bytes: bytes, 
+    detection_mode: str = "video_face_recognition",
+    min_confidence: float = 0.55
+) -> Tuple[bool, int, str]:
+    """
+    Pré-filtro OpenCV para detectar se há pessoa ou rosto no quadro ANTES de chamar a IA Vision.
+    Economiza 100% de tokens e requisições à nuvem quando o ambiente estiver vazio.
+    """
+    global _YUNET_DETECTOR, _LAST_DETECTOR_SIZE
+    if not frame_bytes or cv2 is None:
+        return True, 1, "OpenCV não disponível (bypass para IA)"
+
+    try:
+        import numpy as np
+        nparr = np.frombuffer(frame_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None or img.size == 0:
+            return False, 0, "Falha ao decodificar imagem"
+
+        h, w = img.shape[:2]
+
+        # 1. Verificação de luminosidade e variância (ignora quadros pretos/sem sinal)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        mean_bright = np.mean(gray)
+        std_dev = np.std(gray)
+        if mean_bright < 6.0 or std_dev < 6.0:
+            return False, 0, "Quadro sem sinal ou excessivamente escuro"
+
+        # 2. Detecção Facial de Alta Velocidade via OpenCV YuNet
+        if _ensure_yunet_model_downloaded() and hasattr(cv2, "FaceDetectorYN"):
+            try:
+                if _YUNET_DETECTOR is None:
+                    _YUNET_DETECTOR = cv2.FaceDetectorYN.create(
+                        model=YUNET_MODEL_PATH,
+                        config="",
+                        input_size=(w, h),
+                        score_threshold=min_confidence,
+                        nms_threshold=0.3
+                    )
+                    _LAST_DETECTOR_SIZE = (w, h)
+                elif _LAST_DETECTOR_SIZE != (w, h):
+                    _YUNET_DETECTOR.setInputSize((w, h))
+                    _LAST_DETECTOR_SIZE = (w, h)
+
+                retval, faces = _YUNET_DETECTOR.detect(img)
+                if faces is not None and len(faces) > 0:
+                    valid_faces = [f for f in faces if f[-1] >= min_confidence]
+                    if len(valid_faces) > 0:
+                        conf = valid_faces[0][-1]
+                        return True, len(valid_faces), f"{len(valid_faces)} rosto(s) detectado(s) via OpenCV YuNet (Confiança: {conf:.2f})"
+            except Exception as e_yunet:
+                vision_logger.warning(f"[OpenCV Pre-Filter] Erro no detector YuNet: {e_yunet}")
+
+        # 3. Análise de Presença Humana por Tom de Pele (HSV) e Contornos Corporais (para modo de presença geral)
+        if detection_mode in ["video_presence_detection", "any_person"]:
+            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            lower_skin = np.array([0, 20, 70], dtype=np.uint8)
+            upper_skin = np.array([20, 255, 255], dtype=np.uint8)
+            skin_mask = cv2.inRange(hsv, lower_skin, upper_skin)
+            skin_percent = (np.count_nonzero(skin_mask) / (w * h)) * 100.0
+            
+            if skin_percent > 1.5:  # Pelo menos 1.5% da imagem com tons humanos
+                return True, 1, f"Presença humana detectada via OpenCV (Área de pele: {skin_percent:.1f}%)"
+
+        return False, 0, "Nenhum rosto ou pessoa detectada no quadro pelo OpenCV"
+
+    except Exception as e_all:
+        vision_logger.warning(f"[OpenCV Pre-Filter] Exceção na verificação: {e_all}")
+        return True, 1, "Fallback OpenCV (bypass)"
+
 
 def clear_video_cooldown(auto_id: Optional[int] = None):
     """Limpa o cache de cooldown de uma regra específica ou de todas."""
@@ -95,22 +189,21 @@ def evaluate_video_automation(rule: Dict[str, Any], now_local: datetime, is_manu
             db_record_automation_run(auto_id, "error", msg)
         return False, msg
 
-    # 2. Pré-processamento com OpenCV (Detecção rápida de silhuetas/rostos se disponível)
-    has_visual_elements = True
-    if cv2 is not None:
-        try:
-            import numpy as np
-            nparr = np.frombuffer(frame_bytes, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            if img is not None:
-                # Verificação básica de brilho/variância para evitar frames pretos
-                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                std_dev = np.std(gray)
-                if std_dev < 8.0:
-                    vision_logger.info("[VideoAutomation] Imagem com baixíssimo contraste (escuro/sem sinal). Ignorando.")
-                    return False, "Imagem sem sinal ou escura demais."
-        except Exception as e_cv:
-            vision_logger.warning(f"[VideoAutomation] OpenCV pre-check error: {e_cv}")
+    # 2. Pré-filtro Inteligente Local com OpenCV (Economia de 100% dos tokens do Gemini se vazio)
+    has_person, face_count, opencv_details = opencv_detect_person_or_face(
+        frame_bytes, 
+        detection_mode=detection_mode,
+        min_confidence=0.5
+    )
+    
+    if not has_person and not is_manual:
+        msg = f"Nenhuma pessoa ou rosto detectado no frame pelo OpenCV ({opencv_details}). Chamada à IA omitida para economizar tokens."
+        vision_logger.info(f"[VideoAutomation] [OpenCV Pre-Filter] 🛡️ {msg}")
+        return False, msg
+    elif not has_person and is_manual:
+        vision_logger.info(f"[VideoAutomation] [OpenCV Pre-Filter] {opencv_details} (Modo manual de teste: executando chamada à IA)")
+    else:
+        vision_logger.info(f"[VideoAutomation] [OpenCV Pre-Filter] 👤 {opencv_details}. Enviando quadro para identificação com IA Vision...")
 
     # 3. Recupera fotos cadastradas dos moradores no SQLite
     residents = db_get_all_residents()
