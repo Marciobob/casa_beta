@@ -2808,13 +2808,15 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[11px] text-zinc-400 mb-1">Notificação no Telegram</label>
-                                <div class="pt-2">
-                                    <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
-                                        <input type="checkbox" id="autoVideoTelegram" checked class="rounded border-zinc-700 bg-zinc-900 text-indigo-500">
-                                        <span>Anexar Foto em Tempo Real</span>
-                                    </label>
-                                </div>
+                                <label class="block text-[11px] text-zinc-400 mb-1">Intervalo de Repouso (Cooldown)</label>
+                                <select id="autoVideoCooldown" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
+                                    <option value="30">30 Segundos</option>
+                                    <option value="60">1 Minuto</option>
+                                    <option value="120">2 Minutos</option>
+                                    <option value="300" selected>5 Minutos (Padrão)</option>
+                                    <option value="600">10 Minutos</option>
+                                    <option value="0">Sem Cooldown (Sempre Disparar)</option>
+                                </select>
                             </div>
                         </div>
 
@@ -2828,10 +2830,18 @@
                             <span class="text-[10px] text-zinc-400 block mt-1">A IA executará o comando em linguagem natural assim que o morador for reconhecido.</span>
                         </div>
 
-                        <div>
-                            <label class="block text-[11px] text-zinc-400 mb-1">Mensagem de Notificação no Telegram</label>
-                            <input id="autoVideoCustomMsg" type="text" placeholder="Ex: 🎉 Morador chegou em casa e foi reconhecido!" value="🎉 Morador identificado na câmera da residência!"
-                                class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
+                        <div class="grid sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] text-zinc-400 mb-1">Mensagem de Notificação no Telegram</label>
+                                <input id="autoVideoCustomMsg" type="text" placeholder="Ex: 🎉 Morador chegou em casa e foi reconhecido!" value="🎉 Morador identificado na câmera da residência!"
+                                    class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div class="flex items-end pb-2">
+                                <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                                    <input type="checkbox" id="autoVideoTelegram" checked class="rounded border-zinc-700 bg-zinc-900 text-indigo-500">
+                                    <span>Anexar Foto em Tempo Real</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -2965,6 +2975,7 @@
                 const notifyTelegram = document.getElementById("autoVideoTelegram") ? document.getElementById("autoVideoTelegram").checked : true;
                 const customMsg = document.getElementById("autoVideoCustomMsg")?.value.trim() || "";
                 const agentAction = document.getElementById("autoVideoAgentAction")?.value.trim() || "";
+                const cooldownVal = parseInt(document.getElementById("autoVideoCooldown")?.value ?? "300");
 
                 payload = {
                     detection_mode: autoType,
@@ -2972,7 +2983,7 @@
                     notify_telegram: notifyTelegram,
                     custom_message: customMsg,
                     agent_action_prompt: agentAction,
-                    cooldown_seconds: 300
+                    cooldown_seconds: isNaN(cooldownVal) ? 300 : cooldownVal
                 };
             } else if (autoType === "calendar_reminder") {
                 triggerType = "event_relative_minutes";

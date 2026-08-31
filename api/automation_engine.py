@@ -21,6 +21,7 @@ try:
         db_get_tasks
     )
     from api.telegram_bot import send_telegram_message
+    from api.telegram_bot import send_telegram_message, send_telegram_photo
     from api.tools.calendar_tools import (
         connect_caldav, 
         formatar_evento, 
@@ -28,7 +29,7 @@ try:
     )
     from api.tools.mqtt_tools import controlar_luzes, relatorio_status_casa
     from api.tools.gmail_tools import set_gmail_credentials_context, ler_emails_recentes
-    from api.video_automation import evaluate_video_automation
+    from api.video_automation import evaluate_video_automation, clear_video_cooldown
 except ImportError:
     from logger import system_logger
     from database import (
@@ -43,7 +44,7 @@ except ImportError:
         get_user_profile,
         db_get_tasks
     )
-    from telegram_bot import send_telegram_message
+    from telegram_bot import send_telegram_message, send_telegram_photo
     from tools.calendar_tools import (
         connect_caldav, 
         formatar_evento, 
@@ -336,6 +337,7 @@ class AutomationEngine:
 
             # 6. Automação de Vídeo e Reconhecimento Facial
             elif auto_type.startswith("video_") or action_type == "video_alert":
+                clear_video_cooldown(auto_id)
                 tz_local = dateutil.tz.tzlocal()
                 return evaluate_video_automation(rule, datetime.now(tz_local), is_manual=True)
 

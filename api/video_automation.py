@@ -46,6 +46,19 @@ except ImportError:
 _VIDEO_COOLDOWN_CACHE: Dict[str, float] = {}
 
 
+def clear_video_cooldown(auto_id: Optional[int] = None):
+    """Limpa o cache de cooldown de uma regra específica ou de todas."""
+    global _VIDEO_COOLDOWN_CACHE
+    if auto_id is None:
+        _VIDEO_COOLDOWN_CACHE.clear()
+        vision_logger.info("[VideoAutomation] Cache de cooldown de vídeo reiniciado.")
+    else:
+        keys_to_del = [k for k in _VIDEO_COOLDOWN_CACHE if k.startswith(f"{auto_id}_")]
+        for k in keys_to_del:
+            _VIDEO_COOLDOWN_CACHE.pop(k, None)
+        vision_logger.info(f"[VideoAutomation] Cooldown reiniciado para a regra ID {auto_id}.")
+
+
 def evaluate_video_automation(rule: Dict[str, Any], now_local: datetime, is_manual: bool = False) -> Tuple[bool, str]:
     """
     Executa a análise de visão computacional e reconhecimento facial para uma regra de automação de vídeo.
@@ -63,7 +76,7 @@ def evaluate_video_automation(rule: Dict[str, Any], now_local: datetime, is_manu
     
     target_person = str(payload.get("target_person") or "todos").strip()
     detection_mode = str(payload.get("detection_mode") or auto_type).strip()
-    cooldown_seconds = int(payload.get("cooldown_seconds") or 300)  # Padrão: 5 minutos
+    cooldown_seconds = int(payload.get("cooldown_seconds") if payload.get("cooldown_seconds") is not None else 300)
     notify_telegram = payload.get("notify_telegram", True)
     mqtt_room = payload.get("mqtt_room", "")
     mqtt_action = payload.get("mqtt_action", "")
