@@ -1509,7 +1509,7 @@
         let isWaitingCommandAfterWakeWord = false;
         let watchdogInterval = null;
         let lastActivityTimestamp = Date.now();
-        let alwaysListen = localStorage.getItem("alwaysListenSmartHome") === "true";
+        let alwaysListen = localStorage.getItem("alwaysListenSmartHome") !== "false";
 
         // Guardião de Autenticação JWT
         const authToken = localStorage.getItem("smartHomeToken");
@@ -1755,7 +1755,73 @@
         }
 
         // =========================================================================
-        // PROCESSAMENTO DE COMANDOS E CHAT COM O AGENTE
+        // FEEDBACK IMEDIATO DO AGENTE (RESPOSTA INSTANTÂNEA PARA EVITAR SILÊNCIO)
+        // =========================================================================
+        function getAgentFeedbackPhrase(commandText) {
+            const raw = (commandText || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+            
+            // YouTube / Tutoriais em Vídeo / Consertos / Manutenção / Passo a Passo
+            const isYouTube = /\b(youtube|video|videos|tutorial|tutoriais|consertar|conserto|arrumar|arruma|panela|chuveiro|reparar|reparo|trocar|como fazer|receita|passo a passo|transcricao|legenda)\b/.test(raw);
+
+            // Pesquisas / Dúvidas / Web / Fatos / Notícias / Clima / Quem é / Como / O que
+            const isSearch = /\b(pesquis|procur|busc|quem|onde|quando|quanto|qual|noticia|noticias|clima|tempo|previsao|cotacao|dolar|euro|fale sobre|explique|como funciona|o que e|defina|resuma|conte sobre|descubra|informe|sabe me dizer)\b/.test(raw);
+            
+            // Ações na casa / Dispositivos / Luzes / Câmera / Automação
+            const isHome = /\b(luz|luzes|lampada|lampadas|ligar|ligue|desligar|desligue|apagar|apague|acender|acenda|camera|quarto|sala|cozinha|banheiro|garagem|automac|porta|portao|dispositivo|dispositivos|ambiente|comodo)\b/.test(raw);
+            
+            // Produtividade / Google / E-mail / Calendário / Tarefas / Keep / Contatos / Moradores / Perfil
+            const isProductivity = /\b(email|emails|e-mail|mensagem|agenda|compromisso|evento|lembrete|tarefa|tarefas|nota|notas|lista|compras|contato|contatos|morador|moradores|perfil|preferencia|alergia)\b/.test(raw);
+
+            if (isYouTube) {
+                const ytPhrases = [
+                    "Tô pesquisando o tutorial no YouTube...",
+                    "Tô buscando o vídeo e a transcrição...",
+                    "Deixa comigo, estou vendo esse tutorial...",
+                    "Tô pesquisando no YouTube para você..."
+                ];
+                return ytPhrases[Math.floor(Math.random() * ytPhrases.length)];
+            }
+
+            if (isSearch) {
+                const searchPhrases = [
+                    "Tô pesquisando...",
+                    "Tô pesquisando isso para você...",
+                    "Estou pesquisando, só um momento...",
+                    "Só um instante, estou pesquisando..."
+                ];
+                return searchPhrases[Math.floor(Math.random() * searchPhrases.length)];
+            }
+            
+            if (isHome) {
+                const homePhrases = [
+                    "Tô vendo isso agora...",
+                    "Deixa comigo, estou verificando...",
+                    "Tô verificando os dispositivos...",
+                    "Só um instante, verificando a casa..."
+                ];
+                return homePhrases[Math.floor(Math.random() * homePhrases.length)];
+            }
+
+            if (isProductivity) {
+                const prodPhrases = [
+                    "Tô verificando suas informações...",
+                    "Só um momento, estou acessando...",
+                    "Tô consultando seus dados...",
+                    "Deixa comigo, estou verificando..."
+                ];
+                return prodPhrases[Math.floor(Math.random() * prodPhrases.length)];
+            }
+
+            // Geral / Conversação / Perguntas em geral
+            const generalPhrases = [
+                "Tô vendo isso para você...",
+                "Tô respondendo a sua pergunta, só um instante...",
+                "Só um momento, estou verificando...",
+                "Estou processando sua solicitação..."
+            ];
+            return generalPhrases[Math.floor(Math.random() * generalPhrases.length)];
+        }
+
         // =========================================================================
         // PROCESSAMENTO DE COMANDOS E CHAT COM O AGENTE
         // =========================================================================
@@ -1787,6 +1853,9 @@
             // Reseta a fila de áudio anterior para iniciar novo ciclo
             clearSpeechQueue();
 
+            // Determina a frase de feedback imediato para o agente falar e exibir
+            const feedbackPhrase = getAgentFeedbackPhrase(userText);
+
             // Indicador de digitação / processamento dinâmico
             const typingEl = document.createElement("div");
             typingEl.className = "flex items-start gap-3 temp-typing";
@@ -1797,13 +1866,16 @@
                 </div>
                 <div class="bg-zinc-800/90 border border-indigo-500/40 rounded-2xl rounded-tl-none p-3 text-xs text-indigo-200 flex items-center gap-2.5 shadow-lg shadow-indigo-950/20">
                     <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping shrink-0"></span>
-                    <span id="agentThinkingStatus" class="font-medium text-zinc-100">Analisando sua solicitação...</span>
+                    <span id="agentThinkingStatus" class="font-medium text-zinc-100">${escapeHtml(feedbackPhrase)}</span>
                 </div>
             `;
             if (chatBox) {
                 chatBox.appendChild(typingEl);
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
+
+            // Fala imediatamente o feedback sonoro para que o usuário não fique esperando em silêncio
+            speakIntermediateStatus(feedbackPhrase);
 
             logToConsole(`Comando enviado ao agente: "${userText}"`, "info");
 
@@ -2166,19 +2238,31 @@
             } catch (e) { }
         }
 
-        // Desbloqueia e prepara o motor de áudio em interações reais do usuário
+        // Desbloqueia e prepara o motor de áudio e escuta contínua em interações reais do usuário
         if (typeof window !== "undefined") {
+            const handleUserInteraction = () => {
+                primeAudioEngine();
+                if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                    startVoiceRecognition();
+                }
+            };
             ['click', 'touchstart', 'touchend', 'keydown'].forEach(evt => {
-                window.addEventListener(evt, primeAudioEngine, { passive: true });
-                document.addEventListener(evt, primeAudioEngine, { passive: true });
+                window.addEventListener(evt, handleUserInteraction, { passive: true });
+                document.addEventListener(evt, handleUserInteraction, { passive: true });
             });
             document.addEventListener("visibilitychange", () => {
                 if (document.visibilityState === "visible") {
                     unlockAudioContext();
+                    if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                        startVoiceRecognition();
+                    }
                 }
             });
             window.addEventListener("focus", () => {
                 unlockAudioContext();
+                if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                    startVoiceRecognition();
+                }
             });
         }
 
@@ -2798,6 +2882,8 @@
             const btn = document.getElementById("alwaysListenBtn");
             const wave = document.getElementById("voiceWaveBar");
             const wText = document.getElementById("voiceWaveText");
+            const terminalVoiceLabel = document.getElementById("terminalVoiceLabel");
+            const terminalVoiceBtn = document.getElementById("terminalVoiceBtn");
 
             if (alwaysListen) {
                 if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping";
@@ -2810,6 +2896,8 @@
                 if (wText && (!wText.innerText || wText.innerText.trim() === '""')) {
                     wText.innerText = `Ouvindo... Diga "${agentName}"`;
                 }
+                if (terminalVoiceLabel) terminalVoiceLabel.innerText = isListening ? "Ouvindo..." : "Ouvindo Sempre";
+                if (terminalVoiceBtn) terminalVoiceBtn.className = "bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition";
             } else {
                 if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-zinc-500";
                 if (text) text.innerHTML = `🎙️ Ouvir Sempre`;
@@ -2818,6 +2906,8 @@
                     wave.classList.add("hidden");
                     wave.classList.remove("flex");
                 }
+                if (terminalVoiceLabel) terminalVoiceLabel.innerText = "Falar por Voz";
+                if (terminalVoiceBtn) terminalVoiceBtn.className = "bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition";
             }
         }
 
@@ -3991,8 +4081,17 @@
         }
 
         // =========================================================================
-        // INICIALIZAÇÃO
+        // INICIALIZAÇÃO E WATCHDOG CONTÍNUO DE ESCUTA
         // =========================================================================
+        function startContinuousWatchdog() {
+            if (watchdogInterval) clearInterval(watchdogInterval);
+            watchdogInterval = setInterval(() => {
+                if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                    startVoiceRecognition();
+                }
+            }, 1200);
+        }
+
         document.addEventListener("DOMContentLoaded", () => {
             autoUnlockAudioOnLoad();
             syncUserAiConfig();
@@ -4006,7 +4105,8 @@
             connectMQTT();
 
             if (alwaysListen) {
-                setTimeout(startVoiceRecognition, 1000);
+                setTimeout(startVoiceRecognition, 300);
+                startContinuousWatchdog();
             }
         });
     </script>

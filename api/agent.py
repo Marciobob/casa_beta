@@ -47,6 +47,7 @@ try:
         set_automation_context
     )
     from api.tools.manual_tools import consultar_manual_sistema
+    from api.tools.youtube_tools import pesquisar_e_transcrever_youtube
     from api.database import db_get_google_credentials, db_get_camera_config
 except ImportError:
     from logger import agent_logger
@@ -72,6 +73,7 @@ except ImportError:
         set_automation_context
     )
     from tools.manual_tools import consultar_manual_sistema
+    from tools.youtube_tools import pesquisar_e_transcrever_youtube
     from database import db_get_google_credentials, db_get_camera_config
 
 def get_chat_model(model_name: str, api_key: str):
@@ -123,6 +125,54 @@ def remover_markdown(texto: str) -> str:
     t = re.sub(r'\n{3,}', '\n\n', t)
     return t.strip()
 
+def get_tool_friendly_status(tool_name: str) -> str:
+    """Retorna uma mensagem amigável em português sobre a ferramenta que o agente está executando."""
+    status_map = {
+        "pesquisar_na_internet": "Pesquisando informações atualizadas na internet...",
+        "controlar_luzes": "Enviando comando para os dispositivos da residência...",
+        "relatorio_status_casa": "Verificando o status dos cômodos da casa...",
+        "consultar_perfil_usuario": "Consultando seu perfil e preferências...",
+        "buscar_contato": "Buscando contato na sua agenda...",
+        "salvar_contato": "Salvando contato na sua agenda...",
+        "listar_contatos": "Listando seus contatos...",
+        "excluir_contato": "Removendo contato...",
+        "criar_tarefa": "Criando tarefa no Google Tarefas...",
+        "listar_tarefas": "Consultando suas tarefas pendentes...",
+        "concluir_tarefa": "Concluindo tarefa...",
+        "excluir_tarefa": "Removendo tarefa...",
+        "buscar_tarefas": "Buscando tarefas...",
+        "criar_nota": "Criando nota no Google Keep...",
+        "adicionar_itens_lista": "Adicionando itens à sua lista...",
+        "marcar_item_lista": "Atualizando itens da lista...",
+        "ler_nota": "Lendo nota do Google Keep...",
+        "listar_notas": "Consultando suas notas e listas...",
+        "excluir_nota": "Removendo nota...",
+        "buscar_notas": "Pesquisando suas notas...",
+        "ver_camera": "Acessando e analisando a câmera...",
+        "detectar_e_cumprimentar_pessoas": "Identificando pessoas na câmera...",
+        "identificar_morador_ou_visitante": "Verificando morador ou visitante...",
+        "status_camera": "Verificando status da câmera...",
+        "enviar_mensagem_telegram": "Enviando mensagem no Telegram...",
+        "enviar_foto_telegram": "Enviando foto no Telegram...",
+        "listar_automacoes": "Consultando regras de automação...",
+        "controlar_automacao": "Atualizando regra de automação...",
+        "criar_automacao": "Criando nova automação...",
+        "excluir_automacao": "Removendo automação...",
+        "executar_automacao_agora": "Executando automação...",
+        "consultar_manual_sistema": "Consultando o manual do sistema...",
+        "ler_emails_recentes": "Lendo e-mails recentes no Gmail...",
+        "buscar_emails": "Buscando e-mails no Gmail...",
+        "enviar_email": "Enviando e-mail pelo Gmail...",
+        "responder_email": "Respondendo e-mail...",
+        "apagar_email": "Movendo e-mail para a lixeira...",
+        "listar_compromissos": "Consultando sua agenda no Google Calendar...",
+        "agendar_compromisso": "Agendando compromisso no Google Calendar...",
+        "buscar_compromissos": "Buscando compromissos na agenda...",
+        "cancelar_compromisso": "Cancelando compromisso na agenda...",
+        "pesquisar_e_transcrever_youtube": "Pesquisando e transcrevendo tutorial no YouTube..."
+    }
+    return status_map.get(tool_name, "Processando solicitação com ferramentas...")
+
 def processar_comando_agente(
     pergunta: Optional[str] = None,
     api_key: str = "",
@@ -135,6 +185,7 @@ def processar_comando_agente(
     user_profile: Optional[Dict[str, Any]] = None,
     chat_history: Optional[List[Dict[str, Any]]] = None,
     user_message: Optional[str] = None,
+    status_callback: Optional[Any] = None,
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -142,6 +193,7 @@ def processar_comando_agente(
     integração com Gmail, Google Calendar, pesquisa, controle de luzes, relatórios e perfil do usuário.
     """
     prompt_text = (pergunta if pergunta is not None else user_message) or ""
+    status_cb = status_callback or kwargs.get("status_callback")
     if not broker_config and ("broker" in kwargs or "port" in kwargs):
         broker_config = {"broker": kwargs.get("broker", "test.mosquitto.org"), "port": kwargs.get("port", 1883)}
         
@@ -168,6 +220,7 @@ def processar_comando_agente(
     
     tools = [
         pesquisar_na_internet,
+        pesquisar_e_transcrever_youtube,
         controlar_luzes,
         relatorio_status_casa,
         consultar_perfil_usuario,
@@ -268,6 +321,7 @@ Suas capacidades e ferramentas disponíveis:
     Cômodos cadastrados na residência: {rooms or []}
 13. RELATÓRIO DA CASA: Use a ferramenta 'relatorio_status_casa' quando o usuário perguntar quais luzes estão acesas, o que está ligado ou o status geral da residência.
 14. PESQUISA NA INTERNET: Use a ferramenta 'pesquisar_na_internet' para buscar em tempo real notícias do dia, previsão do tempo/clima, sugestões de filmes, receitas, curiosidades e fatos atualizados.
+15. YOUTUBE, TUTORIAIS EM VÍDEO & TRANSCRIÇÕES: Use a ferramenta 'pesquisar_e_transcrever_youtube' sempre que o usuário pedir tutoriais passo a passo de como fazer, consertar, cozinhar ou arrumar algo do dia a dia (ex: 'como arrumar panela de pressão', 'tutorial de como consertar chuveiro', 'como trocar torneira', 'receita no youtube', 'tutorial de como fazer...'), ou quando pedir para buscar vídeos no YouTube ou transcrever/resumir um link de vídeo do YouTube. A ferramenta extrai as falas reais do vídeo para que você explique e ensine detalhadamente o passo a passo com clareza para o usuário.
 
 REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO:
 - NUNCA use formatação Markdown (NÃO use asteriscos '**', '#' de títulos, marcadores de lista '-' ou '•', nem itálicos).
@@ -312,6 +366,11 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO:
                 tool_call_id = tool_call.get("id", tool_name)
                 
                 agent_logger.info(f"[Passo {step+1}] Tool Chamada: '{tool_name}' com argumentos: {tool_args}")
+                if callable(status_cb):
+                    try:
+                        status_cb("status", get_tool_friendly_status(tool_name), {"tool": tool_name})
+                    except Exception:
+                        pass
                 
                 selected_tool = tool_map.get(tool_name)
                 if selected_tool:
