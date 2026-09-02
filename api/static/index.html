@@ -2158,18 +2158,47 @@
         let currentAudioSourceNode = null;
         let ttsSafetyTimeout = null;
 
-        function initSystemFromStartupModal() {
-            primeAudioEngine();
-            unlockAudioContext();
-
-            const modal = document.getElementById("startupTechModal");
-            if (modal) {
-                modal.classList.add("opacity-0", "scale-105", "pointer-events-none");
-                setTimeout(() => modal.classList.add("hidden"), 500);
+        async function ensureMediaPermissions() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                return false;
             }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: { facingMode: "user" }
+                }).catch(async () => {
+                    return await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null);
+                });
 
-            if (alwaysListen) {
-                startVoiceRecognition();
+                if (stream) {
+                    stream.getTracks().forEach(track => {
+                        try { track.stop(); } catch (e) { }
+                    });
+                    return true;
+                }
+            } catch (err) {
+                console.warn("[Media Permissions]:", err);
+            }
+            return false;
+        }
+
+        async function initSystemFromStartupModal() {
+            try {
+                primeAudioEngine();
+                unlockAudioContext();
+                await ensureMediaPermissions();
+            } catch (e) {
+                console.warn("[Startup Init]:", e);
+            } finally {
+                const modal = document.getElementById("startupTechModal");
+                if (modal) {
+                    modal.classList.add("opacity-0", "scale-105", "pointer-events-none");
+                    setTimeout(() => modal.classList.add("hidden"), 500);
+                }
+
+                if (alwaysListen) {
+                    startVoiceRecognition();
+                }
             }
         }
 
