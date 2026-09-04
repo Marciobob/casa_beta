@@ -235,7 +235,7 @@
                     <div class="flex items-center gap-3">
                         <h1
                             class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                            <span>Sexta-Feira AI</span>
+                            <span id="headerAgentTitle">Sexta-Feira AI</span>
                         </h1>
                         <span
                             class="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 px-3 py-1 rounded-full font-mono font-bold flex items-center gap-1.5">
@@ -362,11 +362,11 @@
                     <span class="text-lg">🛠️</span>
                 </div>
                 <div class="mt-3 flex items-baseline gap-2">
-                    <span class="text-3xl font-black text-emerald-400">9</span>
+                    <span class="text-3xl font-black text-emerald-400">13</span>
                     <span class="text-xs text-zinc-500 font-medium">integrações ativas</span>
                 </div>
                 <div class="text-[11px] text-zinc-400 mt-1">
-                    Gmail, Agenda, Contatos, Tarefas, Keep, Câmera, MQTT, Web & Memória
+                    Gmail, Agenda, Contatos, Tarefas, Keep, Câmera, Telegram, Automações, Música, Memória & Sistema
                 </div>
             </div>
 
@@ -444,7 +444,7 @@
                         </div>
                         <div
                             class="bg-zinc-800/80 border border-zinc-700/60 rounded-2xl rounded-tl-none p-3.5 text-xs text-zinc-200 max-w-[85%] leading-relaxed">
-                            Olá! Sou a <b>Sexta-Feira</b>, sua assistente inteligente. Posso controlar suas luzes,
+                            Olá! Sou a <b id="chatGreetingAgentName">Sexta-Feira</b>, sua assistente inteligente. Posso controlar suas luzes,
                             verificar e enviar seus e-mails do Gmail, consultar e agendar compromissos na sua agenda do
                             Google, pesquisar notícias ou responder sobre suas preferências. Como posso te ajudar agora?
                         </div>
@@ -858,7 +858,49 @@
                     </div>
                 </div>
 
-                <!-- CARD 9: VISÃO COMPUTACIONAL & CÂMERA -->
+                <!-- CARD 9: MEMÓRIA & APRENDIZADO CONTÍNUO -->
+                <div
+                    class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-fuchsia-950/30 via-zinc-900/60 to-zinc-900/60 border-fuchsia-500/20">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-fuchsia-500/20 border border-fuchsia-500/40 flex items-center justify-center text-xl text-fuchsia-300">
+                                    🧠
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-base text-white">Memória & Aprendizado</h3>
+                                    <p class="text-[11px] text-fuchsia-300 font-mono">SQLite Long-Term Memory</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('memoria_longo_prazo')" title="Guia de Memória do Agente"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-fuchsia-950/80 hover:bg-fuchsia-900 text-fuchsia-300 transition flex items-center gap-1 border border-fuchsia-500/40">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span
+                                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-fuchsia-400"></span> Aprendendo
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
+                            Gravação autônoma de preferências, gostos, rotinas e instruções para um atendimento 100% personalizado e contínuo.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-800/80">
+                        <button onclick="sendQuickCommand('O que você lembra e sabe sobre mim nas suas memórias?')"
+                            class="bg-zinc-800/80 hover:bg-fuchsia-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>🧠</span> <span>Ver Memórias</span>
+                        </button>
+                        <button onclick="sendQuickCommand('Lembre-se de que meu time de futebol do coração é o Flamengo')"
+                            class="bg-zinc-800/80 hover:bg-fuchsia-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>💡</span> <span>Ensinar Fato</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CARD 10: VISÃO COMPUTACIONAL & CÂMERA -->
                 <div
                     class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-cyan-950/30 via-zinc-900/60 to-zinc-900/60 border-cyan-500/20">
                     <div>
@@ -904,7 +946,7 @@
                     </div>
                 </div>
 
-                <!-- CARD 10: TELEGRAM BOT & CONTROLE REMOTO -->
+                <!-- CARD 11: TELEGRAM BOT & CONTROLE REMOTO -->
                 <div
                     class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-sky-950/30 via-zinc-900/60 to-zinc-900/60 border-sky-500/20">
                     <div>
@@ -949,7 +991,7 @@
                     </div>
                 </div>
 
-                <!-- CARD 11: MOTOR DE AUTOMAÇÕES & 2º PLANO -->
+                <!-- CARD 12: MOTOR DE AUTOMAÇÕES & 2º PLANO -->
                 <div
                     class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-amber-950/30 via-zinc-900/60 to-zinc-900/60 border-amber-500/20">
                     <div>
@@ -994,7 +1036,133 @@
                     </div>
                 </div>
 
-                <!-- CARD 9: ATALHOS RÁPIDOS INTELIGENTES -->
+                <!-- CARD 13: MÚSICA & ALTO-FALANTE -->
+                <div
+                    class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-rose-950/30 via-zinc-900/60 to-zinc-900/60 border-rose-500/20">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-xl text-rose-300">
+                                    🎵
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-base text-white">Música & Som</h3>
+                                    <p class="text-[11px] text-rose-300 font-mono">YouTube Streaming & Player</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('musica')" title="Guia de Música e Som"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 transition flex items-center gap-1 border border-rose-500/40">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span
+                                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Conectado
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
+                            Busca músicas, álbuns e playlists no YouTube com reprodução de áudio em segundo plano e controle por voz.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-800/80">
+                        <button onclick="sendQuickCommand('Toque um samba animado para animar o ambiente')"
+                            class="bg-zinc-800/80 hover:bg-rose-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>▶️</span> <span>Tocar Música</span>
+                        </button>
+                        <button onclick="sendQuickCommand('Pare a música que está tocando agora')"
+                            class="bg-zinc-800/80 hover:bg-rose-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>⏹️</span> <span>Parar Música</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CARD 13: CONTROLE DO SISTEMA & HARDWARE -->
+                <div
+                    class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-violet-950/30 via-zinc-900/60 to-zinc-900/60 border-violet-500/20">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-500/40 flex items-center justify-center text-xl text-violet-300">
+                                    💻
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-base text-white">Controle do Sistema</h3>
+                                    <p class="text-[11px] text-violet-300 font-mono">Volume, Brilho & Browser</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('comandos_sistema')" title="Guia de Comandos do Sistema"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-violet-950/80 hover:bg-violet-900 text-violet-300 transition flex items-center gap-1 border border-violet-500/40">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span
+                                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span> Conectado
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
+                            Ajuste de volume do alto-falante, controle de brilho do monitor e abertura inteligente de sites e navegadores.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-800/80">
+                        <button onclick="sendQuickCommand('Ajuste o volume do sistema para 50%')"
+                            class="bg-zinc-800/80 hover:bg-violet-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>🔊</span> <span>Ajustar Volume</span>
+                        </button>
+                        <button onclick="sendQuickCommand('Abra o navegador no site do G1 notícias')"
+                            class="bg-zinc-800/80 hover:bg-violet-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>🌐</span> <span>Abrir Navegador</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CARD 14: YOUTUBE & TUTORIAIS EM VÍDEO -->
+                <div
+                    class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-red-950/30 via-zinc-900/60 to-zinc-900/60 border-red-500/20">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-xl text-red-300">
+                                    📺
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-base text-white">YouTube & Vídeos</h3>
+                                    <p class="text-[11px] text-red-300 font-mono">Busca & Transcrição</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('youtube_tutoriais')" title="Guia de Tutoriais do YouTube"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-red-950/80 hover:bg-red-900 text-red-300 transition flex items-center gap-1 border border-red-500/40">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span
+                                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> Conectado
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
+                            Busca vídeos e tutoriais no YouTube com transcrição do áudio e resumo estruturado passo a passo.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-800/80">
+                        <button onclick="sendQuickCommand('Procure um vídeo ensinando como fazer bolo de cenoura')"
+                            class="bg-zinc-800/80 hover:bg-red-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>🎬</span> <span>Buscar Vídeo</span>
+                        </button>
+                        <button onclick="sendQuickCommand('Procure um tutorial sobre inteligência artificial no YouTube')"
+                            class="bg-zinc-800/80 hover:bg-red-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>📝</span> <span>Ver Tutorial</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CARD 15: ATALHOS RÁPIDOS INTELIGENTES -->
                 <div
                     class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-indigo-950/40 via-zinc-900/60 to-purple-950/40 border-indigo-500/20">
                     <div>
@@ -1009,7 +1177,7 @@
                                     <p class="text-[11px] text-indigo-300 font-mono">Sugestões de Voz</p>
                                 </div>
                             </div>
-                            <span class="text-[11px] text-indigo-300 font-mono">Diga "Sexta-Feira"</span>
+                            <span id="quickCommandWakeTag" class="text-[11px] text-indigo-300 font-mono">Diga "Sexta-Feira"</span>
                         </div>
                         <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
                             Experimente falar comandos completos combinando serviços para ver a IA em ação!
@@ -1102,6 +1270,14 @@
                 individual.
             </p>
             <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-zinc-300 mb-1">Nome do Agente (Palavra de Ativação)</label>
+                    <input id="modalAgentNameInput" type="text" placeholder="Sexta-Feira"
+                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-semibold text-white">
+                    <p class="text-[11px] text-zinc-500 mt-1">
+                        Palavra de ativação por voz (ex: <i>Sexta-Feira</i>, <i>Jarvis</i>, <i>Athena</i>, <i>Computador</i>).
+                    </p>
+                </div>
                 <div>
                     <label class="block text-xs font-bold text-zinc-300 mb-1">Modelo de IA</label>
                     <input id="modalAiModelInput" list="modalAiSuggestions" type="text"
@@ -1340,6 +1516,22 @@
                         <div id="telegramTestStatusResult" class="text-xs hidden p-3 rounded-xl border"></div>
                     </div>
                 </div>
+
+                <!-- SEÇÃO COMANDOS DA MÁQUINA FÍSICA -->
+                <div class="pt-3 border-t border-zinc-800">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="block text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                                <span>🖥️</span> Controle da Máquina Física
+                            </label>
+                            <div class="text-[11px] text-zinc-400 mt-0.5">Permite ao agente ajustar volume do áudio, brilho da tela e abrir o navegador no computador.</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer ml-3 flex-shrink-0">
+                            <input type="checkbox" id="modalSystemCommandsCheckbox" class="sr-only peer">
+                            <div class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                    </div>
+                </div>
             </div>
             <div class="mt-6 flex gap-3">
                 <button onclick="closeVoiceApiKeyModal()"
@@ -1537,7 +1729,22 @@
         const config = JSON.parse(localStorage.getItem("smartHomeConfig") || "{}");
 
         function getAgentName() {
-            return (config && config.agentName) || localStorage.getItem("smartHomeAgentName") || "Sexta-Feira";
+            const custom = localStorage.getItem("smartHomeAgentName");
+            if (custom && custom.trim()) return custom.trim();
+            if (config && config.agentName && config.agentName !== "Sexta-Feira") return config.agentName.trim();
+            return "Sexta-Feira";
+        }
+
+        function updateAgentNamesInUI() {
+            const agentName = getAgentName();
+            const headerTitle = document.getElementById("headerAgentTitle");
+            if (headerTitle) headerTitle.innerText = `${agentName} AI`;
+            const chatGreeting = document.getElementById("chatGreetingAgentName");
+            if (chatGreeting) chatGreeting.innerText = agentName;
+            const terminalInput = document.getElementById("terminalInput");
+            if (terminalInput) terminalInput.placeholder = `Digite uma pergunta, comando ou instrução para ${agentName}...`;
+            const quickTag = document.getElementById("quickCommandWakeTag");
+            if (quickTag) quickTag.innerText = `Diga "${agentName}"`;
         }
 
         function getApiKey() {
@@ -1760,6 +1967,9 @@
         function getAgentFeedbackPhrase(commandText) {
             const raw = (commandText || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
             
+            // Música / Sons / Podcasts / Reprodução de Áudio
+            const isMusic = /\b(tocar|toca|toque|escutar|escute|ouvir|ouca|musica|musicas|samba|pagode|rock|sertanejo|podcast|som|parar musica|pare a musica|desliga o som|para o audio|silencio)\b/.test(raw);
+
             // YouTube / Tutoriais em Vídeo / Consertos / Manutenção / Passo a Passo
             const isYouTube = /\b(youtube|video|videos|tutorial|tutoriais|consertar|conserto|arrumar|arruma|panela|chuveiro|reparar|reparo|trocar|como fazer|receita|passo a passo|transcricao|legenda)\b/.test(raw);
 
@@ -1771,6 +1981,16 @@
             
             // Produtividade / Google / E-mail / Calendário / Tarefas / Keep / Contatos / Moradores / Perfil
             const isProductivity = /\b(email|emails|e-mail|mensagem|agenda|compromisso|evento|lembrete|tarefa|tarefas|nota|notas|lista|compras|contato|contatos|morador|moradores|perfil|preferencia|alergia)\b/.test(raw);
+
+            if (isMusic) {
+                const musicPhrases = [
+                    "Buscando e preparando a música...",
+                    "Já estou colocando o som...",
+                    "Deixa comigo, soltando o áudio...",
+                    "Só um instante, preparando a reprodução..."
+                ];
+                return musicPhrases[Math.floor(Math.random() * musicPhrases.length)];
+            }
 
             if (isYouTube) {
                 const ytPhrases = [
@@ -2126,6 +2346,14 @@
                             body: JSON.stringify({ voice: localVoice })
                         }).catch(() => { });
                     }
+                    if (aiData.agent_name && aiData.agent_name.trim()) {
+                        localStorage.setItem("smartHomeAgentName", aiData.agent_name);
+                        const nameInput = document.getElementById("modalAgentNameInput");
+                        if (nameInput) nameInput.value = aiData.agent_name;
+                        updateAgentNamesInUI();
+                    } else {
+                        updateAgentNamesInUI();
+                    }
                     if (aiData.ai_model) {
                         localStorage.setItem("smartHomeAiModel", aiData.ai_model);
                         const tag = document.getElementById("activeModelTag");
@@ -2138,9 +2366,14 @@
                         const keyInput = document.getElementById("modalApiKeyInput");
                         if (keyInput) keyInput.value = aiData.api_key;
                     }
+                    const sysCheckbox = document.getElementById("modalSystemCommandsCheckbox");
+                    if (sysCheckbox && aiData.system_commands_enabled !== undefined) {
+                        sysCheckbox.checked = Boolean(aiData.system_commands_enabled);
+                    }
                 }
             } catch (e) {
                 console.warn("Erro na sincronização de IA na inicialização:", e);
+                updateAgentNamesInUI();
             }
         }
 
@@ -2821,22 +3054,74 @@
                 .trim();
         }
 
+        function getWakeWordPatterns(agentName) {
+            const raw = (agentName || "Sexta-Feira").trim();
+            const normalized = normalizeText(raw);
+            const patterns = new Set();
+
+            // 1. O próprio nome normalizado e variações
+            patterns.add(normalized);
+            patterns.add(normalized.replace(/[-\s_]+/g, " "));
+            patterns.add(normalized.replace(/[-\s_]+/g, "-"));
+            patterns.add(normalized.replace(/[-\s_]+/g, ""));
+
+            // 2. Variações fonéticas para nomes específicos
+            if (normalized === "atena" || normalized === "athena") {
+                patterns.add("atena");
+                patterns.add("athena");
+                patterns.add("antena"); // Comum a Web Speech API transcrever 'Atena' como 'Antena'
+                patterns.add("atenas");
+                patterns.add("atennas");
+                patterns.add("a tena");
+                patterns.add("ah tena");
+            } else if (normalized.includes("sexta")) {
+                patterns.add("sexta-feira");
+                patterns.add("sexta feira");
+                patterns.add("sextafeira");
+                patterns.add("sexta");
+            } else if (normalized === "jarvis") {
+                patterns.add("jarvis");
+                patterns.add("jarves");
+                patterns.add("jarviz");
+            } else if (normalized === "computador") {
+                patterns.add("computador");
+                patterns.add("computadora");
+            }
+
+            // Variação no plural/singular
+            if (normalized.endsWith("s")) {
+                patterns.add(normalized.slice(0, -1));
+            } else {
+                patterns.add(normalized + "s");
+            }
+
+            if (normalized.includes("th")) {
+                patterns.add(normalized.replace(/th/g, "t"));
+            } else if (normalized.includes("t")) {
+                patterns.add(normalized.replace(/t/g, "th"));
+            }
+
+            // 3. Prefixos comuns de chamado ("ei [nome]", "ok [nome]", "olá [nome]", "e aí [nome]")
+            const baseList = Array.from(patterns);
+            const prefixes = ["ei ", "hey ", "ok ", "ola ", "e ai ", "ou ", "o "];
+            baseList.forEach(nameVariant => {
+                prefixes.forEach(p => {
+                    patterns.add(p + nameVariant);
+                });
+            });
+
+            return Array.from(patterns).filter(Boolean);
+        }
+
         function handleWakeWordDetection(text) {
             if (isProcessingCommand || isSpeakingTTS || isAudioPlayingActive) return;
             const agentName = getAgentName();
             const normalizedText = normalizeText(text);
-            const normalizedAgentName = normalizeText(agentName);
+            const patterns = getWakeWordPatterns(agentName);
+            patterns.sort((a, b) => b.length - a.length);
 
-            const rawPatterns = new Set([
-                normalizedAgentName,
-                normalizedAgentName.replace(/[-\s_]+/g, " "),
-                "sexta-feira", "sexta feira", "sextafeira", "sexta",
-                "agente", "jarvis", "casa"
-            ]);
-
-            const patternList = Array.from(rawPatterns).filter(Boolean);
-            const escapedNames = patternList.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
-            const regex = new RegExp(`(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
+            const escapedNames = patterns.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
+            const regex = new RegExp(`(?:^|\\b)(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
             const wakeMatch = normalizedText.match(regex);
 
             if (wakeMatch) {
@@ -3020,6 +3305,7 @@
 
         async function openVoiceApiKeyModal() {
             const modal = document.getElementById("apiKeyModal");
+            const agentNameInput = document.getElementById("modalAgentNameInput");
             const input = document.getElementById("modalApiKeyInput");
             const modelInput = document.getElementById("modalAiModelInput");
             const voiceSelect = document.getElementById("modalVoiceSelect");
@@ -3035,6 +3321,7 @@
             const camStatusBox = document.getElementById("cameraTestStatusResult");
             const camPreview = document.getElementById("cameraPreviewContainer");
 
+            if (agentNameInput) agentNameInput.value = getAgentName();
             if (input) input.value = getApiKey();
             if (modelInput) modelInput.value = getAiModel();
             if (voiceSelect) voiceSelect.value = getSelectedVoice();
@@ -3042,13 +3329,17 @@
             if (camStatusBox) camStatusBox.classList.add("hidden");
             if (camPreview) camPreview.classList.add("hidden");
 
-            // Carrega configurações de IA (API Key, Modelo, Voz) do banco de dados SQLite do usuário
+            // Carrega configurações de IA (API Key, Modelo, Voz, Nome) do banco de dados SQLite do usuário
             try {
                 const aiRes = await fetch("/api/user/ai-config", {
                     headers: { "Authorization": `Bearer ${authToken}` }
                 });
                 if (aiRes.ok) {
                     const aiData = await aiRes.json();
+                    if (agentNameInput && aiData.agent_name) {
+                        agentNameInput.value = aiData.agent_name;
+                        localStorage.setItem("smartHomeAgentName", aiData.agent_name);
+                    }
                     if (input && aiData.api_key) {
                         input.value = aiData.api_key;
                     } else if (input && aiData.configured) {
@@ -3061,6 +3352,10 @@
                     if (voiceSelect && aiData.voice) {
                         voiceSelect.value = aiData.voice;
                         localStorage.setItem("smartHomeVoice", aiData.voice);
+                    }
+                    const sysCheckbox = document.getElementById("modalSystemCommandsCheckbox");
+                    if (sysCheckbox && aiData.system_commands_enabled !== undefined) {
+                        sysCheckbox.checked = Boolean(aiData.system_commands_enabled);
                     }
                     if (aiData.api_key) {
                         localStorage.setItem("geminiApiKey", aiData.api_key);
@@ -3397,6 +3692,7 @@
             const key = document.getElementById("modalApiKeyInput").value.trim();
             const model = document.getElementById("modalAiModelInput").value.trim() || "gemini-2.5-flash-lite";
             const voice = document.getElementById("modalVoiceSelect").value || "pt-BR-FranciscaNeural";
+            const agentName = document.getElementById("modalAgentNameInput")?.value.trim() || "Sexta-Feira";
             const gmailEmail = document.getElementById("modalGmailEmailInput")?.value.trim() || "";
             const gmailPwd = document.getElementById("modalGmailPasswordInput")?.value.trim() || "";
 
@@ -3414,18 +3710,22 @@
             if (key) localStorage.setItem("geminiApiKey", key);
             localStorage.setItem("smartHomeAiModel", model);
             localStorage.setItem("smartHomeVoice", voice);
+            localStorage.setItem("smartHomeAgentName", agentName);
 
             const tag = document.getElementById("activeModelTag");
             if (tag) tag.innerText = `Modelo: ${model}`;
 
             const token = localStorage.getItem("smartHomeToken") || authToken || "";
 
-            // Salva preferências de IA (API Key, Modelo e Voz) no banco de dados SQLite do usuário
+            // Salva preferências de IA (API Key, Modelo, Voz, Nome do Agente e Comandos de Máquina) no banco de dados SQLite do usuário
             if (token) {
                 try {
+                    const sysEnabled = document.getElementById("modalSystemCommandsCheckbox")?.checked;
                     const aiPayload = {
                         ai_model: model,
-                        voice: voice
+                        voice: voice,
+                        agent_name: agentName,
+                        system_commands_enabled: Boolean(sysEnabled)
                     };
                     if (key && !key.includes("...") && !key.includes("•")) {
                         aiPayload.api_key = key;
@@ -3504,6 +3804,7 @@
                 }
             }
 
+            updateAgentNamesInUI();
             closeVoiceApiKeyModal();
             fetchAgentStatus();
             logToConsole(`Configurações salvas: Modelo '${model}', Câmera '${camType}', Telegram '${tgEnabled ? "Ativo" : "Inativo"}'.`, "info");
@@ -4123,6 +4424,7 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             autoUnlockAudioOnLoad();
+            updateAgentNamesInUI();
             syncUserAiConfig();
 
             const tag = document.getElementById("activeModelTag");

@@ -469,11 +469,12 @@ class AutomationEngine:
             broker_host = os.getenv("MQTT_BROKER", "test.mosquitto.org")
             broker_port = int(os.getenv("MQTT_PORT", "1883"))
 
+            agent_name = (ai_cfg.get("agent_name") or "Sexta-Feira").strip()
             result = processar_comando_agente(
                 pergunta=prompt,
                 api_key=api_key,
                 modelo=model_name,
-                agent_name="Sexta-Feira",
+                agent_name=agent_name,
                 rooms=[],
                 rooms_state={},
                 broker_config={"broker": broker_host, "port": broker_port},

@@ -396,6 +396,14 @@
             </p>
             <div class="space-y-4">
                 <div>
+                    <label class="block text-xs font-bold text-zinc-300 mb-1">Nome do Agente (Palavra de Ativação)</label>
+                    <input id="modalAgentNameInput" type="text" placeholder="Sexta-Feira"
+                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-semibold text-white">
+                    <p class="text-[11px] text-zinc-500 mt-1">
+                        Palavra de ativação por voz (ex: <i>Sexta-Feira</i>, <i>Jarvis</i>, <i>Athena</i>, <i>Computador</i>).
+                    </p>
+                </div>
+                <div>
                     <label class="block text-xs font-bold text-zinc-300 mb-1">Modelo de IA</label>
                     <input id="modalAiModelInput" list="modalAiSuggestions" type="text"
                         placeholder="gemini-2.5-flash-lite"
@@ -633,6 +641,22 @@
                         <div id="telegramTestStatusResult" class="text-xs hidden p-3 rounded-xl border"></div>
                     </div>
                 </div>
+
+                <!-- SEÇÃO COMANDOS DA MÁQUINA FÍSICA -->
+                <div class="pt-3 border-t border-zinc-800">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="block text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                                <span>🖥️</span> Controle da Máquina Física
+                            </label>
+                            <div class="text-[11px] text-zinc-400 mt-0.5">Permite ao agente ajustar volume do áudio, brilho da tela e abrir o navegador no computador.</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer ml-3 flex-shrink-0">
+                            <input type="checkbox" id="modalSystemCommandsCheckbox" class="sr-only peer">
+                            <div class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                    </div>
+                </div>
             </div>
             <div class="mt-6 flex gap-3">
                 <button onclick="closeVoiceApiKeyModal()"
@@ -827,15 +851,55 @@
             }
         }
 
-        const config = JSON.parse(localStorage.getItem("smartHomeConfig"));
+        const DEFAULT_CONFIG = {
+            broker: "test.mosquitto.org",
+            port: "8080",
+            topic_prefix: "pensador/casa",
+            agentName: "Sexta-Feira",
+            rooms: [
+                { id: 1, name: "Sala de Estar", topic: "saladeestar" },
+                { id: 2, name: "Quarto Principal", topic: "quartoprincipal" },
+                { id: 3, name: "Cozinha", topic: "cozinha" },
+                { id: 4, name: "Escritório", topic: "escritorio" }
+            ]
+        };
 
-        if (!config) {
-            alert("Configure o sistema primeiro.");
-            location.href = "/config/config.html";
+        let config = JSON.parse(localStorage.getItem("smartHomeConfig") || "null");
+        if (!config || !config.rooms || !config.rooms.length) {
+            config = { ...DEFAULT_CONFIG, ...(config || {}) };
+            if (!config.rooms || !config.rooms.length) config.rooms = DEFAULT_CONFIG.rooms;
+            localStorage.setItem("smartHomeConfig", JSON.stringify(config));
+        }
+
+        async function syncHouseConfigFromDatabase() {
+            try {
+                const currentToken = localStorage.getItem("smartHomeToken");
+                if (!currentToken) return;
+                const res = await fetch("/api/user/house-config", {
+                    headers: { "Authorization": `Bearer ${currentToken}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.rooms && data.rooms.length) {
+                        config.broker = data.broker || config.broker;
+                        config.port = data.port || config.port;
+                        config.topic_prefix = data.topic_prefix || config.topic_prefix;
+                        config.rooms = data.rooms;
+                        localStorage.setItem("smartHomeConfig", JSON.stringify(config));
+                        renderRooms();
+                        updateDashboard();
+                    }
+                }
+            } catch (err) {
+                console.warn("Falha ao sincronizar configuração da casa do banco:", err);
+            }
         }
 
         function getAgentName() {
-            return (config && config.agentName) || localStorage.getItem("smartHomeAgentName") || "Sexta-Feira";
+            const custom = localStorage.getItem("smartHomeAgentName");
+            if (custom && custom.trim()) return custom.trim();
+            if (config && config.agentName && config.agentName !== "Sexta-Feira") return config.agentName.trim();
+            return "Sexta-Feira";
         }
 
         function updateDashboard() {
@@ -977,10 +1041,20 @@
                         const modelInput = document.getElementById("modalAiModelInput");
                         if (modelInput) modelInput.value = aiData.ai_model;
                     }
+                    if (aiData.agent_name) {
+                        localStorage.setItem("smartHomeAgentName", aiData.agent_name);
+                        const nameInput = document.getElementById("modalAgentNameInput");
+                        if (nameInput) nameInput.value = aiData.agent_name;
+                        updateAgentNamesInUI();
+                    }
                     if (aiData.api_key) {
                         localStorage.setItem("geminiApiKey", aiData.api_key);
                         const keyInput = document.getElementById("modalApiKeyInput");
                         if (keyInput) keyInput.value = aiData.api_key;
+                    }
+                    const sysCheckbox = document.getElementById("modalSystemCommandsCheckbox");
+                    if (sysCheckbox && aiData.system_commands_enabled !== undefined) {
+                        sysCheckbox.checked = Boolean(aiData.system_commands_enabled);
                     }
                 }
             } catch (e) {
@@ -1015,6 +1089,7 @@
             const modal = document.getElementById("apiKeyModal");
             const input = document.getElementById("modalApiKeyInput");
             const modelInput = document.getElementById("modalAiModelInput");
+            const agentNameInput = document.getElementById("modalAgentNameInput");
             const voiceSelect = document.getElementById("modalVoiceSelect");
             const gmailInput = document.getElementById("modalGmailEmailInput");
             const pwdInput = document.getElementById("modalGmailPasswordInput");
@@ -1030,6 +1105,7 @@
 
             if (input) input.value = getApiKey();
             if (modelInput) modelInput.value = getAiModel();
+            if (agentNameInput) agentNameInput.value = getAgentName();
             if (voiceSelect) voiceSelect.value = getSelectedVoice();
             if (statusBox) statusBox.classList.add("hidden");
             if (camStatusBox) camStatusBox.classList.add("hidden");
@@ -1037,7 +1113,7 @@
 
             const token = getAuthToken();
 
-            // Carrega configurações de IA (API Key, Modelo, Voz) do banco de dados SQLite do usuário
+            // Carrega configurações de IA (API Key, Modelo, Nome do Agente, Voz) do banco de dados SQLite do usuário
             if (token) {
                 try {
                     const aiRes = await fetch("/api/user/ai-config", {
@@ -1054,9 +1130,18 @@
                             modelInput.value = aiData.ai_model;
                             localStorage.setItem("smartHomeAiModel", aiData.ai_model);
                         }
+                        if (agentNameInput && aiData.agent_name) {
+                            agentNameInput.value = aiData.agent_name;
+                            localStorage.setItem("smartHomeAgentName", aiData.agent_name);
+                            updateAgentNamesInUI();
+                        }
                         if (voiceSelect && aiData.voice) {
                             voiceSelect.value = aiData.voice;
                             localStorage.setItem("smartHomeVoice", aiData.voice);
+                        }
+                        const sysCheckbox = document.getElementById("modalSystemCommandsCheckbox");
+                        if (sysCheckbox && aiData.system_commands_enabled !== undefined) {
+                            sysCheckbox.checked = Boolean(aiData.system_commands_enabled);
                         }
                         if (aiData.api_key) {
                             localStorage.setItem("geminiApiKey", aiData.api_key);
@@ -1403,6 +1488,7 @@
             const key = document.getElementById("modalApiKeyInput").value.trim();
             const model = document.getElementById("modalAiModelInput").value.trim() || "gemini-2.5-flash-lite";
             const voice = document.getElementById("modalVoiceSelect").value || "pt-BR-FranciscaNeural";
+            const agentName = document.getElementById("modalAgentNameInput")?.value.trim() || "Sexta-Feira";
             const gmailEmail = document.getElementById("modalGmailEmailInput")?.value.trim() || "";
             const gmailPwd = document.getElementById("modalGmailPasswordInput")?.value.trim() || "";
 
@@ -1422,6 +1508,7 @@
             }
             localStorage.setItem("smartHomeAiModel", model);
             localStorage.setItem("smartHomeVoice", voice);
+            localStorage.setItem("smartHomeAgentName", agentName);
             if (config) {
                 config.aiModel = model;
                 config.geminiApiKey = key || config.geminiApiKey;
@@ -1430,12 +1517,15 @@
 
             const token = getAuthToken();
 
-            // Salva preferências de IA (API Key, Modelo e Voz) no banco de dados SQLite do usuário
+            // Salva preferências de IA (API Key, Modelo, Voz, Nome do Agente e Comandos de Máquina) no banco de dados SQLite do usuário
             if (token) {
                 try {
+                    const sysEnabled = document.getElementById("modalSystemCommandsCheckbox")?.checked;
                     const aiPayload = {
                         ai_model: model,
-                        voice: voice
+                        voice: voice,
+                        agent_name: agentName,
+                        system_commands_enabled: Boolean(sysEnabled)
                     };
                     if (key && !key.includes("...") && !key.includes("•")) {
                         aiPayload.api_key = key;
@@ -1512,6 +1602,8 @@
                 }
             }
 
+            updateAgentNamesInUI();
+            updateAlwaysListenUI();
             closeVoiceApiKeyModal();
             setVoiceStatus("✅", `Configurações salvas: ${model}`, false);
         }
@@ -1725,32 +1817,75 @@
                 .trim();
         }
 
+        function getWakeWordPatterns(agentName) {
+            const raw = (agentName || "Sexta-Feira").trim();
+            const normalized = normalizeText(raw);
+            const patterns = new Set();
+
+            // 1. O próprio nome normalizado e variações
+            patterns.add(normalized);
+            patterns.add(normalized.replace(/[-\s_]+/g, " "));
+            patterns.add(normalized.replace(/[-\s_]+/g, "-"));
+            patterns.add(normalized.replace(/[-\s_]+/g, ""));
+
+            // 2. Variações fonéticas para nomes específicos
+            if (normalized === "atena" || normalized === "athena") {
+                patterns.add("atena");
+                patterns.add("athena");
+                patterns.add("antena"); // Comum a Web Speech API transcrever 'Atena' como 'Antena'
+                patterns.add("atenas");
+                patterns.add("atennas");
+                patterns.add("a tena");
+                patterns.add("ah tena");
+            } else if (normalized.includes("sexta")) {
+                patterns.add("sexta-feira");
+                patterns.add("sexta feira");
+                patterns.add("sextafeira");
+                patterns.add("sexta");
+            } else if (normalized === "jarvis") {
+                patterns.add("jarvis");
+                patterns.add("jarves");
+                patterns.add("jarviz");
+            } else if (normalized === "computador") {
+                patterns.add("computador");
+                patterns.add("computadora");
+            }
+
+            // Variação no plural/singular
+            if (normalized.endsWith("s")) {
+                patterns.add(normalized.slice(0, -1));
+            } else {
+                patterns.add(normalized + "s");
+            }
+
+            if (normalized.includes("th")) {
+                patterns.add(normalized.replace(/th/g, "t"));
+            } else if (normalized.includes("t")) {
+                patterns.add(normalized.replace(/t/g, "th"));
+            }
+
+            // 3. Prefixos comuns de chamado ("ei [nome]", "ok [nome]", "olá [nome]", "e aí [nome]")
+            const baseList = Array.from(patterns);
+            const prefixes = ["ei ", "hey ", "ok ", "ola ", "e ai ", "ou ", "o "];
+            baseList.forEach(nameVariant => {
+                prefixes.forEach(p => {
+                    patterns.add(p + nameVariant);
+                });
+            });
+
+            return Array.from(patterns).filter(Boolean);
+        }
+
         function handleWakeWordDetection(text) {
             if (isProcessingCommand || isSpeakingTTS || isAudioPlayingActive) return;
 
             const agentName = getAgentName();
             const normalizedText = normalizeText(text);
-            const normalizedAgentName = normalizeText(agentName);
+            const patterns = getWakeWordPatterns(agentName);
+            patterns.sort((a, b) => b.length - a.length);
 
-            const rawPatterns = new Set([
-                normalizedAgentName,
-                normalizedAgentName.replace(/[-\s_]+/g, " "),
-                normalizedAgentName.replace(/[-\s_]+/g, "-"),
-                normalizedAgentName.replace(/[-\s_]+/g, ""),
-                "sexta-feira",
-                "sexta feira",
-                "sextafeira",
-                "sexta",
-                "meu agente",
-                "meu gente",
-                "agente",
-                "jarvis",
-                "casa"
-            ]);
-
-            const patternList = Array.from(rawPatterns).filter(Boolean);
-            const escapedNames = patternList.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
-            const regex = new RegExp(`(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
+            const escapedNames = patterns.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
+            const regex = new RegExp(`(?:^|\\b)(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
 
             const wakeMatch = normalizedText.match(regex);
 
@@ -1859,6 +1994,9 @@
         function getAgentFeedbackPhrase(commandText) {
             const raw = (commandText || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
             
+            // Música / Sons / Podcasts / Reprodução de Áudio
+            const isMusic = /\b(tocar|toca|toque|escutar|escute|ouvir|ouca|musica|musicas|samba|pagode|rock|sertanejo|podcast|som|parar musica|pare a musica|desliga o som|para o audio|silencio)\b/.test(raw);
+
             // YouTube / Tutoriais em Vídeo / Consertos / Manutenção / Passo a Passo
             const isYouTube = /\b(youtube|video|videos|tutorial|tutoriais|consertar|conserto|arrumar|arruma|panela|chuveiro|reparar|reparo|trocar|como fazer|receita|passo a passo|transcricao|legenda)\b/.test(raw);
 
@@ -1870,6 +2008,16 @@
             
             // Produtividade / Google / E-mail / Calendário / Tarefas / Keep / Contatos / Moradores / Perfil
             const isProductivity = /\b(email|emails|e-mail|mensagem|agenda|compromisso|evento|lembrete|tarefa|tarefas|nota|notas|lista|compras|contato|contatos|morador|moradores|perfil|preferencia|alergia)\b/.test(raw);
+
+            if (isMusic) {
+                const musicPhrases = [
+                    "Buscando e preparando a música...",
+                    "Já estou colocando o som...",
+                    "Deixa comigo, soltando o áudio...",
+                    "Só um instante, preparando a reprodução..."
+                ];
+                return musicPhrases[Math.floor(Math.random() * musicPhrases.length)];
+            }
 
             if (isYouTube) {
                 const ytPhrases = [
@@ -3259,6 +3407,7 @@
         // Inicialização
         autoUnlockAudioOnLoad();
         syncUserAiConfig();
+        syncHouseConfigFromDatabase();
         updateAgentNamesInUI();
         renderRooms();
         updateDashboard();
@@ -3275,6 +3424,7 @@
         document.addEventListener("DOMContentLoaded", () => {
             autoUnlockAudioOnLoad();
             syncUserAiConfig();
+            syncHouseConfigFromDatabase();
             requestScreenWakeLock();
             if (alwaysListen) {
                 setTimeout(startVoiceRecognition, 300);

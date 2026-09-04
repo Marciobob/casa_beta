@@ -65,7 +65,9 @@ def init_db():
             telegram_notify_tasks INTEGER DEFAULT 1,
             api_key TEXT DEFAULT '',
             ai_model TEXT DEFAULT 'gemini-2.5-flash-lite',
+            agent_name TEXT DEFAULT 'Sexta-Feira',
             voice TEXT DEFAULT 'pt-BR-FranciscaNeural',
+            system_commands_enabled INTEGER DEFAULT 0,
             updated_at TEXT NOT NULL
         )
     """)
@@ -88,7 +90,9 @@ def init_db():
         ("telegram_notify_tasks", "INTEGER DEFAULT 1"),
         ("api_key", "TEXT DEFAULT ''"),
         ("ai_model", "TEXT DEFAULT 'gemini-2.5-flash-lite'"),
-        ("voice", "TEXT DEFAULT 'pt-BR-FranciscaNeural'")
+        ("agent_name", "TEXT DEFAULT 'Sexta-Feira'"),
+        ("voice", "TEXT DEFAULT 'pt-BR-FranciscaNeural'"),
+        ("system_commands_enabled", "INTEGER DEFAULT 0")
     ]:
         try:
             cursor.execute(f"ALTER TABLE user_profiles ADD COLUMN {col_name} {col_def}")
@@ -226,6 +230,39 @@ def init_db():
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_notified_events_lookup
         ON automation_notified_events(automation_id, event_key)
+    """)
+
+    # Tabela de Configuração da Casa (MQTT e Cômodos)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_house_configs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT UNIQUE NOT NULL,
+            broker TEXT DEFAULT 'test.mosquitto.org',
+            port TEXT DEFAULT '8080',
+            topic_prefix TEXT DEFAULT 'pensador/casa',
+            rooms_json TEXT DEFAULT '[]',
+            updated_at TEXT NOT NULL
+        )
+    """)
+
+    # Tabela de Memória de Longo Prazo e Aprendizado Autônomo do Agente
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS agent_long_term_memories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT NOT NULL,
+            fact TEXT NOT NULL,
+            category TEXT DEFAULT 'geral',
+            importance INTEGER DEFAULT 3,
+            context TEXT DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            last_accessed_at TEXT DEFAULT ''
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_agent_memories_user
+        ON agent_long_term_memories(user_email, importance DESC, id DESC)
     """)
     
     conn.commit()
@@ -672,43 +709,69 @@ def db_save_ai_config(
     voice: str = ""
 ) -> Dict[str, Any]:
     """Salva a chave de API (Gemini/OpenAI), modelo e voz do usuário no SQLite, preservando valores anteriores quando não enviados."""
+def db_save_ai_config(
+    user_email: str,
+    api_key: str = "",
+    ai_model: str = "",
+    agent_name: str = "",
+    voice: str = "",
+    system_commands_enabled: Optional[bool] = None
+) -> Dict[str, Any]:
+    """Salva a chave de API, modelo de IA, nome do agente, voz do TTS e flag de comandos do sistema no perfil SQLite do usuário."""
     clean_email = (user_email or "").strip().lower()
     clean_key = (api_key or "").strip()
     clean_model = (ai_model or "").strip()
+    clean_agent_name = (agent_name or "").strip()
     clean_voice = (voice or "").strip()
     updated_at = datetime.now(timezone.utc).isoformat()
     
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    # Prepara valor para system_commands_enabled
+    sys_val = 1 if system_commands_enabled is True else (0 if system_commands_enabled is False else None)
+
     cursor.execute("""
         INSERT INTO user_profiles (
-            user_email, api_key, ai_model, voice, updated_at
+            user_email, api_key, ai_model, agent_name, voice, system_commands_enabled, updated_at
         )
-        VALUES (?, ?, COALESCE(NULLIF(?, ''), 'gemini-2.5-flash-lite'), COALESCE(NULLIF(?, ''), 'pt-BR-FranciscaNeural'), ?)
+        VALUES (
+            ?, 
+            ?, 
+            COALESCE(NULLIF(?, ''), 'gemini-2.5-flash-lite'), 
+            COALESCE(NULLIF(?, ''), 'Sexta-Feira'), 
+            COALESCE(NULLIF(?, ''), 'pt-BR-FranciscaNeural'), 
+            COALESCE(?, 0),
+            ?
+        )
         ON CONFLICT(user_email) DO UPDATE SET
             api_key=CASE WHEN ? != '' THEN ? ELSE api_key END,
             ai_model=CASE WHEN ? != '' THEN ? ELSE ai_model END,
+            agent_name=CASE WHEN ? != '' THEN ? ELSE agent_name END,
             voice=CASE WHEN ? != '' THEN ? ELSE voice END,
+            system_commands_enabled=CASE WHEN ? IS NOT NULL THEN ? ELSE system_commands_enabled END,
             updated_at=excluded.updated_at
     """, (
-        clean_email, clean_key, clean_model, clean_voice, updated_at,
+        clean_email, clean_key, clean_model, clean_agent_name, clean_voice, sys_val, updated_at,
         clean_key, clean_key,
         clean_model, clean_model,
-        clean_voice, clean_voice
+        clean_agent_name, clean_agent_name,
+        clean_voice, clean_voice,
+        sys_val, sys_val
     ))
     conn.commit()
     conn.close()
-    system_logger.info(f"Configuração de IA salva no SQLite para: {clean_email} (Modelo: {clean_model or 'mantido'}, Voz: {clean_voice or 'mantida'})")
+    system_logger.info(f"Configuração de IA salva no SQLite para: {clean_email} (Modelo: {clean_model or 'mantido'}, Agente: {clean_agent_name or 'mantido'}, Voz: {clean_voice or 'mantida'}, Comandos Sistema: {system_commands_enabled})")
     return db_get_ai_config(clean_email)
 
 def db_get_ai_config(user_email: str) -> Dict[str, Any]:
-    """Retorna a configuração de IA (chave de API, modelo e voz) do usuário."""
+    """Retorna a configuração de IA (chave de API, modelo, nome do agente, voz e flag de comandos do sistema) do usuário."""
     clean_email = (user_email or "").strip().lower()
     if clean_email:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT api_key, ai_model, voice 
+            SELECT api_key, ai_model, agent_name, voice, system_commands_enabled 
             FROM user_profiles WHERE user_email = ?
         """, (clean_email,))
         row = cursor.fetchone()
@@ -716,27 +779,138 @@ def db_get_ai_config(user_email: str) -> Dict[str, Any]:
         if row:
             stored_key = (row["api_key"] or "").strip()
             stored_model = (row["ai_model"] or "gemini-2.5-flash-lite").strip()
+            stored_agent_name = (row["agent_name"] or "Sexta-Feira").strip() if "agent_name" in row.keys() else "Sexta-Feira"
             stored_voice = (row["voice"] or "pt-BR-FranciscaNeural").strip()
+            stored_sys = bool(row["system_commands_enabled"]) if "system_commands_enabled" in row.keys() else False
             masked = f"{stored_key[:6]}...{stored_key[-4:]}" if len(stored_key) > 10 else ("Configurada" if stored_key else "")
             return {
                 "api_key": stored_key,
                 "masked_key": masked,
                 "ai_model": stored_model,
+                "agent_name": stored_agent_name or "Sexta-Feira",
                 "voice": stored_voice,
+                "system_commands_enabled": stored_sys,
                 "configured": bool(stored_key)
             }
             
     # Fallback apenas para variáveis de ambiente locais se existirem
     env_key = (os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY") or "").strip()
     env_model = os.getenv("DEFAULT_MODEL", "gemini-2.5-flash-lite")
+    env_agent_name = os.getenv("AGENT_NAME", "Sexta-Feira")
     env_voice = os.getenv("DEFAULT_VOICE", "pt-BR-FranciscaNeural")
     masked_env = f"{env_key[:6]}...{env_key[-4:]}" if len(env_key) > 10 else ("Configurada" if env_key else "")
     return {
         "api_key": env_key,
         "masked_key": masked_env,
         "ai_model": env_model,
+        "agent_name": env_agent_name,
         "voice": env_voice,
+        "system_commands_enabled": False,
         "configured": bool(env_key)
+    }
+
+def db_get_system_commands_flag(user_email: str) -> bool:
+    """Verifica de forma rápida se o usuário permitiu comandos de máquina/sistema operacional."""
+    cfg = db_get_ai_config(user_email)
+    return bool(cfg.get("system_commands_enabled", False))
+
+def db_save_system_commands_flag(user_email: str, enabled: bool) -> bool:
+    """Atualiza a flag de permissão de comandos de máquina do usuário."""
+    clean_email = (user_email or "").strip().lower()
+    if not clean_email:
+        return False
+    db_save_ai_config(user_email=clean_email, system_commands_enabled=enabled)
+    return True
+
+
+# =========================================================================
+# CONFIGURAÇÕES DA CASA & CÔMODOS (SQLite)
+# =========================================================================
+
+DEFAULT_HOUSE_ROOMS = [
+    {"id": 1, "name": "Sala de Estar", "topic": "saladeestar"},
+    {"id": 2, "name": "Quarto Principal", "topic": "quartoprincipal"},
+    {"id": 3, "name": "Cozinha", "topic": "cozinha"},
+    {"id": 4, "name": "Escritório", "topic": "escritorio"}
+]
+
+def db_get_house_config(user_email: str) -> Dict[str, Any]:
+    """Retorna as configurações de conexão MQTT e a lista de cômodos da casa do usuário."""
+    clean_email = (user_email or "").strip().lower()
+    if not clean_email:
+        return {
+            "broker": "test.mosquitto.org",
+            "port": "8080",
+            "topic_prefix": "pensador/casa",
+            "rooms": DEFAULT_HOUSE_ROOMS
+        }
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM user_house_configs WHERE user_email = ?", (clean_email,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        rooms_list = []
+        try:
+            rooms_list = json.loads(row["rooms_json"] or "[]")
+        except Exception:
+            rooms_list = []
+        return {
+            "broker": row["broker"] or "test.mosquitto.org",
+            "port": str(row["port"] or "8080"),
+            "topic_prefix": row["topic_prefix"] or "pensador/casa",
+            "rooms": rooms_list if rooms_list else DEFAULT_HOUSE_ROOMS
+        }
+        
+    return {
+        "broker": "test.mosquitto.org",
+        "port": "8080",
+        "topic_prefix": "pensador/casa",
+        "rooms": DEFAULT_HOUSE_ROOMS
+    }
+
+def db_save_house_config(
+    user_email: str,
+    broker: Optional[str] = "test.mosquitto.org",
+    port: Optional[str] = "8080",
+    topic_prefix: Optional[str] = "pensador/casa",
+    rooms: Optional[List[Dict[str, Any]]] = None
+) -> Dict[str, Any]:
+    """Salva ou atualiza a configuração da casa (broker, porta e cômodos) no banco de dados SQLite."""
+    clean_email = (user_email or "").strip().lower()
+    if not clean_email:
+        clean_email = "anonimo@smarthome.local"
+        
+    broker_clean = (broker or "test.mosquitto.org").strip()
+    port_clean = str(port or "8080").strip()
+    prefix_clean = (topic_prefix or "pensador/casa").strip()
+    rooms_list = rooms if isinstance(rooms, list) else DEFAULT_HOUSE_ROOMS
+    rooms_json_str = json.dumps(rooms_list, ensure_ascii=False)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO user_house_configs (user_email, broker, port, topic_prefix, rooms_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_email) DO UPDATE SET
+            broker = excluded.broker,
+            port = excluded.port,
+            topic_prefix = excluded.topic_prefix,
+            rooms_json = excluded.rooms_json,
+            updated_at = excluded.updated_at
+    """, (clean_email, broker_clean, port_clean, prefix_clean, rooms_json_str, now_iso))
+    conn.commit()
+    conn.close()
+    
+    system_logger.info(f"[HouseConfig] Configuração da casa salva no banco para '{clean_email}' com {len(rooms_list)} cômodos.")
+    return {
+        "broker": broker_clean,
+        "port": port_clean,
+        "topic_prefix": prefix_clean,
+        "rooms": rooms_list
     }
 
 
@@ -1518,6 +1692,172 @@ def db_get_automations_count(user_email: str) -> Dict[str, int]:
     active = cursor.fetchone()[0]
     conn.close()
     return {"total": total, "active": active}
+
+# =========================================================================
+# MEMÓRIA DE LONGO PRAZO & APRENDIZADO AUTÔNOMO DO AGENTE
+# =========================================================================
+
+def db_save_agent_memory(
+    user_email: str,
+    fact: str,
+    category: str = "geral",
+    importance: int = 3,
+    context: str = ""
+) -> Dict[str, Any]:
+    """
+    Grava ou atualiza uma memória/fato de longo prazo aprendido pelo agente sobre o usuário.
+    Evita duplicações exatas e atualiza timestamp de atualização.
+    """
+    clean_email = (user_email or "").strip().lower()
+    clean_fact = (fact or "").strip()
+    clean_category = (category or "geral").strip().lower()
+    importance_val = max(1, min(5, int(importance or 3)))
+    clean_context = (context or "").strip()
+    now = datetime.now(timezone.utc).isoformat()
+
+    if not clean_email or not clean_fact:
+        return {"status": "error", "message": "E-mail do usuário e fato memorizado são obrigatórios."}
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Verifica se já existe um fato muito similar
+        cursor.execute("""
+            SELECT id, fact, category, importance, context FROM agent_long_term_memories
+            WHERE user_email = ? AND LOWER(TRIM(fact)) = LOWER(TRIM(?))
+        """, (clean_email, clean_fact))
+        existing = cursor.fetchone()
+
+        if existing:
+            mem_id = existing["id"]
+            new_importance = max(existing["importance"], importance_val)
+            new_context = clean_context or existing["context"]
+            cursor.execute("""
+                UPDATE agent_long_term_memories
+                SET category = ?, importance = ?, context = ?, updated_at = ?, last_accessed_at = ?
+                WHERE id = ?
+            """, (clean_category, new_importance, new_context, now, now, mem_id))
+            conn.commit()
+            return {
+                "status": "updated",
+                "id": mem_id,
+                "fact": clean_fact,
+                "category": clean_category,
+                "importance": new_importance,
+                "context": new_context,
+                "updated_at": now
+            }
+        else:
+            cursor.execute("""
+                INSERT INTO agent_long_term_memories (
+                    user_email, fact, category, importance, context, created_at, updated_at, last_accessed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (clean_email, clean_fact, clean_category, importance_val, clean_context, now, now, now))
+            conn.commit()
+            new_id = cursor.lastrowid
+            return {
+                "status": "created",
+                "id": new_id,
+                "fact": clean_fact,
+                "category": clean_category,
+                "importance": importance_val,
+                "context": clean_context,
+                "created_at": now
+            }
+    except Exception as e:
+        system_logger.error(f"[Database] Erro ao salvar memória de longo prazo: {e}")
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
+
+def db_search_agent_memories(
+    user_email: str,
+    query: str = "",
+    category: str = "",
+    limit: int = 20
+) -> List[Dict[str, Any]]:
+    """
+    Pesquisa memórias de longo prazo do usuário por palavra-chave ou categoria.
+    """
+    clean_email = (user_email or "").strip().lower()
+    clean_query = (query or "").strip().lower()
+    clean_cat = (category or "").strip().lower()
+
+    if not clean_email:
+        return []
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        sql = "SELECT * FROM agent_long_term_memories WHERE user_email = ?"
+        params = [clean_email]
+
+        if clean_cat:
+            sql += " AND category = ?"
+            params.append(clean_cat)
+
+        if clean_query:
+            sql += " AND (LOWER(fact) LIKE ? OR LOWER(context) LIKE ?)"
+            term = f"%{clean_query}%"
+            params.extend([term, term])
+
+        sql += " ORDER BY importance DESC, updated_at DESC LIMIT ?"
+        params.append(limit)
+
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        results = [dict(r) for r in rows]
+
+        # Atualiza timestamp de último acesso
+        if results:
+            now = datetime.now(timezone.utc).isoformat()
+            ids = [r["id"] for r in results]
+            placeholders = ",".join(["?"] * len(ids))
+            cursor.execute(f"UPDATE agent_long_term_memories SET last_accessed_at = ? WHERE id IN ({placeholders})", [now] + ids)
+            conn.commit()
+
+        return results
+    except Exception as e:
+        system_logger.error(f"[Database] Erro ao buscar memórias: {e}")
+        return []
+    finally:
+        conn.close()
+
+def db_get_all_agent_memories(user_email: str, category: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
+    """Retorna todas as memórias gravadas para o usuário (com filtro opcional por categoria)."""
+    return db_search_agent_memories(user_email=user_email, query="", category=category or "", limit=limit)
+
+def db_delete_agent_memory(user_email: str, memory_id: int) -> bool:
+    """Exclui uma memória específica do agente para o usuário."""
+    clean_email = (user_email or "").strip().lower()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM agent_long_term_memories WHERE user_email = ? AND id = ?", (clean_email, memory_id))
+        conn.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        system_logger.error(f"[Database] Erro ao excluir memória: {e}")
+        return False
+    finally:
+        conn.close()
+
+def db_get_recent_important_memories_summary(user_email: str, limit: int = 10) -> str:
+    """
+    Retorna um resumo formatado em texto das principais memórias ativas de longo prazo
+    para ser injetado no prompt de contexto do agente.
+    """
+    memories = db_search_agent_memories(user_email=user_email, limit=limit)
+    if not memories:
+        return ""
+    
+    lines = []
+    for m in memories:
+        cat_badge = f"[{m.get('category', 'geral')}]"
+        fact_text = m.get("fact", "").strip()
+        lines.append(f"- {cat_badge} {fact_text}")
+    
+    return "\n".join(lines)
 
 # Inicializa o banco automaticamente ao carregar o módulo
 init_db()

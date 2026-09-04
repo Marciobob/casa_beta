@@ -239,9 +239,91 @@ const SYSTEM_GUIDES = {
         exemplos_comandos: [
             "Sexta-Feira, consulte o meu perfil e me diga quais são minhas comidas favoritas",
             "Qual é o meu tipo sanguíneo cadastrado?",
-            "O que você sabe sobre mim?"
+            "O que você sabe sobre mim no meu perfil?"
         ],
         dicas: "Você pode atualizar seus dados ou foto de perfil a qualquer momento sem reiniciar o servidor."
+    },
+
+    memoria_longo_prazo: {
+        icone: "🧠",
+        titulo: "Memória de Longo Prazo & Aprendizado Autônomo",
+        categoria: "Inteligência Artificial & Memória",
+        resumo: "O assistente aprende e memoriza automaticamente fatos sobre sua rotina, preferências, gostos pessoais e instruções durante as conversas diárias.",
+        passo_a_passo: [
+            "<b>1. Aprendizado Automático:</b> Converse normalmente com o assistente. Sempre que você mencionar gostos, regras, familiares ou preferências, a IA grava o fato no banco de dados com categoria e nível de importância.",
+            "<b>2. Resgate de Memórias:</b> Quando você fizer perguntas sobre o que ele sabe sobre você ou pedir recomendações, ele consulta a base de memórias de longo prazo.",
+            "<b>3. Gerenciamento Completo:</b> Você pode pedir para listar tudo o que ele lembra (<i>'O que você lembra sobre mim?'</i>) ou pedir para esquecer algo (<i>'Esqueça que meu time é o Flamengo'</i>).",
+            "<b>4. Persistência Isolada:</b> Cada morador/usuário possui sua própria base de memórias protegida e isolada no SQLite."
+        ],
+        exemplos_comandos: [
+            "Sexta-Feira, lembre-se de que meu time de coração é o Flamengo",
+            "Sempre que eu pedir pizza, lembre-se que prefiro quatro queijos",
+            "O que você lembra e sabe sobre mim até agora?",
+            "Qual é o meu time de futebol favorito?",
+            "Esqueça que eu gosto de samba"
+        ],
+        dicas: "As memórias mais recentes e importantes são injetadas no contexto inicial de cada diálogo, tornando as interações cada vez mais personalizadas."
+    },
+
+    musica: {
+        icone: "🎵",
+        titulo: "Música, Podcasts & Alto-Falante",
+        categoria: "Entretenimento & Áudio",
+        resumo: "Busca e reprodução contínua de músicas, bandas, gêneros musicais (samba, pagode, rock, etc.) e podcasts nos alto-falantes.",
+        passo_a_passo: [
+            "Peça ao assistente para tocar qualquer artista, música, gênero ou podcast por voz ou texto.",
+            "O sistema busca automaticamente o fluxo de áudio no YouTube e inicia a reprodução em segundo plano com ffplay.",
+            "Para parar ou pausar a qualquer momento, basta dizer <i>'Para a música'</i> ou <i>'Silêncio'</i>.",
+            "Você pode perguntar <i>'Qual música está tocando?'</i> para saber a faixa atual e o tempo decorrido."
+        ],
+        exemplos_comandos: [
+            "Sexta-Feira, toca um pagode para animar a casa",
+            "Coloque um samba raiz para tocar",
+            "Toca o podcast do Flow no alto-falante",
+            "Para a música por favor",
+            "Qual música está tocando agora?"
+        ],
+        dicas: "O player roda de forma assíncrona e não bloqueia a conversa ou as outras funções do assistente."
+    },
+
+    comandos_sistema: {
+        icone: "💻",
+        titulo: "Controle da Máquina Física (Volume, Brilho & Navegador)",
+        categoria: "Hardware & Sistema Operacional",
+        resumo: "Ajuste do volume físico do computador, brilho de tela/monitores e controle seguro de abas do navegador.",
+        passo_a_passo: [
+            "<b>1. Ative a Permissão:</b> No modal de Configurações, marque a opção <i>'Controle da Máquina Física'</i> para autorizar comandos de sistema.",
+            "<b>2. Controle de Volume:</b> Peça para aumentar, diminuir, definir porcentagem (ex: <i>'Volume em 80%'</i>) ou mutar o som.",
+            "<b>3. Controle de Brilho:</b> Ajuste o brilho dos monitores diretamente (ex: <i>'Aumenta o brilho da tela'</i> ou <i>'Brilho em 50%'</i>).",
+            "<b>4. Navegador de Internet:</b> Abra sites ou buscas no navegador (ex: <i>'Abre o YouTube no navegador'</i>) e feche quando terminar (ex: <i>'Fecha a página'</i>).",
+            "<b>5. Proteção da Casa:</b> Por segurança, o assistente nunca fecha a tela do próprio painel inteligente."
+        ],
+        exemplos_comandos: [
+            "Aumenta o volume do computador em 20%",
+            "Coloca o som no mudo",
+            "Abaixa o brilho da tela",
+            "Abre o YouTube no navegador",
+            "Fecha a página do YouTube"
+        ],
+        dicas: "Os comandos funcionam tanto em ambientes GNOME/Wayland quanto X11 de forma nativa."
+    },
+
+    youtube_tutoriais: {
+        icone: "📺",
+        titulo: "YouTube & Transcrições de Vídeos",
+        categoria: "Tutoriais & Aprendizado",
+        resumo: "Busca de tutoriais do YouTube com transcrição em texto das falas para ensinar receitas, consertos e guias passo a passo.",
+        passo_a_passo: [
+            "Peça um tutorial prático de culinária, conserto doméstico ou aprendizado (ex: <i>'Como consertar chuveiro que não esquenta'</i>).",
+            "A IA busca os melhores vídeos instrutivos no YouTube e baixa a transcrição real das falas em português.",
+            "O assistente lê e sintetiza as explicações em tópicos claros e objetivos para você seguir o passo a passo."
+        ],
+        exemplos_comandos: [
+            "Sexta-Feira, pesquise um tutorial no YouTube de como consertar torneira pingando",
+            "Como fazer pudim de leite condensado passo a passo?",
+            "Tutorial de como regular as marchas da bicicleta"
+        ],
+        dicas: "Você pode pedir para a IA resumir apenas os pontos principais ou detalhar cada ferramenta necessária."
     }
 };
 

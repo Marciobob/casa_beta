@@ -40,9 +40,11 @@ try:
         db_save_user_photo, db_get_user_photo, db_get_all_residents,
         db_save_telegram_config, db_get_telegram_config,
         db_save_ai_config, db_get_ai_config,
+        db_save_house_config, db_get_house_config,
         db_create_automation, db_get_automations, db_get_automation_by_id,
         db_update_automation, db_delete_automation, db_toggle_automation,
-        db_get_automations_count
+        db_get_automations_count,
+        db_save_agent_memory, db_search_agent_memories, db_get_all_agent_memories, db_delete_agent_memory, db_get_recent_important_memories_summary
     )
     from api.tools.vision_tools import capture_camera_frame, set_latest_browser_snapshot
     from api.telegram_bot import send_telegram_message, get_telegram_bot_info, telegram_manager
@@ -60,9 +62,11 @@ except ImportError:
         db_save_user_photo, db_get_user_photo, db_get_all_residents,
         db_save_telegram_config, db_get_telegram_config,
         db_save_ai_config, db_get_ai_config,
+        db_save_house_config, db_get_house_config,
         db_create_automation, db_get_automations, db_get_automation_by_id,
         db_update_automation, db_delete_automation, db_toggle_automation,
-        db_get_automations_count
+        db_get_automations_count,
+        db_save_agent_memory, db_search_agent_memories, db_get_all_agent_memories, db_delete_agent_memory, db_get_recent_important_memories_summary
     )
     from tools.vision_tools import capture_camera_frame, set_latest_browser_snapshot
     from telegram_bot import send_telegram_message, get_telegram_bot_info, telegram_manager
@@ -142,7 +146,7 @@ class ChatRequest(BaseModel):
     message: str
     api_key: Optional[str] = None
     model: Optional[str] = "gemini-2.5-flash-lite"
-    agent_name: Optional[str] = "Sexta-Feira"
+    agent_name: Optional[str] = None
     rooms: Optional[List[Dict[str, Any]]] = []
     rooms_state: Optional[Dict[str, bool]] = {}
     broker: Optional[str] = "test.mosquitto.org"
@@ -343,6 +347,59 @@ def clear_chat_history_endpoint(token_payload: dict = Depends(get_current_user_t
     return {"message": "Histórico de mensagens limpo com sucesso.", "success": success}
 
 # =========================================================================
+# ROTAS DE MEMÓRIA DE LONGO PRAZO & APRENDIZADO DO AGENTE
+# =========================================================================
+
+class AgentMemoryCreateRequest(BaseModel):
+    fact: str
+    category: Optional[str] = "geral"
+    importance: Optional[int] = 3
+    context: Optional[str] = ""
+
+@app.get("/api/agent/memories")
+def get_agent_memories_endpoint(
+    q: Optional[str] = None,
+    category: Optional[str] = None,
+    limit: int = 50,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    if q:
+        memories = db_search_agent_memories(user_email=user_email, query=q, category=category, limit=limit)
+    else:
+        memories = db_get_all_agent_memories(user_email=user_email, category=category, limit=limit)
+    return {"user_email": user_email, "count": len(memories), "memories": memories}
+
+@app.post("/api/agent/memories")
+def create_agent_memory_endpoint(
+    req: AgentMemoryCreateRequest,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    if not req.fact or not req.fact.strip():
+        raise HTTPException(status_code=400, detail="O campo 'fact' (fato/informação) não pode estar vazio.")
+    saved = db_save_agent_memory(
+        user_email=user_email,
+        fact=req.fact.strip(),
+        category=req.category or "geral",
+        importance=req.importance or 3,
+        context=req.context or ""
+    )
+    return {"status": "success", "memory": saved}
+
+@app.delete("/api/agent/memories/{memory_id}")
+def delete_agent_memory_endpoint(
+    memory_id: int,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    deleted = db_delete_agent_memory(user_email=user_email, memory_id=memory_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Memória não encontrada ou não pertence a este usuário.")
+    return {"status": "success", "message": f"Memória #{memory_id} esquecida com sucesso."}
+
+
+# =========================================================================
 # ROTA DO AGENTE INTELIGENTE (COM MEMÓRIA CONVERSACIONAL)
 # =========================================================================
 
@@ -365,12 +422,15 @@ async def chat_endpoint(request: ChatRequest, token_payload: dict = Depends(get_
     user_profile = get_user_profile(user_email) if user_email else {}
     chat_history = get_chat_history(user_email, limit=5) if user_email else []
 
+    req_name = (request.agent_name or "").strip()
+    effective_agent_name = (req_name if req_name and req_name != "Sexta-Feira" else None) or (ai_cfg.get("agent_name") or "").strip() or req_name or os.getenv("AGENT_NAME", "Sexta-Feira")
+
     try:
         resultado = processar_comando_agente(
             pergunta=request.message,
             api_key=api_key,
             modelo=model_name,
-            agent_name=request.agent_name or "Sexta-Feira",
+            agent_name=effective_agent_name,
             rooms=request.rooms,
             rooms_state=request.rooms_state,
             broker_config={"broker": request.broker, "port": request.port},
@@ -436,11 +496,13 @@ async def chat_stream_endpoint(request: ChatRequest, token_payload: dict = Depen
         def worker():
             try:
                 status_callback("status", "Analisando sua solicitação...")
+                req_name = (request.agent_name or "").strip()
+                effective_agent_name = (req_name if req_name and req_name != "Sexta-Feira" else None) or (ai_cfg.get("agent_name") or "").strip() or req_name or os.getenv("AGENT_NAME", "Sexta-Feira")
                 res = processar_comando_agente(
                     pergunta=request.message,
                     api_key=api_key,
                     modelo=model_name,
-                    agent_name=request.agent_name or "Sexta-Feira",
+                    agent_name=effective_agent_name,
                     rooms=request.rooms,
                     rooms_state=request.rooms_state,
                     broker_config={"broker": request.broker, "port": request.port},
@@ -511,6 +573,7 @@ def agent_status_endpoint(token_payload: dict = Depends(get_current_user_token))
     
     # Contagem de mensagens no SQLite e configurações
     history = get_chat_history(user_email, limit=50)
+    memories = db_get_all_agent_memories(user_email)
     profile = get_user_profile(user_email)
     cam_cfg = db_get_camera_config(user_email)
     tg_cfg = db_get_telegram_config(user_email)
@@ -580,10 +643,11 @@ def agent_status_endpoint(token_payload: dict = Depends(get_current_user_token))
                 "engine": "DuckDuckGo Realtime"
             },
             "memory": {
-                "name": "Memória Conversacional & Perfil",
+                "name": "Memória Longo Prazo & Aprendizado Autônomo",
                 "connected": True,
                 "db": "SQLite (smarthome.db)",
                 "history_count": len(history),
+                "memories_count": len(memories),
                 "has_profile": bool(profile.get("blood_type") or profile.get("favorite_foods"))
             },
             "automations": {
@@ -1108,11 +1172,13 @@ def test_user_telegram_config_endpoint(
 class UserAiConfigRequest(BaseModel):
     api_key: Optional[str] = None
     ai_model: Optional[str] = None
+    agent_name: Optional[str] = None
     voice: Optional[str] = None
+    system_commands_enabled: Optional[bool] = None
 
 @app.get("/api/user/ai-config")
 def get_user_ai_config_endpoint(token_payload: dict = Depends(get_current_user_token)):
-    """Retorna as preferências de IA, modelo e voz salvas para o usuário logado."""
+    """Retorna as preferências de IA, modelo, nome do agente, voz e comandos de máquina salvas para o usuário logado."""
     user_email = token_payload.get("sub", "")
     if not user_email:
         raise HTTPException(status_code=401, detail="Usuário não autenticado.")
@@ -1123,7 +1189,7 @@ def save_user_ai_config_endpoint(
     req: UserAiConfigRequest,
     token_payload: dict = Depends(get_current_user_token)
 ):
-    """Salva a chave de API, modelo e voz selecionados diretamente no perfil SQLite do usuário."""
+    """Salva a chave de API, modelo, nome do agente, voz e flag de comandos do sistema diretamente no perfil SQLite do usuário."""
     user_email = token_payload.get("sub", "")
     if not user_email:
         raise HTTPException(status_code=401, detail="Usuário não autenticado.")
@@ -1132,7 +1198,46 @@ def save_user_ai_config_endpoint(
         user_email=user_email,
         api_key=req.api_key if req.api_key is not None else "",
         ai_model=req.ai_model if req.ai_model is not None else "",
-        voice=req.voice if req.voice is not None else ""
+        agent_name=req.agent_name if req.agent_name is not None else "",
+        voice=req.voice if req.voice is not None else "",
+        system_commands_enabled=req.system_commands_enabled
+    )
+    return {"status": "success", "config": saved}
+
+# =========================================================================
+# CONFIGURAÇÃO DA CASA, MQTT E CÔMODOS DO USUÁRIO (SQLite)
+# =========================================================================
+
+class UserHouseConfigRequest(BaseModel):
+    broker: Optional[str] = "test.mosquitto.org"
+    port: Optional[str] = "8080"
+    topic_prefix: Optional[str] = "pensador/casa"
+    rooms: Optional[List[Dict[str, Any]]] = None
+
+@app.get("/api/user/house-config")
+def get_user_house_config_endpoint(token_payload: dict = Depends(get_current_user_token)):
+    """Retorna os parâmetros da casa (broker MQTT, porta e lista de cômodos) salvos no banco SQLite."""
+    user_email = token_payload.get("sub", "")
+    if not user_email:
+        raise HTTPException(status_code=401, detail="Usuário não autenticado.")
+    return db_get_house_config(user_email)
+
+@app.post("/api/user/house-config")
+def save_user_house_config_endpoint(
+    req: UserHouseConfigRequest,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    """Salva os parâmetros da casa (broker MQTT, porta e lista de cômodos) no banco SQLite do usuário."""
+    user_email = token_payload.get("sub", "")
+    if not user_email:
+        raise HTTPException(status_code=401, detail="Usuário não autenticado.")
+        
+    saved = db_save_house_config(
+        user_email=user_email,
+        broker=req.broker or "test.mosquitto.org",
+        port=req.port or "8080",
+        topic_prefix=req.topic_prefix or "pensador/casa",
+        rooms=req.rooms if req.rooms is not None else []
     )
     return {"status": "success", "config": saved}
 
@@ -1578,6 +1683,18 @@ def serve_casa():
     if path.exists():
         return FileResponse(path)
     return {"message": "Casa page"}
+
+@app.get("/config")
+@app.get("/config/config.html")
+def serve_config():
+    for p in [
+        current_dir / "config" / "config.html",
+        current_dir / "static" / "config" / "config.html",
+        project_root / "config" / "config.html"
+    ]:
+        if p.exists():
+            return FileResponse(p)
+    return {"message": "Config page"}
 
 @app.get("/guide_modal.js")
 def serve_guide_modal_js():
