@@ -70,9 +70,174 @@ def get_latest_browser_snapshot(user_email: str, max_age_seconds: float = 300.0)
         return data
     return None
 
+import urllib.request
+import urllib.parse
+import urllib.error
+import http.client
+import socket
+
 # =========================================================================
 # MOTOR DE CAPTURA DE QUADROS (FRAME CAPTURE ENGINE)
 # =========================================================================
+
+def _extract_jpeg_from_bytes(data: bytes) -> Optional[bytes]:
+    """Extrai um quadro JPEG válido delimitado por SOI (0xFFD8) e EOI (0xFFD9) ou PNG."""
+    if not data or len(data) < 10:
+        return None
+    s = data.find(b'\xff\xd8')
+    if s != -1:
+        e = data.find(b'\xff\xd9', s + 2)
+        if e != -1:
+            return data[s:e+2]
+        # Se contiver início JPEG e tamanho razoável
+        if len(data) > 500:
+            return data[s:]
+    if data.startswith(b'\x89PNG'):
+        return data
+    return None
+
+
+def _fetch_ip_camera_snapshot(
+    raw_url: str,
+    username: str = "",
+    password: str = "",
+    timeout: float = 8.0
+) -> Tuple[Optional[bytes], Optional[str]]:
+    """
+    Obtém um quadro JPEG de câmeras IP com múltiplos mecanismos de resiliência:
+    - Normalização automática de URLs (prefixos http://, https://, rtsp://).
+    - Headers de navegador real para evitar que micro-servidores (ESP32-CAM, GoAhead, Boa, IP Webcam) rejeitem ou fechem conexões.
+    - 'Connection: close' e 'Accept-Encoding: identity' para evitar 'Remote end closed connection without response'.
+    - Suporte a streams MJPEG com extração do primeiro frame JPEG completo.
+    - Autenticação HTTP Basic e Digest.
+    - Fallback para urllib e raw socket HTTP/1.0.
+    - Fallback para OpenCV (RTSP / streams H.264 / MJPEG).
+    """
+    url = (raw_url or "").strip()
+    if not url:
+        return None, "URL da Câmera IP não fornecida."
+
+    if not (url.lower().startswith("http://") or url.lower().startswith("https://") or url.lower().startswith("rtsp://")):
+        url = f"http://{url}"
+
+    browser_headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        "Accept-Encoding": "identity",
+        "Connection": "close",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
+    }
+
+    # 1. Tentativa via requests com streaming/MJPEG e autenticação
+    if url.lower().startswith("http://") or url.lower().startswith("https://"):
+        auth_methods = [None]
+        if username and password:
+            auth_methods = [HTTPBasicAuth(username, password), HTTPDigestAuth(username, password)]
+
+        for auth in auth_methods:
+            try:
+                with requests.get(url, auth=auth, headers=browser_headers, stream=True, timeout=timeout) as resp:
+                    if resp.status_code == 200:
+                        content_chunks = bytearray()
+                        for chunk in resp.iter_content(chunk_size=4096):
+                            if chunk:
+                                content_chunks.extend(chunk)
+                                jpeg_candidate = _extract_jpeg_from_bytes(content_chunks)
+                                if jpeg_candidate and len(jpeg_candidate) > 500 and (content_chunks.find(b'\xff\xd9', content_chunks.find(b'\xff\xd8') + 2) != -1 or len(content_chunks) > 30000):
+                                    return bytes(jpeg_candidate), None
+                            if len(content_chunks) > 3 * 1024 * 1024:
+                                break
+                        
+                        if content_chunks:
+                            jpeg_candidate = _extract_jpeg_from_bytes(content_chunks)
+                            if jpeg_candidate and len(jpeg_candidate) > 200:
+                                return bytes(jpeg_candidate), None
+                    elif resp.status_code == 401 and auth is not None:
+                        continue
+            except Exception as e_req:
+                vision_logger.debug(f"[VisionTools] requests stream na Câmera IP ({url}) falhou: {e_req}")
+
+        # 2. Tentativa via urllib com HTTP/1.0
+        try:
+            req = urllib.request.Request(url, headers=browser_headers)
+            if username and password:
+                b64_auth = base64.b64encode(f"{username}:{password}".encode("latin1")).decode("ascii")
+                req.add_header("Authorization", f"Basic {b64_auth}")
+
+            with urllib.request.urlopen(req, timeout=timeout) as u_resp:
+                raw_data = u_resp.read(3 * 1024 * 1024)
+                jpeg_candidate = _extract_jpeg_from_bytes(raw_data)
+                if jpeg_candidate and len(jpeg_candidate) > 200:
+                    return bytes(jpeg_candidate), None
+        except Exception as e_urllib:
+            vision_logger.debug(f"[VisionTools] urllib na Câmera IP ({url}) falhou: {e_urllib}")
+
+        # 3. Tentativa via socket HTTP/1.0 direto (imune a encerramento prematuro de conexão por microcontroladores)
+        try:
+            parsed = urllib.parse.urlparse(url)
+            host = parsed.hostname
+            port = parsed.port or (443 if parsed.scheme == "https" else 80)
+            path = parsed.path or "/"
+            if parsed.query:
+                path += f"?{parsed.query}"
+
+            if parsed.scheme == "http" and host:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(timeout)
+                s.connect((host, port))
+                auth_header = ""
+                if username and password:
+                    b64_auth = base64.b64encode(f"{username}:{password}".encode("latin1")).decode("ascii")
+                    auth_header = f"Authorization: Basic {b64_auth}\r\n"
+                http_req = (
+                    f"GET {path} HTTP/1.0\r\n"
+                    f"Host: {host}\r\n"
+                    f"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0\r\n"
+                    f"Accept: image/*,*/*\r\n"
+                    f"{auth_header}"
+                    f"Connection: close\r\n\r\n"
+                )
+                s.sendall(http_req.encode("ascii"))
+                raw_response = bytearray()
+                while len(raw_response) < 3 * 1024 * 1024:
+                    chunk = s.recv(4096)
+                    if not chunk:
+                        break
+                    raw_response.extend(chunk)
+                s.close()
+                jpeg_candidate = _extract_jpeg_from_bytes(raw_response)
+                if jpeg_candidate and len(jpeg_candidate) > 200:
+                    return bytes(jpeg_candidate), None
+        except Exception as e_sock:
+            vision_logger.debug(f"[VisionTools] raw socket na Câmera IP ({url}) falhou: {e_sock}")
+
+    # 4. Tentativa via OpenCV (RTSP / Streams H.264 / MJPEG)
+    if cv2 is not None:
+        try:
+            cap_url = url
+            if username and password and "://" in url and "@" not in url:
+                proto, rest = url.split("://", 1)
+                cap_url = f"{proto}://{urllib.parse.quote(username)}:{urllib.parse.quote(password)}@{rest}"
+
+            cap = cv2.VideoCapture(cap_url)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            if cap.isOpened():
+                for _ in range(2):
+                    cap.read()
+                ret, frame = cap.read()
+                cap.release()
+                if ret and frame is not None:
+                    success, buffer = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+                    if success:
+                        return buffer.tobytes(), None
+            else:
+                cap.release()
+        except Exception as e_cv:
+            vision_logger.warning(f"[VisionTools] OpenCV da Câmera IP ({url}) falhou: {e_cv}")
+
+    return None, f"Não foi possível obter imagem da Câmera IP no endereço '{raw_url}'."
+
 
 def capture_camera_frame(config: Optional[Dict[str, Any]] = None) -> Tuple[Optional[bytes], Optional[str]]:
     """
@@ -92,50 +257,7 @@ def capture_camera_frame(config: Optional[Dict[str, Any]] = None) -> Tuple[Optio
         ip_url = (cfg.get("camera_ip_url") or "").strip()
         username = (cfg.get("camera_username") or "").strip()
         password = (cfg.get("camera_password") or "").strip()
-
-        if not ip_url:
-            return None, "URL da Câmera IP não configurada nas opções do usuário."
-
-        # A) Tentativa de HTTP/HTTPS Snapshot direto
-        if ip_url.lower().startswith("http://") or ip_url.lower().startswith("https://"):
-            try:
-                auth = None
-                if username and password:
-                    auth = HTTPBasicAuth(username, password)
-                
-                resp = requests.get(ip_url, auth=auth, timeout=6)
-                if resp.status_code == 401 and username and password:
-                    # Tenta Digest Auth se Basic falhar
-                    resp = requests.get(ip_url, auth=HTTPDigestAuth(username, password), timeout=6)
-
-                if resp.status_code == 200 and resp.content:
-                    # Valida se é JPEG válido
-                    if resp.content.startswith(b'\xff\xd8') or "image" in resp.headers.get("Content-Type", ""):
-                        return resp.content, None
-            except Exception as e_http:
-                vision_logger.warning(f"Snapshot HTTP da Câmera IP falhou: {e_http}")
-
-        # B) Tentativa via OpenCV (RTSP / MJPEG stream)
-        if cv2 is not None:
-            try:
-                cap_url = ip_url
-                if username and password and "://" in ip_url and "@" not in ip_url:
-                    protocol, rest = ip_url.split("://", 1)
-                    cap_url = f"{protocol}://{username}:{password}@{rest}"
-
-                cap = cv2.VideoCapture(cap_url)
-                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                if cap.isOpened():
-                    ret, frame = cap.read()
-                    cap.release()
-                    if ret and frame is not None:
-                        success, buffer = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-                        if success:
-                            return buffer.tobytes(), None
-            except Exception as e_cv:
-                vision_logger.warning(f"Captura OpenCV da Câmera IP falhou: {e_cv}")
-
-        return None, f"Não foi possível obter imagem da Câmera IP no endereço '{ip_url}'."
+        return _fetch_ip_camera_snapshot(ip_url, username, password)
 
     # 2. CÂMERA DO DISPOSITIVO (WEBCAM LOCAL / BROWSER WEBCAM)
     device_index = int(cfg.get("camera_device_index", 0))
