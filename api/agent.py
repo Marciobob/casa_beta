@@ -57,7 +57,8 @@ try:
         consultar_memorias_longo_prazo,
         listar_todas_memorias,
         esquecer_memoria,
-        set_memory_context
+        set_memory_context,
+        trigger_background_continuous_learning
     )
     from api.database import db_get_google_credentials, db_get_camera_config, db_get_recent_important_memories_summary
 except ImportError:
@@ -92,7 +93,8 @@ except ImportError:
         consultar_memorias_longo_prazo,
         listar_todas_memorias,
         esquecer_memoria,
-        set_memory_context
+        set_memory_context,
+        trigger_background_continuous_learning
     )
     from database import db_get_google_credentials, db_get_camera_config, db_get_recent_important_memories_summary
 
@@ -284,7 +286,6 @@ def processar_comando_agente(
     fuso_str = now_dt.strftime("%Z (UTC%z)")
 
     tools = [
-        gravar_memoria_longo_prazo,
         consultar_memorias_longo_prazo,
         listar_todas_memorias,
         esquecer_memoria,
@@ -352,10 +353,10 @@ FATOS E PREFERÊNCIAS DE LONGO PRAZO QUE VOCÊ JÁ APRENDEU SOBRE O USUÁRIO:
 
 Suas capacidades e ferramentas disponíveis:
 1. MEMÓRIA DE LONGO PRAZO & APRENDIZADO AUTÔNOMO:
-   - 'gravar_memoria_longo_prazo': Use para salvar novos fatos, gostos, preferências, instruções ou detalhes pessoais importantes que o usuário revelar (ex: "Meu time é o Flamengo", "Sou alérgico a camarão", "Sempre que eu pedir pizza, prefira quatro queijos", "Estou estudando Python", "Minha filha se chama Ana"). Você tem autonomia para memorizar fatos valiosos proativamente durante a conversa sempre que o usuário compartilhar informações pessoais ou regras que deseja que você lembre no futuro.
-   - 'consultar_memorias_longo_prazo': Use para pesquisar fatos específicos nas memórias gravadas quando o usuário fizer perguntas sobre o que você sabe ou quando precisar resgatar um detalhe passado.
+   - O sistema possui um motor autônomo e contínuo de aprendizado em segundo plano. Ele analisa cada conversa em background e grava automaticamente todas as preferências, gostos, rotinas, hábitos, detalhes pessoais e instruções passadas pelo usuário, sem necessidade de ferramentas síncronas de gravação durante a conversa.
+   - 'consultar_memorias_longo_prazo': Use para pesquisar fatos específicos nas memórias gravadas quando o usuário fizer perguntas sobre o que você sabe ou quando precisar resgatar um detalhe passado que não esteja no resumo acima.
    - 'listar_todas_memorias': Use quando o usuário perguntar o que você lembra sobre ele, quais informações tem salvas ou o que sabe a respeito dele no total.
-   - 'esquecer_memoria': Use quando o usuário pedir para você esquecer ou apagar uma informação previamente memorizada.
+   - 'esquecer_memoria': Use quando o usuário pedir para você esquecer ou apagar uma informação previamente memorizada informando o ID.
 2. GOOGLE KEEP, NOTAS & LISTAS DE COMPRAS:
    - 'criar_nota': Use para criar novas anotações de texto livre (ideias, lembretes rápidos) ou listas de compras/afazeres com itens.
    - 'adicionar_itens_lista': Use quando o usuário pedir para colocar/adicionar produtos ou itens em uma lista de compras existente (ex: "Adicione café e queijo na lista de compras").
@@ -538,6 +539,19 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO:
     actions = get_executed_actions()
     agent_logger.info(f"Resposta final formulada (texto puro): '{clean_reply}' | Ações: {actions}")
     
+    # Dispara o aprendizado contínuo em segundo plano (background thread assíncrona)
+    if user_email and api_key and prompt_text:
+        try:
+            trigger_background_continuous_learning(
+                user_message=prompt_text,
+                agent_response=clean_reply,
+                user_email=user_email,
+                api_key=api_key,
+                model_name=modelo
+            )
+        except Exception as bg_learn_err:
+            agent_logger.warning(f"Falha ao disparar aprendizado contínuo em background: {bg_learn_err}")
+
     return {
         "reply": clean_reply.strip() or "Comando processado com sucesso.",
         "actions": actions
