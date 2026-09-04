@@ -258,15 +258,41 @@ def set_screen_brightness(level_pct: int) -> bool:
     except Exception as e:
         agent_logger.warning(f"[SystemTools] Erro ao ajustar brilho via GNOME DBus: {e}")
 
-    # 2. brightnessctl (fallback)
+    # 2. brightnessctl (fallback muito comum em Debian/Kali/Arch)
     try:
         res = subprocess.run(["brightnessctl", "set", f"{clamped_pct}%"], capture_output=True, text=True, timeout=3, env=env)
         if res.returncode == 0:
-            success = True
+            agent_logger.info(f"[SystemTools] Brilho ajustado via brightnessctl para: {clamped_pct}%")
+            return True
     except Exception:
         pass
 
-    # 3. xrandr (fallback para sessões X11 ou monitores externos)
+    # 3. xbacklight (padrão em ambientes X11 e XFCE como Kali Linux)
+    try:
+        res = subprocess.run(["xbacklight", "-set", str(clamped_pct)], capture_output=True, text=True, timeout=3, env=env)
+        if res.returncode == 0:
+            agent_logger.info(f"[SystemTools] Brilho ajustado via xbacklight para: {clamped_pct}%")
+            return True
+    except Exception:
+        pass
+
+    # 4. Escrita direta em /sys/class/backlight
+    try:
+        devices = glob.glob("/sys/class/backlight/*")
+        if devices:
+            dev = devices[0]
+            with open(os.path.join(dev, "max_brightness")) as f:
+                mx = int(f.read().strip())
+            if mx > 0:
+                target_val = int((clamped_pct / 100.0) * mx)
+                with open(os.path.join(dev, "brightness"), "w") as f:
+                    f.write(str(target_val))
+                agent_logger.info(f"[SystemTools] Brilho ajustado via /sys/class/backlight para: {clamped_pct}%")
+                return True
+    except Exception:
+        pass
+
+    # 5. xrandr (fallback para sessões X11 ou monitores externos)
     try:
         level_float = round(clamped_pct / 100.0, 2)
         res = subprocess.run(["xrandr", "-q"], capture_output=True, text=True, timeout=3, env=env)
@@ -274,7 +300,8 @@ def set_screen_brightness(level_pct: int) -> bool:
             screens = re.findall(r'^(\S+)\s+connected', res.stdout, re.MULTILINE)
             for sc in screens:
                 subprocess.run(["xrandr", "--output", sc, "--brightness", str(level_float)], capture_output=True, text=True, timeout=3, env=env)
-            success = True
+            agent_logger.info(f"[SystemTools] Brilho ajustado via xrandr para: {level_float}")
+            return True
     except Exception:
         pass
 

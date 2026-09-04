@@ -141,21 +141,42 @@ def capture_camera_frame(config: Optional[Dict[str, Any]] = None) -> Tuple[Optio
     device_index = int(cfg.get("camera_device_index", 0))
     vision_logger.info(f"Tentando capturar frame da Câmera Local (Dispositivo índice {device_index})")
 
-    # Tentativa via OpenCV local
+    # Tentativa via OpenCV local (com suporte a V4L2 e busca de índices alternativos)
     if cv2 is not None:
-        try:
-            cap = cv2.VideoCapture(device_index)
-            if cap.isOpened():
-                for _ in range(3):
-                    cap.read()
-                ret, frame = cap.read()
-                cap.release()
-                if ret and frame is not None:
-                    success, buffer = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-                    if success:
-                        return buffer.tobytes(), None
-        except Exception as e_dev:
-            vision_logger.warning(f"Acesso à webcam local via OpenCV falhou: {e_dev}")
+        candidate_indices = [device_index]
+        # Adiciona índices alternativos comuns no Linux se o configurado falhar
+        for alt_idx in [0, 1, 2, 3]:
+            if alt_idx not in candidate_indices:
+                candidate_indices.append(alt_idx)
+
+        for idx in candidate_indices:
+            # Tenta com backend padrão e backend explícito V4L2 (necessário em algumas distros Linux como Kali/Debian)
+            backends = [None]
+            if hasattr(cv2, "CAP_V4L2"):
+                backends.append(cv2.CAP_V4L2)
+
+            for backend in backends:
+                try:
+                    if backend is not None:
+                        cap = cv2.VideoCapture(idx, backend)
+                    else:
+                        cap = cv2.VideoCapture(idx)
+
+                    if cap.isOpened():
+                        for _ in range(3):
+                            cap.read()
+                        ret, frame = cap.read()
+                        cap.release()
+                        if ret and frame is not None:
+                            success, buffer = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+                            if success:
+                                if idx != device_index:
+                                    vision_logger.info(f"Câmera capturada com sucesso no índice alternativo {idx}")
+                                return buffer.tobytes(), None
+                    else:
+                        cap.release()
+                except Exception as e_dev:
+                    vision_logger.debug(f"Tentativa de acesso à câmera no índice {idx} falhou: {e_dev}")
 
     # Fallback: snapshot enviado pelo navegador via interface web
     cached = get_latest_browser_snapshot(_ACTIVE_VISION_USER)
@@ -163,7 +184,22 @@ def capture_camera_frame(config: Optional[Dict[str, Any]] = None) -> Tuple[Optio
         vision_logger.info("Utilizando snapshot recebido pelo navegador do usuário.")
         return cached, None
 
-    return None, "Câmera local não encontrada ou sem permissão de acesso no servidor/navegador."
+    # Diagnóstico de permissão no Linux
+    video_devices = [f"/dev/video{i}" for i in range(5) if os.path.exists(f"/dev/video{i}")]
+    if video_devices:
+        err_msg = (
+            f"Dispositivos de vídeo encontrados ({', '.join(video_devices)}), mas sem permissão de acesso. "
+            "No Linux/Kali, adicione seu usuário ao grupo de vídeo executando: 'sudo usermod -aG video $USER' "
+            "e reinicie a sessão, ou verifique se a webcam não está sendo usada por outro processo."
+        )
+    else:
+        err_msg = (
+            "Nenhuma câmera local (/dev/video*) foi detectada no sistema operacional. "
+            "Se você estiver usando uma Máquina Virtual (Kali Linux em VirtualBox/VMware), "
+            "conecte a webcam física na VM através do menu Dispositivos > USB da sua máquina virtual."
+        )
+
+    return None, err_msg
 
 # =========================================================================
 # MOTOR DE VISÃO COMPUTACIONAL MULTIMODAL (LLM VISION)
