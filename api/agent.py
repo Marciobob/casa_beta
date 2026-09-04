@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
@@ -94,6 +95,24 @@ except ImportError:
         set_memory_context
     )
     from database import db_get_google_credentials, db_get_camera_config, db_get_recent_important_memories_summary
+
+def get_fallback_models(primary_model: str) -> List[str]:
+    """Retorna lista de modelos de fallback ordenados por preferência caso o modelo primário sofra 503/429 ou sobrecarga."""
+    primary = (primary_model or "gemini-2.5-flash-lite").strip()
+    primary_lower = primary.lower()
+    
+    if "gemini" in primary_lower:
+        candidates = [primary]
+        for alt in ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+            if alt not in candidates:
+                candidates.append(alt)
+        return candidates
+    else:
+        candidates = [primary]
+        for alt in ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"]:
+            if alt not in candidates:
+                candidates.append(alt)
+        return candidates
 
 def get_chat_model(model_name: str, api_key: str):
     """Instancia o modelo adequado de acordo com o provedor (Google Gemini ou OpenAI)."""
@@ -321,8 +340,6 @@ def processar_comando_agente(
     ]
     tool_map = {t.name: t for t in tools}
     
-    llm = get_chat_model(modelo, api_key)
-    
     system_prompt = f"""Você é o assistente inteligente residencial, pessoal e de informações gerais chamado "{agent_name}".
 
 CONTEXTO TEMPORAL ATUAL EM TEMPO REAL:
@@ -424,60 +441,100 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO:
     # Adiciona a pergunta atual do usuário
     messages.append(HumanMessage(content=prompt_text))
     
-    # Vincula as ferramentas ao modelo
-    try:
-        model_with_tools = llm.bind_tools(tools)
-    except Exception as e:
-        agent_logger.warning(f"bind_tools falhou ({e}), executando llm direto")
-        model_with_tools = llm
-
-    # Loop de execução de ferramentas (Agente ReAct / Tool Calling)
-    max_steps = 2
-    for step in range(max_steps):
-        ai_msg = model_with_tools.invoke(messages)
-        messages.append(ai_msg)
-        
-        # Se o modelo chamou ferramentas
-        if hasattr(ai_msg, "tool_calls") and ai_msg.tool_calls:
-            for tool_call in ai_msg.tool_calls:
-                tool_name = tool_call.get("name")
-                tool_args = tool_call.get("args", {})
-                tool_call_id = tool_call.get("id", tool_name)
+    # Modelos candidatos (original + contingência em caso de 503 / sobrecarga / indisponibilidade)
+    model_candidates = get_fallback_models(modelo)
+    
+    executed_reply = None
+    last_error = None
+    
+    for candidate_model in model_candidates:
+        try:
+            llm = get_chat_model(candidate_model, api_key)
+            try:
+                model_with_tools = llm.bind_tools(tools)
+            except Exception as e:
+                agent_logger.warning(f"bind_tools falhou para '{candidate_model}' ({e}), executando llm direto")
+                model_with_tools = llm
                 
-                agent_logger.info(f"[Passo {step+1}] Tool Chamada: '{tool_name}' com argumentos: {tool_args}")
-                if callable(status_cb):
+            messages_run = list(messages)
+            
+            # Loop de execução de ferramentas (Agente ReAct / Tool Calling)
+            max_steps = 2
+            for step in range(max_steps):
+                # Tenta até 2 vezes com pequeno delay em caso de 503 temporário (sobrecarga de servidor)
+                ai_msg = None
+                for attempt in range(2):
                     try:
-                        status_cb("status", get_tool_friendly_status(tool_name), {"tool": tool_name})
-                    except Exception:
-                        pass
+                        ai_msg = model_with_tools.invoke(messages_run)
+                        break
+                    except Exception as invoke_err:
+                        err_str = str(invoke_err)
+                        if ("503" in err_str or "UNAVAILABLE" in err_str or "high demand" in err_str or "overloaded" in err_str.lower()) and attempt == 0:
+                            agent_logger.warning(f"Alta demanda temporária (503) no modelo '{candidate_model}'. Tentando novamente em 1.5s...")
+                            time.sleep(1.5)
+                            continue
+                        raise invoke_err
                 
-                selected_tool = tool_map.get(tool_name)
-                if selected_tool:
-                    try:
-                        tool_output = selected_tool.invoke(tool_args)
-                    except Exception as err:
-                        tool_output = f"Erro na execução da ferramenta {tool_name}: {err}"
-                        agent_logger.error(f"Erro na tool '{tool_name}': {err}")
+                messages_run.append(ai_msg)
+                
+                # Se o modelo chamou ferramentas
+                if hasattr(ai_msg, "tool_calls") and ai_msg.tool_calls:
+                    for tool_call in ai_msg.tool_calls:
+                        tool_name = tool_call.get("name")
+                        tool_args = tool_call.get("args", {})
+                        tool_call_id = tool_call.get("id", tool_name)
+                        
+                        agent_logger.info(f"[Passo {step+1}] Tool Chamada: '{tool_name}' com argumentos: {tool_args}")
+                        if callable(status_cb):
+                            try:
+                                status_cb("status", get_tool_friendly_status(tool_name), {"tool": tool_name})
+                            except Exception:
+                                pass
+                        
+                        selected_tool = tool_map.get(tool_name)
+                        if selected_tool:
+                            try:
+                                tool_output = selected_tool.invoke(tool_args)
+                            except Exception as err:
+                                tool_output = f"Erro na execução da ferramenta {tool_name}: {err}"
+                                agent_logger.error(f"Erro na tool '{tool_name}': {err}")
+                        else:
+                            tool_output = f"Ferramenta '{tool_name}' não encontrada."
+                            agent_logger.warning(tool_output)
+                            
+                        messages_run.append(ToolMessage(content=str(tool_output), tool_call_id=tool_call_id))
                 else:
-                    tool_output = f"Ferramenta '{tool_name}' não encontrada."
-                    agent_logger.warning(tool_output)
-                    
-                messages.append(ToolMessage(content=str(tool_output), tool_call_id=tool_call_id))
-        else:
-            # Resposta final formulada
+                    # Resposta final formulada
+                    break
+
+            final_msg = messages_run[-1]
+            output_text = getattr(final_msg, "content", str(final_msg))
+            
+            if isinstance(output_text, list) and output_text:
+                raw_reply = output_text[0].get("text", str(output_text)) if isinstance(output_text[0], dict) else str(output_text)
+            else:
+                raw_reply = str(output_text)
+                
+            # Sanitiza o texto para remover qualquer markdown residual
+            clean_reply = remover_markdown(raw_reply)
+            executed_reply = clean_reply.strip() or "Comando processado com sucesso."
+            
+            if candidate_model != modelo:
+                agent_logger.info(f"Comando executado com sucesso utilizando o modelo contingência/fallback '{candidate_model}'")
             break
 
-    final_msg = messages[-1]
-    output_text = getattr(final_msg, "content", str(final_msg))
-    
-    if isinstance(output_text, list) and output_text:
-        raw_reply = output_text[0].get("text", str(output_text)) if isinstance(output_text[0], dict) else str(output_text)
+        except Exception as candidate_err:
+            last_error = candidate_err
+            err_str = str(candidate_err)
+            agent_logger.warning(f"Modelo '{candidate_model}' falhou ({err_str}). Tentando próximo modelo de contingência...")
+            continue
+            
+    if executed_reply is None:
+        agent_logger.error(f"Todos os modelos da cadeia de fallback falharam. Último erro: {last_error}")
+        clean_reply = "Desculpe, os servidores da inteligência artificial estão enfrentando alta demanda temporária neste momento. Por favor, tente novamente em alguns instantes."
     else:
-        raw_reply = str(output_text)
+        clean_reply = executed_reply
         
-    # Sanitiza o texto para remover qualquer markdown residual
-    clean_reply = remover_markdown(raw_reply)
-    
     actions = get_executed_actions()
     agent_logger.info(f"Resposta final formulada (texto puro): '{clean_reply}' | Ações: {actions}")
     
