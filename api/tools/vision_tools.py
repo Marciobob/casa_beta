@@ -129,7 +129,56 @@ def _fetch_ip_camera_snapshot(
         "Pragma": "no-cache"
     }
 
-    # 1. Tentativa via requests com streaming/MJPEG e autenticação
+    # 1. Tentativa via socket TCP direto (suporte completo a HTTP/0.9, HTTP/1.0, HTTP/1.1 e ESP32-CAM)
+    if url.lower().startswith("http://"):
+        try:
+            parsed = urllib.parse.urlparse(url)
+            host = parsed.hostname
+            port = parsed.port or 80
+            path = parsed.path or "/"
+            if parsed.query:
+                path += f"?{parsed.query}"
+
+            if host:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(min(4.0, timeout))
+                s.connect((host, port))
+                auth_header = ""
+                if username and password:
+                    b64_auth = base64.b64encode(f"{username}:{password}".encode("latin1")).decode("ascii")
+                    auth_header = f"Authorization: Basic {b64_auth}\r\n"
+                http_req = (
+                    f"GET {path} HTTP/1.0\r\n"
+                    f"Host: {host}\r\n"
+                    f"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0\r\n"
+                    f"Accept: image/*,*/*\r\n"
+                    f"{auth_header}"
+                    f"Connection: close\r\n\r\n"
+                )
+                s.sendall(http_req.encode("ascii"))
+                raw_response = bytearray()
+                while len(raw_response) < 3 * 1024 * 1024:
+                    try:
+                        chunk = s.recv(4096)
+                        if not chunk:
+                            break
+                        raw_response.extend(chunk)
+                        # Se já recebeu o frame JPEG completo (0xFFD8 ... 0xFFD9), encerra imediatamente
+                        s_idx = raw_response.find(b'\xff\xd8')
+                        if s_idx != -1:
+                            e_idx = raw_response.find(b'\xff\xd9', s_idx + 2)
+                            if e_idx != -1:
+                                break
+                    except socket.timeout:
+                        break
+                s.close()
+                jpeg_candidate = _extract_jpeg_from_bytes(raw_response)
+                if jpeg_candidate and len(jpeg_candidate) > 200:
+                    return bytes(jpeg_candidate), None
+        except Exception as e_sock:
+            vision_logger.debug(f"[VisionTools] raw socket na Câmera IP ({url}) falhou: {e_sock}")
+
+    # 2. Tentativa via requests com streaming/MJPEG e autenticação (Basic e Digest)
     if url.lower().startswith("http://") or url.lower().startswith("https://"):
         auth_methods = [None]
         if username and password:
@@ -158,7 +207,7 @@ def _fetch_ip_camera_snapshot(
             except Exception as e_req:
                 vision_logger.debug(f"[VisionTools] requests stream na Câmera IP ({url}) falhou: {e_req}")
 
-        # 2. Tentativa via urllib com HTTP/1.0
+        # 3. Tentativa via urllib com HTTP/1.0
         try:
             req = urllib.request.Request(url, headers=browser_headers)
             if username and password:
@@ -172,45 +221,6 @@ def _fetch_ip_camera_snapshot(
                     return bytes(jpeg_candidate), None
         except Exception as e_urllib:
             vision_logger.debug(f"[VisionTools] urllib na Câmera IP ({url}) falhou: {e_urllib}")
-
-        # 3. Tentativa via socket HTTP/1.0 direto (imune a encerramento prematuro de conexão por microcontroladores)
-        try:
-            parsed = urllib.parse.urlparse(url)
-            host = parsed.hostname
-            port = parsed.port or (443 if parsed.scheme == "https" else 80)
-            path = parsed.path or "/"
-            if parsed.query:
-                path += f"?{parsed.query}"
-
-            if parsed.scheme == "http" and host:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(timeout)
-                s.connect((host, port))
-                auth_header = ""
-                if username and password:
-                    b64_auth = base64.b64encode(f"{username}:{password}".encode("latin1")).decode("ascii")
-                    auth_header = f"Authorization: Basic {b64_auth}\r\n"
-                http_req = (
-                    f"GET {path} HTTP/1.0\r\n"
-                    f"Host: {host}\r\n"
-                    f"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0\r\n"
-                    f"Accept: image/*,*/*\r\n"
-                    f"{auth_header}"
-                    f"Connection: close\r\n\r\n"
-                )
-                s.sendall(http_req.encode("ascii"))
-                raw_response = bytearray()
-                while len(raw_response) < 3 * 1024 * 1024:
-                    chunk = s.recv(4096)
-                    if not chunk:
-                        break
-                    raw_response.extend(chunk)
-                s.close()
-                jpeg_candidate = _extract_jpeg_from_bytes(raw_response)
-                if jpeg_candidate and len(jpeg_candidate) > 200:
-                    return bytes(jpeg_candidate), None
-        except Exception as e_sock:
-            vision_logger.debug(f"[VisionTools] raw socket na Câmera IP ({url}) falhou: {e_sock}")
 
     # 4. Tentativa via OpenCV (RTSP / Streams H.264 / MJPEG)
     if cv2 is not None:
