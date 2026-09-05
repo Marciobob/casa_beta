@@ -52,6 +52,12 @@ try:
     from api.tools.youtube_tools import pesquisar_e_transcrever_youtube
     from api.tools.music_tools import tocar_musica, parar_musica, status_musica
     from api.tools.system_tools import controlar_volume_sistema, controlar_brilho_tela, abrir_navegador_sistema, fechar_navegador_sistema, set_system_tools_context
+    from api.tools.antigravity_tools import (
+        consultar_agente_antigravity,
+        executar_comando_antigravity,
+        perguntar_e_executar_antigravity,
+        set_antigravity_context
+    )
     from api.tools.memory_tools import (
         gravar_memoria_longo_prazo,
         consultar_memorias_longo_prazo,
@@ -88,6 +94,12 @@ except ImportError:
     from tools.youtube_tools import pesquisar_e_transcrever_youtube
     from tools.music_tools import tocar_musica, parar_musica, status_musica
     from tools.system_tools import controlar_volume_sistema, controlar_brilho_tela, abrir_navegador_sistema, fechar_navegador_sistema, set_system_tools_context
+    from tools.antigravity_tools import (
+        consultar_agente_antigravity,
+        executar_comando_antigravity,
+        perguntar_e_executar_antigravity,
+        set_antigravity_context
+    )
     from tools.memory_tools import (
         gravar_memoria_longo_prazo,
         consultar_memorias_longo_prazo,
@@ -220,7 +232,10 @@ def get_tool_friendly_status(tool_name: str) -> str:
         "gravar_memoria_longo_prazo": "Memorizando fato importante para o futuro...",
         "consultar_memorias_longo_prazo": "Consultando memórias de longo prazo...",
         "listar_todas_memorias": "Buscando todas as memórias consolidadas...",
-        "esquecer_memoria": "Removendo memória do banco de dados..."
+        "esquecer_memoria": "Removendo memória do banco de dados...",
+        "consultar_agente_antigravity": "Consultando o agente especialista Antigravity...",
+        "executar_comando_antigravity": "Executando comando na máquina física via Antigravity...",
+        "perguntar_e_executar_antigravity": "Delegando análise e execução ao Antigravity..."
     }
     return status_map.get(tool_name, "Processando solicitação com ferramentas...")
 
@@ -263,6 +278,7 @@ def processar_comando_agente(
     set_telegram_context(user_email=user_email or "")
     set_automation_context(user_email=user_email or "")
     set_system_tools_context(user_email=user_email or "")
+    set_antigravity_context(user_email=user_email or "", api_key=api_key or "", model_name=modelo or "")
     set_memory_context(user_email=user_email or "")
     
     # Carrega credenciais do Google do usuário ativo
@@ -289,6 +305,9 @@ def processar_comando_agente(
         consultar_memorias_longo_prazo,
         listar_todas_memorias,
         esquecer_memoria,
+        consultar_agente_antigravity,
+        executar_comando_antigravity,
+        perguntar_e_executar_antigravity,
         pesquisar_na_internet,
         pesquisar_e_transcrever_youtube,
         controlar_luzes,
@@ -419,6 +438,10 @@ Suas capacidades e ferramentas disponíveis:
    - 'controlar_brilho_tela': Use SEMPRE que o usuário pedir para aumentar o brilho da tela, abaixar o brilho da tela ou definir um nível percentual de brilho (ex: 'aumenta o brilho da tela', 'abaixa o brilho', 'brilho em 80%').
    - 'abrir_navegador_sistema': Use SEMPRE que o usuário pedir para abrir o navegador de internet, abrir um site no navegador ou realizar uma pesquisa web diretamente no navegador do computador (ex: 'abre o navegador', 'abre o YouTube no navegador', 'pesquisa receitas no navegador').
    - 'fechar_navegador_sistema': Use SEMPRE que o usuário pedir para fechar uma página, aba ou janela do navegador aberta pelo assistente (ex: 'fecha a página', 'fecha o YouTube', 'fecha o Google', 'fecha o navegador'). Por segurança, esta ferramenta NUNCA fecha a página principal da casa inteligente / assistente.
+19. INTEGRAÇÃO COM AGENTE ANTIGRAVITY (CONSULTORIA TÉCNICA & COMANDOS NO TERMINAL):
+   - 'consultar_agente_antigravity': Use SEMPRE que você tiver alguma dúvida técnica, complexa, de programação, arquitetura de software, infraestrutura, engenharia ou quando o usuário pedir para perguntar/consultar o Antigravity (ex: 'pergunta pro Antigravity', 'o que o Antigravity acha disso?', 'tira uma dúvida com o Antigravity', 'qual a melhor solução técnica para isso?'). O Antigravity atua como seu engenheiro consultor sênior.
+   - 'executar_comando_antigravity': Use SEMPRE que o usuário pedir para executar comandos de terminal/shell na máquina física / computador (ex: 'execute o comando df -h', 'veja o uptime do servidor', 'liste os arquivos da pasta', 'execute o comando ... na máquina'). Retorna a saída real do terminal (stdout/stderr) e o código de saída do Linux.
+   - 'perguntar_e_executar_antigravity': Use quando o usuário pedir para delegar uma tarefa completa de diagnóstico ou resolução técnica no computador ao Antigravity.
 
 REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO:
 - NUNCA use formatação Markdown (NÃO use asteriscos '**', '#' de títulos, marcadores de lista '-' ou '•', nem itálicos).

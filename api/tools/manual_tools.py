@@ -168,6 +168,19 @@ Como Usar a Tela de Perfil (/profile.html):
 2. Memória Pessoal do Agente: Preencha suas preferências, comidas favoritas, alergias, tipo sanguíneo, filmes, notas pessoais e rotinas.
 3. Respostas Personalizadas: O agente 'Sexta-Feira' consulta seu perfil para dar respostas contextualizadas e lembrar de preferências familiares.
 """
+    },
+    "antigravity": {
+        "titulo": "🚀 Integração Antigravity (Consultoria Especialista & Terminal)",
+        "palavras_chave": ["antigravity", "agy", "cli", "terminal", "comando", "maquina", "fisica", "engenharia", "codigo", "diagnostico", "duvida"],
+        "resumo": "Integração bidirecional com o Google Antigravity para consultoria técnica de alto nível e execução de comandos no sistema operacional.",
+        "conteudo": """
+O módulo Antigravity conecta o assistente residencial Sexta-Feira ao motor Google Antigravity (CLI / Python SDK):
+
+Como Funciona:
+1. Consultoria Técnica: Sempre que a Sexta-Feira tiver dúvidas complexas de engenharia, programação, arquitetura de sistemas ou diagnósticos, ela consulta o agente especialista Antigravity para obter a melhor solução.
+2. Comandos na Máquina Física: Se o usuário pedir para executar comandos shell no terminal da máquina (ex: 'df -h', 'uptime', 'systemctl status ...'), o Antigravity executa de forma segura e traz o retorno do console.
+3. Segurança: Comandos de autodestruição ou potencialmente destrutivos são bloqueados por padrão, e a execução pode ser habilitada ou desabilitada nas Configurações de IA do painel.
+"""
     }
 }
 
