@@ -20,10 +20,16 @@ from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
 try:
     from api.logger import vision_logger
-    from api.database import db_get_camera_config, db_get_all_residents, db_get_ai_config
+    from api.database import (
+        db_get_camera_config, db_get_all_residents, db_get_ai_config,
+        db_get_user_cameras, db_get_camera_by_id_or_name
+    )
 except ImportError:
     from logger import vision_logger
-    from database import db_get_camera_config, db_get_all_residents, db_get_ai_config
+    from database import (
+        db_get_camera_config, db_get_all_residents, db_get_ai_config,
+        db_get_user_cameras, db_get_camera_by_id_or_name
+    )
 
 # =========================================================================
 # CONTEXTO DE EXECUÇÃO DE VISÃO E CÂMERA DO USUÁRIO
@@ -101,7 +107,7 @@ def _fetch_ip_camera_snapshot(
     raw_url: str,
     username: str = "",
     password: str = "",
-    timeout: float = 8.0
+    timeout: float = 3.5
 ) -> Tuple[Optional[bytes], Optional[str]]:
     """
     Obtém um quadro JPEG de câmeras IP com múltiplos mecanismos de resiliência:
@@ -249,20 +255,26 @@ def _fetch_ip_camera_snapshot(
     return None, f"Não foi possível obter imagem da Câmera IP no endereço '{raw_url}'."
 
 
-def capture_camera_frame(config: Optional[Dict[str, Any]] = None) -> Tuple[Optional[bytes], Optional[str]]:
+def capture_camera_frame(config: Optional[Dict[str, Any]] = None, camera_identifier: Optional[Any] = None) -> Tuple[Optional[bytes], Optional[str]]:
     """
-    Captura um quadro (frame JPEG) da câmera configurada (Webcam local ou Câmera IP).
+    Captura um quadro (frame JPEG) da câmera solicitada ou da câmera padrão do usuário.
     Retorna (bytes_jpeg, mensagem_erro).
     """
-    cfg = config or _ACTIVE_CAMERA_CONFIG
-    if not cfg and _ACTIVE_VISION_USER:
-        cfg = db_get_camera_config(_ACTIVE_VISION_USER)
+    cfg = config
+    if not cfg:
+        if camera_identifier and _ACTIVE_VISION_USER:
+            cfg = db_get_camera_by_id_or_name(_ACTIVE_VISION_USER, camera_identifier)
+        elif _ACTIVE_CAMERA_CONFIG:
+            cfg = _ACTIVE_CAMERA_CONFIG
+        elif _ACTIVE_VISION_USER:
+            cfg = db_get_camera_by_id_or_name(_ACTIVE_VISION_USER, "padrao")
+            
     if not cfg:
         cfg = {"camera_type": "device", "camera_device_index": 0}
 
     camera_type = cfg.get("camera_type", "device")
 
-    # 1. CÂMERA IP (RTSP / HTTP SNAPSHOT / MJPEG)
+    # 1. CÂMERA IP (RTSP / HTTP SNAPSHOT / MJPEG / ESP32-CAM)
     if camera_type == "ip":
         ip_url = (cfg.get("camera_ip_url") or "").strip()
         username = (cfg.get("camera_username") or "").strip()
@@ -273,18 +285,19 @@ def capture_camera_frame(config: Optional[Dict[str, Any]] = None) -> Tuple[Optio
     device_index = int(cfg.get("camera_device_index", 0))
     vision_logger.info(f"Tentando capturar frame da Câmera Local (Dispositivo índice {device_index})")
 
-    # Tentativa via OpenCV local (com suporte a V4L2 e busca de índices alternativos)
-    if cv2 is not None:
+    # Verifica se existem dispositivos /dev/video no Linux antes de inicializar OpenCV
+    video_devices = [f"/dev/video{i}" for i in range(5) if os.path.exists(f"/dev/video{i}")]
+
+    # Tentativa via OpenCV local
+    if cv2 is not None and (video_devices or os.name == 'nt'):
         candidate_indices = [device_index]
-        # Adiciona índices alternativos comuns no Linux se o configurado falhar
-        for alt_idx in [0, 1, 2, 3]:
-            if alt_idx not in candidate_indices:
+        for alt_idx in [0, 1, 2]:
+            if alt_idx not in candidate_indices and (os.path.exists(f"/dev/video{alt_idx}") or os.name == 'nt'):
                 candidate_indices.append(alt_idx)
 
         for idx in candidate_indices:
-            # Tenta com backend padrão e backend explícito V4L2 (necessário em algumas distros Linux como Kali/Debian)
             backends = [None]
-            if hasattr(cv2, "CAP_V4L2"):
+            if hasattr(cv2, "CAP_V4L2") and os.name != 'nt':
                 backends.append(cv2.CAP_V4L2)
 
             for backend in backends:
@@ -295,7 +308,7 @@ def capture_camera_frame(config: Optional[Dict[str, Any]] = None) -> Tuple[Optio
                         cap = cv2.VideoCapture(idx)
 
                     if cap.isOpened():
-                        for _ in range(3):
+                        for _ in range(2):
                             cap.read()
                         ret, frame = cap.read()
                         cap.release()
@@ -453,7 +466,7 @@ def analyze_image_with_vision(
 # =========================================================================
 
 @tool
-def ver_camera(solicitacao: str = "Descreva detalhadamente o que você está vendo no ambiente") -> str:
+def ver_camera(solicitacao: str = "Descreva detalhadamente o que você está vendo no ambiente", camera: str = "") -> str:
     """
     Acessa a câmera (webcam local ou câmera IP configurada) em tempo real, captura uma foto do ambiente
     e analisa a imagem com inteligência artificial para descrever o que está acontecendo, objetos,
@@ -461,15 +474,47 @@ def ver_camera(solicitacao: str = "Descreva detalhadamente o que você está ven
     
     Args:
         solicitacao: A pergunta ou foco do que deve ser analisado e descrito (ex: 'O que tem na mesa?', 'As luzes estão acesas?').
+        camera: Nome ou identificador da câmera desejada (ex: 'sala', 'garagem', 'câmera 1', 'todas'). Deixe vazio para usar a câmera padrão.
     """
-    vision_logger.info(f"Executando tool ver_camera com solicitação: '{solicitacao}'")
+    vision_logger.info(f"Executando tool ver_camera com solicitação: '{solicitacao}' | Câmera: '{camera}'")
     
-    frame_bytes, err = capture_camera_frame()
+    cam_str = (camera or "").strip().lower()
+    
+    # Se o usuário solicitou olhar 'todas' as câmeras
+    if cam_str in ["todas", "todas as cameras", "todas as câmeras", "all", "tudo"]:
+        cams = [c for c in db_get_user_cameras(_ACTIVE_VISION_USER) if c.get("enabled", True)]
+        if not cams:
+            return "Nenhuma câmera cadastrada ou habilitada no sistema."
+        if len(cams) == 1:
+            cam_target = cams[0]
+        else:
+            relatorios = []
+            for c in cams:
+                c_name = c.get("name", "Câmera")
+                f_bytes, err = capture_camera_frame(config=c)
+                if not f_bytes:
+                    relatorios.append(f"Câmera '{c_name}': Indisponível no momento.")
+                    continue
+                sys_prompt = (
+                    f"Você é o sistema de visão computacional da assistente residencial Sexta-Feira. "
+                    f"Você está examinando a câmera '{c_name}'. "
+                    "Descreva o que está vendo de forma concisa e natural em uma ou duas frases em texto puro (sem markdown). "
+                    f"Foco solicitado: {solicitacao}"
+                )
+                desc = analyze_image_with_vision(f_bytes, sys_prompt)
+                relatorios.append(f"Câmera '{c_name}': {desc}")
+            return "\n\n".join(relatorios)
+    else:
+        cam_target = db_get_camera_by_id_or_name(_ACTIVE_VISION_USER, camera) if camera else (_ACTIVE_CAMERA_CONFIG or db_get_camera_by_id_or_name(_ACTIVE_VISION_USER, "padrao"))
+
+    cam_name = cam_target.get("name", "Principal") if cam_target else "Principal"
+    frame_bytes, err = capture_camera_frame(config=cam_target)
     if not frame_bytes:
-        return f"Aviso de Câmera: {err or 'Não foi possível capturar imagem da câmera no momento.'}"
+        return f"Aviso de Câmera ({cam_name}): {err or 'Não foi possível capturar imagem da câmera no momento.'}"
         
     system_prompt = (
-        "Você é o sistema de visão computacional da assistente residencial Sexta-Feira. "
+        f"Você é o sistema de visão computacional da assistente residencial Sexta-Feira. "
+        f"Você está visualizando a transmissão da câmera '{cam_name}'. "
         "Analise a imagem da câmera e responda em português brasileiro de forma natural, concisa e acolhedora. "
         "Evite formatação Markdown como asteriscos ou negrito para que o sintetizador de voz (TTS) fale de forma fluida. "
         f"Instrução específica do usuário: {solicitacao}"
@@ -479,7 +524,7 @@ def ver_camera(solicitacao: str = "Descreva detalhadamente o que você está ven
 
 
 @tool
-def detectar_e_cumprimentar_pessoas(saudacao_personalizada: str = "") -> str:
+def detectar_e_cumprimentar_pessoas(saudacao_personalizada: str = "", camera: str = "") -> str:
     """
     Verifica a câmera do ambiente para identificar a presença de pessoas.
     Se encontrar alguém, compara as características faciais com as fotos cadastradas dos moradores da casa:
@@ -489,12 +534,23 @@ def detectar_e_cumprimentar_pessoas(saudacao_personalizada: str = "") -> str:
     
     Args:
         saudacao_personalizada: Instrução extra de cumprimento se fornecida pelo usuário.
+        camera: Nome ou identificador da câmera a ser verificada (ex: 'sala', 'garagem', 'entrada', 'todas'). Deixe vazio para a padrão.
     """
-    vision_logger.info("Executando tool detectar_e_cumprimentar_pessoas com verificação de moradores")
+    vision_logger.info(f"Executando tool detectar_e_cumprimentar_pessoas | Câmera: '{camera}'")
     
-    frame_bytes, err = capture_camera_frame()
+    cam_str = (camera or "").strip().lower()
+    if cam_str in ["todas", "todas as cameras", "todas as câmeras"]:
+        cams = [c for c in db_get_user_cameras(_ACTIVE_VISION_USER) if c.get("enabled", True)]
+        if not cams:
+            return "Nenhuma câmera cadastrada no sistema."
+        cam_target = cams[0]
+    else:
+        cam_target = db_get_camera_by_id_or_name(_ACTIVE_VISION_USER, camera) if camera else (_ACTIVE_CAMERA_CONFIG or db_get_camera_by_id_or_name(_ACTIVE_VISION_USER, "padrao"))
+
+    cam_name = cam_target.get("name", "Principal") if cam_target else "Principal"
+    frame_bytes, err = capture_camera_frame(config=cam_target)
     if not frame_bytes:
-        return f"Aviso de Câmera: {err or 'Não foi possível acessar a câmera para verificar a presença de pessoas.'}"
+        return f"Aviso de Câmera ({cam_name}): {err or 'Não foi possível acessar a câmera para verificar a presença de pessoas.'}"
         
     residents = db_get_all_residents()
     ref_images = []
@@ -512,8 +568,8 @@ def detectar_e_cumprimentar_pessoas(saudacao_personalizada: str = "") -> str:
     residents_text = "\n".join(residents_desc) if residents_desc else "Nenhum morador possui foto cadastrada no sistema."
     
     prompt = (
-        "Você é a assistente residencial inteligente Sexta-Feira. "
-        "A Imagem 1 fornecida é a captura ao vivo da câmera do cômodo da casa. "
+        f"Você é a assistente residencial inteligente Sexta-Feira. "
+        f"A Imagem 1 fornecida é a captura ao vivo da câmera '{cam_name}' da residência. "
         f"Abaixo está a lista de moradores oficiais cadastrados na residência:\n{residents_text}\n"
     )
     if ref_images:
@@ -544,7 +600,7 @@ def detectar_e_cumprimentar_pessoas(saudacao_personalizada: str = "") -> str:
 
 
 @tool
-def identificar_morador_ou_visitante(detalhes_solicitados: str = "") -> str:
+def identificar_morador_ou_visitante(detalhes_solicitados: str = "", camera: str = "") -> str:
     """
     Examina a câmera do ambiente e avalia formalmente a identidade de quem está presente,
     comparando os traços faciais com o banco de fotos dos moradores cadastrados da residência.
@@ -552,12 +608,16 @@ def identificar_morador_ou_visitante(detalhes_solicitados: str = "") -> str:
     
     Args:
         detalhes_solicitados: Informação ou pergunta específica sobre quem está no cômodo (ex: 'O morador Marcio está na sala?', 'Quem é a pessoa filmada?').
+        camera: Nome ou identificador da câmera (ex: 'sala', 'garagem', 'entrada'). Deixe vazio para a padrão.
     """
-    vision_logger.info("Executando tool identificar_morador_ou_visitante")
+    vision_logger.info(f"Executando tool identificar_morador_ou_visitante | Câmera: '{camera}'")
     
-    frame_bytes, err = capture_camera_frame()
+    cam_target = db_get_camera_by_id_or_name(_ACTIVE_VISION_USER, camera) if camera else (_ACTIVE_CAMERA_CONFIG or db_get_camera_by_id_or_name(_ACTIVE_VISION_USER, "padrao"))
+    cam_name = cam_target.get("name", "Principal") if cam_target else "Principal"
+    
+    frame_bytes, err = capture_camera_frame(config=cam_target)
     if not frame_bytes:
-        return f"Aviso de Câmera: {err or 'Não foi possível acessar a câmera para avaliar a identidade das pessoas.'}"
+        return f"Aviso de Câmera ({cam_name}): {err or 'Não foi possível acessar a câmera para avaliar a identidade das pessoas.'}"
         
     residents = db_get_all_residents()
     ref_images = []
@@ -575,8 +635,8 @@ def identificar_morador_ou_visitante(detalhes_solicitados: str = "") -> str:
     residents_text = "\n".join(residents_desc) if residents_desc else "Nenhum morador possui foto cadastrada."
     
     prompt = (
-        "Você é o módulo de reconhecimento e segurança da assistente residencial Sexta-Feira. "
-        "A Imagem 1 é a câmera ao vivo do cômodo da casa. "
+        f"Você é o módulo de reconhecimento e segurança da assistente residencial Sexta-Feira. "
+        f"A Imagem 1 é a câmera ao vivo '{cam_name}' da residência. "
         f"Moradores cadastrados na casa:\n{residents_text}\n"
     )
     if ref_images:
@@ -601,29 +661,48 @@ def identificar_morador_ou_visitante(detalhes_solicitados: str = "") -> str:
 
 
 @tool
-def status_camera() -> str:
+def status_camera(camera: str = "") -> str:
     """
-    Verifica e retorna o status da câmera cadastrada no sistema (se é uma Câmera Local ou Câmera IP, 
-    endereço configurado e se o acesso está funcionando).
+    Verifica e retorna o status de todas as câmeras cadastradas no sistema ou de uma câmera específica
+    (se é Câmera Local ou IP/ESP32, endereço configurado, padrão do sistema e se a conexão está funcionando).
+    
+    Args:
+        camera: Nome ou identificador de uma câmera específica (ex: 'sala', 'garagem', 'câmera 1'). Deixe vazio para ver o status de todas as câmeras.
     """
-    cfg = _ACTIVE_CAMERA_CONFIG
-    if not cfg and _ACTIVE_VISION_USER:
-        cfg = db_get_camera_config(_ACTIVE_VISION_USER)
+    cam_str = (camera or "").strip().lower()
+    
+    # Se solicitou câmera específica
+    if cam_str and cam_str not in ["todas", "todas as cameras", "todas as câmeras", "all", "tudo"]:
+        cam = db_get_camera_by_id_or_name(_ACTIVE_VISION_USER, camera)
+        if not cam:
+            return f"Câmera '{camera}' não foi encontrada nas configurações."
+            
+        cam_type = cam.get("camera_type", "device")
+        ip_url = cam.get("camera_ip_url", "")
+        tipo_desc = "Câmera IP / RTSP / ESP32" if cam_type == "ip" else "Câmera do Dispositivo (Webcam Local)"
         
-    cam_type = cfg.get("camera_type", "device")
-    ip_url = cfg.get("camera_ip_url", "")
-    auto_greet = cfg.get("camera_auto_greeting", True)
-    
-    tipo_desc = "Câmera IP / RTSP" if cam_type == "ip" else "Câmera do Dispositivo (Webcam Local)"
-    
-    # Teste rápido de frame
-    frame, err = capture_camera_frame(cfg)
-    status_conexao = "Conectada e Operacional" if frame else f"Erro ao acessar ({err})"
-    
-    return (
-        f"Status da Câmera:\n"
-        f"- Tipo: {tipo_desc}\n"
-        f"- Endereço/URL: {ip_url if cam_type == 'ip' else 'Dispositivo Local (/dev/video0 ou Webcam do Navegador)'}\n"
-        f"- Saudação Automática de Pessoas: {'Ativada' if auto_greet else 'Desativada'}\n"
-        f"- Estado Atual: {status_conexao}"
-    )
+        frame, err = capture_camera_frame(config=cam)
+        status_conexao = "Conectada e Operacional" if frame else f"Erro ao acessar ({err})"
+        
+        return (
+            f"Status da Câmera {cam.get('name', 'Principal')}:\n"
+            f"- Tipo: {tipo_desc}\n"
+            f"- Endereço/URL: {ip_url if cam_type == 'ip' else 'Dispositivo Local (/dev/video0 ou Navegador)'}\n"
+            f"- Câmera Padrão: {'Sim' if cam.get('is_default') else 'Não'}\n"
+            f"- Estado Atual: {status_conexao}"
+        )
+        
+    # Listagem de todas as câmeras
+    cameras = db_get_user_cameras(_ACTIVE_VISION_USER)
+    if not cameras:
+        return "Nenhuma câmera cadastrada no sistema."
+        
+    lines = [f"Status das Câmeras ({len(cameras)} configurada{'s' if len(cameras) > 1 else ''}):"]
+    for idx, c in enumerate(cameras, start=1):
+        f, err = capture_camera_frame(config=c)
+        st = "Conectada e Operacional" if f else f"Falha de Conexão ({err or 'sem resposta'})"
+        is_def = " ⭐ [Padrão]" if c.get("is_default") else ""
+        c_type = "IP/RTSP" if c.get("camera_type") == "ip" else "Local"
+        lines.append(f"{idx}. {c.get('name', 'Câmera')}{is_def} ({c_type}): {st}")
+        
+    return "\n".join(lines)

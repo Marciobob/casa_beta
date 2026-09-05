@@ -37,6 +37,7 @@ try:
         db_create_note, db_get_notes, db_get_note_by_id_or_title, db_add_items_to_note, db_toggle_note_item, db_delete_note, db_get_notes_count,
         db_save_google_credentials, db_get_google_credentials,
         db_save_camera_config, db_get_camera_config,
+        db_get_user_cameras, db_get_camera_by_id_or_name, db_save_user_camera, db_delete_user_camera, db_set_default_camera,
         db_save_user_photo, db_get_user_photo, db_get_all_residents,
         db_save_telegram_config, db_get_telegram_config,
         db_save_ai_config, db_get_ai_config,
@@ -59,6 +60,7 @@ except ImportError:
         db_create_note, db_get_notes, db_get_note_by_id_or_title, db_add_items_to_note, db_toggle_note_item, db_delete_note, db_get_notes_count,
         db_save_google_credentials, db_get_google_credentials,
         db_save_camera_config, db_get_camera_config,
+        db_get_user_cameras, db_get_camera_by_id_or_name, db_save_user_camera, db_delete_user_camera, db_set_default_camera,
         db_save_user_photo, db_get_user_photo, db_get_all_residents,
         db_save_telegram_config, db_get_telegram_config,
         db_save_ai_config, db_get_ai_config,
@@ -940,8 +942,28 @@ def test_user_google_credentials_endpoint(
     }
 
 # =========================================================================
-# ENDPOINTS DE CONFIGURAÇÃO E TESTE DE CÂMERA & VISÃO
+# ENDPOINTS DE CONFIGURAÇÃO E TESTE DE MÚLTIPLAS CÂMERAS & VISÃO
 # =========================================================================
+
+class UserCameraModel(BaseModel):
+    id: Optional[int] = None
+    name: str = "Câmera"
+    camera_type: Optional[str] = "device"
+    camera_ip_url: Optional[str] = ""
+    camera_username: Optional[str] = ""
+    camera_password: Optional[str] = ""
+    camera_device_index: Optional[int] = 0
+    is_default: Optional[bool] = False
+    enabled: Optional[bool] = True
+
+class CameraTestRequest(BaseModel):
+    id: Optional[int] = None
+    name: Optional[str] = None
+    camera_type: Optional[str] = "device"
+    camera_ip_url: Optional[str] = ""
+    camera_username: Optional[str] = ""
+    camera_password: Optional[str] = ""
+    camera_device_index: Optional[int] = 0
 
 class CameraConfigRequest(BaseModel):
     camera_type: Optional[str] = "device"
@@ -954,14 +976,133 @@ class CameraConfigRequest(BaseModel):
 class CameraSnapshotUploadRequest(BaseModel):
     image_base64: str
 
+@app.get("/api/user/cameras")
+def get_user_cameras_endpoint(token_payload: dict = Depends(get_current_user_token)):
+    """Retorna todas as câmeras cadastradas pelo usuário (com senhas mascaradas)."""
+    user_email = token_payload.get("sub", "")
+    cameras = db_get_user_cameras(user_email)
+    sanitized = []
+    for c in cameras:
+        pwd = c.get("camera_password", "")
+        masked_pwd = ("*" * len(pwd)) if pwd else ""
+        c_copy = dict(c)
+        c_copy["camera_password"] = masked_pwd
+        c_copy["has_password"] = bool(pwd)
+        sanitized.append(c_copy)
+    return {
+        "status": "success",
+        "cameras": sanitized
+    }
+
+@app.post("/api/user/cameras")
+def add_user_camera_endpoint(
+    req: UserCameraModel,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    """Adiciona uma nova câmera (Webcam local ou Câmera IP) ao sistema do usuário."""
+    user_email = token_payload.get("sub", "")
+    saved = db_save_user_camera(user_email, req.dict())
+    return {
+        "status": "success",
+        "message": f"Câmera '{saved.get('name', 'Nova Câmera')}' adicionada com sucesso!",
+        "camera": saved
+    }
+
+@app.put("/api/user/cameras/{camera_id}")
+def update_user_camera_endpoint(
+    camera_id: int,
+    req: UserCameraModel,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    """Atualiza as configurações de uma câmera existente."""
+    user_email = token_payload.get("sub", "")
+    data = req.dict()
+    data["id"] = camera_id
+    saved = db_save_user_camera(user_email, data)
+    return {
+        "status": "success",
+        "message": f"Câmera '{saved.get('name', '')}' atualizada com sucesso!",
+        "camera": saved
+    }
+
+@app.delete("/api/user/cameras/{camera_id}")
+def delete_user_camera_endpoint(
+    camera_id: int,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    """Exclui uma câmera cadastrada."""
+    user_email = token_payload.get("sub", "")
+    success = db_delete_user_camera(user_email, camera_id)
+    if success:
+        return {"status": "success", "message": "Câmera removida com sucesso!"}
+    raise HTTPException(status_code=404, detail="Câmera não encontrada.")
+
+@app.post("/api/user/cameras/{camera_id}/set-default")
+def set_default_camera_endpoint(
+    camera_id: int,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    """Define uma câmera como padrão principal do sistema."""
+    user_email = token_payload.get("sub", "")
+    success = db_set_default_camera(user_email, camera_id)
+    if success:
+        return {"status": "success", "message": "Câmera definida como padrão com sucesso!"}
+    raise HTTPException(status_code=404, detail="Câmera não encontrada.")
+
+@app.post("/api/user/cameras/test")
+def test_camera_endpoint(
+    req: CameraTestRequest,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    """Testa a conexão e captura de um frame de uma câmera (por ID cadastrado ou dados de teste em formulário)."""
+    user_email = token_payload.get("sub", "")
+    
+    cfg = {}
+    if req.id:
+        existing = db_get_camera_by_id_or_name(user_email, req.id)
+        if existing:
+            cfg = dict(existing)
+            
+    # Aplica substituições do formulário se fornecidas
+    if req.camera_type:
+        cfg["camera_type"] = req.camera_type
+    if req.camera_ip_url is not None and req.camera_ip_url != "":
+        cfg["camera_ip_url"] = req.camera_ip_url
+    if req.camera_username is not None and req.camera_username != "":
+        cfg["camera_username"] = req.camera_username
+    if req.camera_password and req.camera_password.strip() and not set(req.camera_password.strip()).issubset({"*"}):
+        cfg["camera_password"] = req.camera_password
+    if req.camera_device_index is not None:
+        cfg["camera_device_index"] = req.camera_device_index
+        
+    if not cfg:
+        cfg = {"camera_type": req.camera_type or "device", "camera_ip_url": req.camera_ip_url or "", "camera_username": req.camera_username or "", "camera_password": req.camera_password or "", "camera_device_index": req.camera_device_index or 0}
+
+    frame_bytes, err = capture_camera_frame(cfg)
+    if frame_bytes:
+        b64 = base64.b64encode(frame_bytes).decode("utf-8")
+        return {
+            "success": True,
+            "message": "Quadro da câmera capturado com sucesso!",
+            "snapshot_base64": f"data:image/jpeg;base64,{b64}"
+        }
+    else:
+        return {
+            "success": False,
+            "message": err or "Não foi possível obter imagem da câmera.",
+            "snapshot_base64": None
+        }
+
 @app.get("/api/user/camera-config")
 def get_user_camera_config_endpoint(token_payload: dict = Depends(get_current_user_token)):
-    """Retorna as configurações de câmera do usuário logado (com senha mascarada)."""
+    """Retorna as configurações da câmera padrão do usuário logado (com senha mascarada)."""
     user_email = token_payload.get("sub", "")
     cfg = db_get_camera_config(user_email)
     pwd = cfg.get("camera_password", "")
     masked_pwd = ("*" * len(pwd)) if pwd else ""
     return {
+        "id": cfg.get("id"),
+        "name": cfg.get("name", "Câmera Principal"),
         "camera_type": cfg.get("camera_type", "device"),
         "camera_ip_url": cfg.get("camera_ip_url", ""),
         "camera_username": cfg.get("camera_username", ""),
@@ -975,10 +1116,10 @@ def save_user_camera_config_endpoint(
     req: CameraConfigRequest,
     token_payload: dict = Depends(get_current_user_token)
 ):
-    """Salva as configurações de câmera (dispositivo local ou IP) do usuário."""
+    """Salva as configurações da câmera padrão do usuário."""
     user_email = token_payload.get("sub", "")
     current = db_get_camera_config(user_email)
-    pwd = req.camera_password if req.camera_password is not None and req.camera_password != "" else current.get("camera_password", "")
+    pwd = req.camera_password if req.camera_password is not None and req.camera_password != "" and not set(req.camera_password).issubset({"*"}) else current.get("camera_password", "")
     
     res = db_save_camera_config(
         user_email=user_email,
@@ -1000,7 +1141,7 @@ def test_user_camera_config_endpoint(
     req: Optional[CameraConfigRequest] = None,
     token_payload: dict = Depends(get_current_user_token)
 ):
-    """Testa a captura de um quadro da câmera (Dispositivo ou IP) e retorna snapshot em base64."""
+    """Testa a captura de um quadro da câmera padrão ou configurações do payload."""
     user_email = token_payload.get("sub", "")
     cfg = db_get_camera_config(user_email)
     if req:
@@ -1010,7 +1151,7 @@ def test_user_camera_config_endpoint(
             cfg["camera_ip_url"] = req.camera_ip_url
         if req.camera_username is not None:
             cfg["camera_username"] = req.camera_username
-        if req.camera_password:
+        if req.camera_password and not set(req.camera_password).issubset({"*"}):
             cfg["camera_password"] = req.camera_password
         if req.camera_device_index is not None:
             cfg["camera_device_index"] = req.camera_device_index

@@ -264,6 +264,29 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_agent_memories_user
         ON agent_long_term_memories(user_email, importance DESC, id DESC)
     """)
+
+    # Tabela de Múltiplas Câmeras (Webcam Local e Câmeras IP/RTSP/ESP32)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_cameras (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT NOT NULL,
+            name TEXT NOT NULL,
+            camera_type TEXT NOT NULL,        -- 'device' ou 'ip'
+            camera_ip_url TEXT DEFAULT '',
+            camera_username TEXT DEFAULT '',
+            camera_password TEXT DEFAULT '',
+            camera_device_index INTEGER DEFAULT 0,
+            is_default INTEGER DEFAULT 0,
+            enabled INTEGER DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_user_cameras_user 
+        ON user_cameras(user_email, is_default DESC, id ASC)
+    """)
     
     conn.commit()
     conn.close()
@@ -513,6 +536,262 @@ def db_get_google_credentials(user_email: str) -> Tuple[str, str]:
     env_pwd = (os.getenv("GMAIL_APP_PASSWORD") or os.getenv("GMAIL_PASSWORD") or "").replace(" ", "").strip()
     return env_email, env_pwd
 
+# =========================================================================
+# CONFIGURAÇÃO DE MÚLTIPLAS CÂMERAS (LOCAL & IP) NO SQLITE
+# =========================================================================
+
+def _migrate_user_cameras_if_needed(cursor: sqlite3.Cursor, user_email: str):
+    """Garante que o usuário tenha pelo menos uma câmera cadastrada, migrando do perfil legado se aplicável."""
+    clean_email = (user_email or "").strip().lower()
+    if not clean_email:
+        return
+        
+    cursor.execute("SELECT COUNT(*) AS cnt FROM user_cameras WHERE user_email = ?", (clean_email,))
+    row = cursor.fetchone()
+    if row and row["cnt"] > 0:
+        return
+        
+    # Verifica perfil legado para migração
+    cursor.execute("""
+        SELECT camera_type, camera_ip_url, camera_username, camera_password, camera_device_index 
+        FROM user_profiles WHERE user_email = ?
+    """, (clean_email,))
+    prof = cursor.fetchone()
+    
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if prof and (prof["camera_ip_url"] or prof["camera_type"] == "ip"):
+        cam_type = "ip"
+        cam_url = (prof["camera_ip_url"] or "").strip()
+        cam_user = (prof["camera_username"] or "").strip()
+        cam_pwd = (prof["camera_password"] or "").strip()
+        cam_idx = 0
+        name = "Câmera IP Principal"
+    else:
+        cam_type = "device"
+        cam_url = ""
+        cam_user = ""
+        cam_pwd = ""
+        cam_idx = int(prof["camera_device_index"] or 0) if prof else 0
+        name = "Câmera Local (Webcam)"
+
+    cursor.execute("""
+        INSERT INTO user_cameras (
+            user_email, name, camera_type, camera_ip_url, camera_username, 
+            camera_password, camera_device_index, is_default, enabled, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+    """, (clean_email, name, cam_type, cam_url, cam_user, cam_pwd, cam_idx, now_iso, now_iso))
+    system_logger.info(f"Auto-migração de câmera executada para usuário: {clean_email} -> {name}")
+
+def db_get_user_cameras(user_email: str) -> List[Dict[str, Any]]:
+    """Retorna todas as câmeras cadastradas pelo usuário."""
+    clean_email = (user_email or "").strip().lower()
+    if not clean_email:
+        return []
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    _migrate_user_cameras_if_needed(cursor, clean_email)
+    conn.commit()
+    
+    cursor.execute("""
+        SELECT id, user_email, name, camera_type, camera_ip_url, camera_username, 
+               camera_password, camera_device_index, is_default, enabled, created_at, updated_at
+        FROM user_cameras 
+        WHERE user_email = ?
+        ORDER BY is_default DESC, id ASC
+    """, (clean_email,))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    cameras = []
+    for r in rows:
+        cameras.append({
+            "id": r["id"],
+            "user_email": r["user_email"],
+            "name": r["name"],
+            "camera_type": r["camera_type"] or "device",
+            "camera_ip_url": r["camera_ip_url"] or "",
+            "camera_username": r["camera_username"] or "",
+            "camera_password": r["camera_password"] or "",
+            "camera_device_index": int(r["camera_device_index"] or 0),
+            "is_default": bool(r["is_default"]),
+            "enabled": bool(r["enabled"]),
+            "created_at": r["created_at"],
+            "updated_at": r["updated_at"]
+        })
+    return cameras
+
+def db_get_camera_by_id_or_name(user_email: str, identifier: Any = None) -> Optional[Dict[str, Any]]:
+    """
+    Busca uma câmera do usuário pelo ID, nome aproximado (ex: 'sala', 'garagem', 'externa', 'câmera 1') 
+    ou retorna a câmera padrão se o identificador estiver vazio/padrão.
+    """
+    clean_email = (user_email or "").strip().lower()
+    cameras = db_get_user_cameras(clean_email)
+    if not cameras:
+        return None
+        
+    if not identifier or str(identifier).strip().lower() in ["", "padrao", "padrão", "default", "todas"]:
+        # Retorna a câmera padrão ou a primeira disponível
+        for cam in cameras:
+            if cam.get("is_default") and cam.get("enabled", True):
+                return cam
+        return cameras[0] if cameras else None
+        
+    ident_str = str(identifier).strip().lower()
+    
+    # 1. Se for numérico (ID ou índice)
+    if ident_str.isdigit():
+        target_id = int(ident_str)
+        for cam in cameras:
+            if cam["id"] == target_id:
+                return cam
+        # Se for número de 1 a N (ex: 'câmera 1')
+        if 1 <= target_id <= len(cameras):
+            return cameras[target_id - 1]
+            
+    # 2. Busca por padrão ordinal em texto (ex: "câmera 1", "câmera 2", "cam 3")
+    import re
+    ord_match = re.search(r'(?:câmera|camera|cam)\s*(\d+)', ident_str)
+    if ord_match:
+        idx = int(ord_match.group(1))
+        if 1 <= idx <= len(cameras):
+            return cameras[idx - 1]
+            
+    # 3. Busca por correspondência exata de nome (case-insensitive)
+    for cam in cameras:
+        if cam["name"].strip().lower() == ident_str:
+            return cam
+            
+    # 4. Busca por correspondência parcial no nome (ex: "sala" encontra "Câmera da Sala")
+    for cam in cameras:
+        if ident_str in cam["name"].strip().lower() or cam["name"].strip().lower() in ident_str:
+            return cam
+            
+    # Fallback: retorna a câmera padrão
+    for cam in cameras:
+        if cam.get("is_default"):
+            return cam
+    return cameras[0]
+
+def db_save_user_camera(user_email: str, camera_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Cria ou atualiza uma câmera no banco SQLite para o usuário."""
+    clean_email = (user_email or "").strip().lower()
+    cam_id = camera_data.get("id")
+    name = (camera_data.get("name") or "Nova Câmera").strip()
+    cam_type = "ip" if (camera_data.get("camera_type") or "").strip().lower() == "ip" else "device"
+    cam_url = (camera_data.get("camera_ip_url") or "").strip()
+    cam_user = (camera_data.get("camera_username") or "").strip()
+    cam_pwd = (camera_data.get("camera_password") or "").strip()
+    cam_idx = int(camera_data.get("camera_device_index") or 0)
+    is_default = 1 if camera_data.get("is_default") else 0
+    enabled = 1 if camera_data.get("enabled", True) else 0
+    now_iso = datetime.now(timezone.utc).isoformat()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Se for a primeira câmera do usuário ou marcada como padrão
+    cursor.execute("SELECT COUNT(*) as cnt FROM user_cameras WHERE user_email = ?", (clean_email,))
+    existing_cnt = cursor.fetchone()["cnt"]
+    if existing_cnt == 0:
+        is_default = 1
+        
+    if is_default:
+        cursor.execute("UPDATE user_cameras SET is_default = 0 WHERE user_email = ?", (clean_email,))
+        
+    if cam_id:
+        cursor.execute("""
+            UPDATE user_cameras 
+            SET name = ?, camera_type = ?, camera_ip_url = ?, camera_username = ?,
+                camera_password = CASE WHEN ? != '' THEN ? ELSE camera_password END,
+                camera_device_index = ?, is_default = ?, enabled = ?, updated_at = ?
+            WHERE id = ? AND user_email = ?
+        """, (name, cam_type, cam_url, cam_user, cam_pwd, cam_pwd, cam_idx, is_default, enabled, now_iso, int(cam_id), clean_email))
+        target_id = int(cam_id)
+    else:
+        cursor.execute("""
+            INSERT INTO user_cameras (
+                user_email, name, camera_type, camera_ip_url, camera_username, 
+                camera_password, camera_device_index, is_default, enabled, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (clean_email, name, cam_type, cam_url, cam_user, cam_pwd, cam_idx, is_default, enabled, now_iso, now_iso))
+        target_id = cursor.lastrowid
+
+    # Sincroniza com perfil legado se for câmera padrão
+    if is_default:
+        cursor.execute("""
+            UPDATE user_profiles 
+            SET camera_type = ?, camera_ip_url = ?, camera_username = ?, 
+                camera_password = CASE WHEN ? != '' THEN ? ELSE camera_password END,
+                camera_device_index = ?, updated_at = ?
+            WHERE user_email = ?
+        """, (cam_type, cam_url, cam_user, cam_pwd, cam_pwd, cam_idx, now_iso, clean_email))
+
+    conn.commit()
+    conn.close()
+    
+    system_logger.info(f"Câmera salva com sucesso: ID {target_id} ('{name}', tipo: {cam_type}, padrão: {bool(is_default)}) para '{clean_email}'")
+    return db_get_camera_by_id_or_name(clean_email, target_id) or {}
+
+def db_delete_user_camera(user_email: str, camera_id: int) -> bool:
+    """Remove uma câmera pelo ID e reatribui a padrão caso necessário."""
+    clean_email = (user_email or "").strip().lower()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT is_default FROM user_cameras WHERE id = ? AND user_email = ?", (int(camera_id), clean_email))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return False
+        
+    was_default = bool(row["is_default"])
+    cursor.execute("DELETE FROM user_cameras WHERE id = ? AND user_email = ?", (int(camera_id), clean_email))
+    
+    # Se removeu a padrão, elege a primeira câmera restante como nova padrão
+    if was_default:
+        cursor.execute("SELECT id FROM user_cameras WHERE user_email = ? ORDER BY id ASC LIMIT 1", (clean_email,))
+        first_rem = cursor.fetchone()
+        if first_rem:
+            cursor.execute("UPDATE user_cameras SET is_default = 1 WHERE id = ?", (first_rem["id"],))
+            
+    conn.commit()
+    conn.close()
+    system_logger.info(f"Câmera ID {camera_id} excluída para o usuário: {clean_email}")
+    return True
+
+def db_set_default_camera(user_email: str, camera_id: int) -> bool:
+    """Define uma câmera específica como a padrão do usuário."""
+    clean_email = (user_email or "").strip().lower()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT id, camera_type, camera_ip_url, camera_username, camera_password, camera_device_index FROM user_cameras WHERE id = ? AND user_email = ?", (int(camera_id), clean_email))
+    target = cursor.fetchone()
+    if not target:
+        conn.close()
+        return False
+        
+    cursor.execute("UPDATE user_cameras SET is_default = 0 WHERE user_email = ?", (clean_email,))
+    cursor.execute("UPDATE user_cameras SET is_default = 1 WHERE id = ? AND user_email = ?", (int(camera_id), clean_email))
+    
+    # Sincroniza com perfil legado
+    now_iso = datetime.now(timezone.utc).isoformat()
+    cursor.execute("""
+        UPDATE user_profiles 
+        SET camera_type = ?, camera_ip_url = ?, camera_username = ?, camera_password = ?,
+            camera_device_index = ?, updated_at = ?
+        WHERE user_email = ?
+    """, (target["camera_type"], target["camera_ip_url"], target["camera_username"], target["camera_password"], target["camera_device_index"], now_iso, clean_email))
+    
+    conn.commit()
+    conn.close()
+    system_logger.info(f"Câmera ID {camera_id} definida como padrão para: {clean_email}")
+    return True
+
 def db_save_camera_config(
     user_email: str,
     camera_type: str = "device",
@@ -522,69 +801,69 @@ def db_save_camera_config(
     camera_auto_greeting: bool = True,
     camera_device_index: int = 0
 ) -> Dict[str, Any]:
-    """Salva a configuração de câmera (dispositivo local ou IP) do usuário no SQLite."""
+    """Salva a configuração da câmera padrão do usuário no SQLite (retrocompatibilidade)."""
     clean_email = (user_email or "").strip().lower()
-    clean_type = "ip" if (camera_type or "").strip().lower() == "ip" else "device"
-    clean_url = (camera_ip_url or "").strip()
-    clean_user = (camera_username or "").strip()
-    clean_pwd = (camera_password or "").strip()
-    auto_greet = 1 if camera_auto_greeting else 0
-    dev_idx = int(camera_device_index) if str(camera_device_index).isdigit() else 0
-    updated_at = datetime.now(timezone.utc).isoformat()
+    default_cam = db_get_camera_by_id_or_name(clean_email, "padrao")
+    cam_id = default_cam.get("id") if default_cam else None
     
+    data = {
+        "id": cam_id,
+        "name": default_cam.get("name", "Câmera Principal") if default_cam else "Câmera Principal",
+        "camera_type": camera_type,
+        "camera_ip_url": camera_ip_url,
+        "camera_username": camera_username,
+        "camera_password": camera_password,
+        "camera_device_index": camera_device_index,
+        "is_default": 1,
+        "enabled": 1
+    }
+    db_save_user_camera(clean_email, data)
+    
+    # Atualiza flag de auto greeting no perfil
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO user_profiles (
-            user_email, camera_type, camera_ip_url, camera_username, 
-            camera_password, camera_auto_greeting, camera_device_index, updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(user_email) DO UPDATE SET
-            camera_type=excluded.camera_type,
-            camera_ip_url=excluded.camera_ip_url,
-            camera_username=excluded.camera_username,
-            camera_password=excluded.camera_password,
-            camera_auto_greeting=excluded.camera_auto_greeting,
-            camera_device_index=excluded.camera_device_index,
-            updated_at=excluded.updated_at
-    """, (clean_email, clean_type, clean_url, clean_user, clean_pwd, auto_greet, dev_idx, updated_at))
+    c = conn.cursor()
+    c.execute("UPDATE user_profiles SET camera_auto_greeting = ? WHERE user_email = ?", (1 if camera_auto_greeting else 0, clean_email))
     conn.commit()
     conn.close()
-    system_logger.info(f"Configuração de câmera salva para o usuário: {clean_email} (Tipo: {clean_type}, IP: {clean_url})")
+    
     return db_get_camera_config(clean_email)
 
 def db_get_camera_config(user_email: str) -> Dict[str, Any]:
-    """Retorna as configurações de câmera para o usuário."""
+    """Retorna as configurações da câmera padrão para o usuário."""
     clean_email = (user_email or "").strip().lower()
     if clean_email:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT camera_type, camera_ip_url, camera_username, camera_password, 
-                   camera_auto_greeting, camera_device_index 
-            FROM user_profiles WHERE user_email = ?
-        """, (clean_email,))
-        row = cursor.fetchone()
-        conn.close()
-        if row:
+        cam = db_get_camera_by_id_or_name(clean_email, "padrao")
+        if cam:
+            # Obtém flag de auto greeting
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT camera_auto_greeting FROM user_profiles WHERE user_email = ?", (clean_email,))
+            p_row = c.fetchone()
+            conn.close()
+            auto_greet = bool(p_row["camera_auto_greeting"]) if p_row else True
+            
             return {
-                "camera_type": row["camera_type"] or "device",
-                "camera_ip_url": row["camera_ip_url"] or "",
-                "camera_username": row["camera_username"] or "",
-                "camera_password": row["camera_password"] or "",
-                "camera_auto_greeting": bool(row["camera_auto_greeting"]),
-                "camera_device_index": int(row["camera_device_index"] or 0)
+                "id": cam.get("id"),
+                "name": cam.get("name", "Câmera Principal"),
+                "camera_type": cam.get("camera_type", "device"),
+                "camera_ip_url": cam.get("camera_ip_url", ""),
+                "camera_username": cam.get("camera_username", ""),
+                "camera_password": cam.get("camera_password", ""),
+                "camera_auto_greeting": auto_greet,
+                "camera_device_index": cam.get("camera_device_index", 0),
+                "is_default": True
             }
             
     # Fallback para variáveis de ambiente ou padrão
     return {
+        "name": "Câmera Local",
         "camera_type": os.getenv("CAMERA_TYPE", "device"),
         "camera_ip_url": os.getenv("CAMERA_IP_URL", ""),
         "camera_username": os.getenv("CAMERA_USERNAME", ""),
         "camera_password": os.getenv("CAMERA_PASSWORD", ""),
         "camera_auto_greeting": True,
-        "camera_device_index": int(os.getenv("CAMERA_DEVICE_INDEX", "0"))
+        "camera_device_index": int(os.getenv("CAMERA_DEVICE_INDEX", "0")),
+        "is_default": True
     }
 
 

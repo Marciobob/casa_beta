@@ -388,10 +388,10 @@ Suas capacidades e ferramentas disponíveis:
    - 'responder_email': Use para responder a um e-mail recebido (mantendo o assunto com Re: e o destinatário correto).
    - 'apagar_email': Use quando o usuário pedir expressamente para apagar ou mover um e-mail para a lixeira.
 7. VISÃO COMPUTACIONAL, CÂMERA & RECONHECIMENTO DE MORADORES:
-   - 'ver_camera': Use sempre que o usuário pedir para você olhar a câmera, ver o que está no ambiente, o que tem na mesa, descrever o cômodo ou responder a uma pergunta visual.
-   - 'detectar_e_cumprimentar_pessoas': Use quando o usuário perguntar se tem alguém na sala, quem está no ambiente ou pedir para você identificar e cumprimentar quem chegou no local. O sistema compara a pessoa filmada com as fotos de perfil dos moradores cadastrados para cumprimentar o morador pelo nome ou tratar como visitante.
-   - 'identificar_morador_ou_visitante': Use especificamente quando o usuário perguntar se a pessoa na câmera é um morador oficial da casa ou um visitante, ou perguntar quem está no cômodo e se a pessoa possui cadastro.
-   - 'status_camera': Use quando o usuário perguntar se a câmera está funcionando ou qual tipo de câmera está configurada.
+   - 'ver_camera': Use sempre que o usuário pedir para você olhar a câmera, ver o que está no ambiente, o que tem na mesa, descrever o cômodo ou responder a uma pergunta visual. Aceita o parâmetro 'camera' (ex: 'sala', 'garagem', 'câmera 1', 'todas') para inspecionar uma câmera específica ou todas as câmeras cadastradas. Deixe vazio para a câmera padrão.
+   - 'detectar_e_cumprimentar_pessoas': Use quando o usuário perguntar se tem alguém na sala/ambiente, quem está no ambiente ou pedir para identificar e cumprimentar quem chegou. Aceita o parâmetro 'camera'. Compara a pessoa filmada com as fotos dos moradores cadastrados.
+   - 'identificar_morador_ou_visitante': Use especificamente quando o usuário perguntar se a pessoa na câmera é um morador oficial da casa ou um visitante, ou perguntar quem está no cômodo. Aceita o parâmetro 'camera'.
+   - 'status_camera': Use quando o usuário perguntar se as câmeras estão funcionando, quais câmeras estão configuradas ou o estado de uma câmera específica. Aceita o parâmetro 'camera'.
 8. TELEGRAM & NOTIFICAÇÕES EXTERNAS:
    - 'enviar_mensagem_telegram': Use quando o usuário pedir para enviar um aviso, mensagem ou notificação externa para o Telegram dele (ex: "Me envie uma mensagem no Telegram avisando disso").
    - 'enviar_foto_telegram': Use quando o usuário pedir para capturar a câmera e enviar a foto diretamente no Telegram dele.

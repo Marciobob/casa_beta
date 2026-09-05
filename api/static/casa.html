@@ -492,78 +492,114 @@
                     </div>
                 </div>
 
-                <!-- SEÇÃO CÂMERA DO SISTEMA & CÂMERA IP -->
+                <!-- SEÇÃO CÂMERA DO SISTEMA & MÚLTIPLAS CÂMERAS IP -->
                 <div class="pt-3 border-t border-zinc-800">
                     <div class="flex items-center justify-between mb-2">
-                        <label class="block text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                            <span>📷</span> Câmera (Local / IP) & Visão Computacional
-                        </label>
-                        <button type="button" id="testCameraBtn" onclick="testCameraConnectionFromModal()"
-                            class="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1 bg-cyan-950/60 px-2.5 py-1 rounded-lg border border-cyan-500/30">
-                            🧪 Testar Câmera
+                        <div>
+                            <label class="block text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                                <span>📷</span> Câmeras & Visão Computacional
+                            </label>
+                            <div class="text-[10px] text-zinc-400">Configure sua câmera local e múltiplas câmeras IP (ESP32-CAM, RTSP, HTTP)</div>
+                        </div>
+                        <button type="button" id="addNewCameraBtn" onclick="toggleAddCameraForm(true)"
+                            class="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1 bg-cyan-950/60 px-2.5 py-1 rounded-lg border border-cyan-500/30 hover:border-cyan-500/60">
+                            ➕ Adicionar Câmera
                         </button>
                     </div>
-                    <div class="space-y-3">
+
+                    <!-- Lista de Câmeras Cadastradas -->
+                    <div id="modalCamerasList" class="space-y-2 mb-3">
+                        <div class="text-xs text-zinc-500 text-center py-2">Carregando câmeras...</div>
+                    </div>
+
+                    <!-- Formulário de Adicionar / Editar Câmera -->
+                    <div id="cameraFormContainer" class="hidden bg-zinc-950/80 p-3.5 rounded-2xl border border-cyan-500/30 space-y-3 mb-3">
+                        <div class="flex items-center justify-between">
+                            <span id="cameraFormTitle" class="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                                📹 Adicionar Nova Câmera
+                            </span>
+                            <button type="button" onclick="toggleAddCameraForm(false)" class="text-zinc-400 hover:text-white text-xs">✕ Fechar</button>
+                        </div>
+                        <input type="hidden" id="modalCameraEditId" value="">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Nome / Local da Câmera</label>
+                            <input id="modalCameraNameInput" type="text" placeholder="ex: Câmera da Sala, Garagem, Entrada"
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500 font-medium text-white">
+                        </div>
                         <div>
                             <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Tipo de Câmera</label>
                             <select id="modalCameraTypeSelect" onchange="handleCameraTypeChange()"
-                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-medium text-white">
-                                <option value="device">💻 Câmera do Dispositivo (Webcam Local)</option>
-                                <option value="ip">🌐 Câmera IP (RTSP / HTTP MJPEG)</option>
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500 font-medium text-white">
+                                <option value="ip">🌐 Câmera IP (ESP32-CAM / RTSP / HTTP MJPEG / Snapshot)</option>
+                                <option value="device">💻 Câmera do Dispositivo (Webcam Local / USB)</option>
                             </select>
                         </div>
 
-                        <!-- Campos específicos para Câmera IP -->
-                        <div id="ipCameraFields"
-                            class="hidden space-y-2.5 bg-zinc-950/50 p-3 rounded-2xl border border-zinc-800">
+                        <!-- Campos para Câmera IP -->
+                        <div id="ipCameraFields" class="space-y-2 bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-800">
                             <div>
-                                <label class="block text-[11px] font-semibold text-zinc-400 mb-1">URL da Câmera IP (RTSP
-                                    ou HTTP)</label>
+                                <label class="block text-[10px] font-semibold text-zinc-400 mb-1">URL da Câmera IP (Snapshot / Stream / RTSP)</label>
                                 <input id="modalCameraIpUrlInput" type="text"
-                                    placeholder="ex: rtsp://192.168.1.100:554/stream1 ou http://192.168.1.50/snapshot.jpg"
-                                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-indigo-500 font-mono text-white">
+                                    placeholder="ex: http://192.168.1.14/snapshot ou rtsp://192.168.1.50:554/stream"
+                                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500 font-mono text-white">
                             </div>
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label class="block text-[10px] font-semibold text-zinc-400 mb-1">Usuário
-                                        (Opcional)</label>
+                                    <label class="block text-[10px] font-semibold text-zinc-400 mb-1">Usuário (Opcional)</label>
                                     <input id="modalCameraUserInput" type="text" placeholder="admin"
-                                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500 font-mono text-white">
+                                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500 font-mono text-white">
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] font-semibold text-zinc-400 mb-1">Senha
-                                        (Opcional)</label>
+                                    <label class="block text-[10px] font-semibold text-zinc-400 mb-1">Senha (Opcional)</label>
                                     <input id="modalCameraPwdInput" type="password" placeholder="senha"
-                                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500 font-mono text-white">
+                                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500 font-mono text-white">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Opção de Cumprimento Automático de Pessoas -->
-                        <div class="flex items-center justify-between pt-1">
+                        <!-- Campos para Câmera Local -->
+                        <div id="deviceCameraFields" class="hidden space-y-2 bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-800">
                             <div>
-                                <div class="text-xs font-semibold text-zinc-300">👋 Cumprimentar Pessoas Automaticamente
-                                </div>
-                                <div class="text-[10px] text-zinc-500">O agente avisa e cumprimenta ao identificar
-                                    alguém no ambiente</div>
+                                <label class="block text-[10px] font-semibold text-zinc-400 mb-1">Índice do Dispositivo (/dev/video)</label>
+                                <input id="modalCameraDeviceIndexInput" type="number" min="0" max="10" value="0"
+                                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500 font-mono text-white">
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="modalCameraAutoGreetCheckbox" checked class="sr-only peer">
-                                <div
-                                    class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600">
-                                </div>
-                            </label>
                         </div>
 
-                        <!-- Preview de Teste de Câmera -->
-                        <div id="cameraTestStatusResult" class="text-xs hidden p-3 rounded-xl border"></div>
-                        <div id="cameraPreviewContainer"
-                            class="hidden rounded-2xl overflow-hidden border border-zinc-700 relative bg-black aspect-video max-h-48 flex items-center justify-center">
-                            <img id="cameraPreviewImg" class="w-full h-full object-contain" alt="Preview da Câmera">
-                            <div
-                                class="absolute bottom-2 left-2 bg-black/70 px-2 py-0.5 rounded text-[10px] font-mono text-emerald-400">
-                                🟢 Snapshot Capturado
-                            </div>
+                        <div class="flex items-center gap-2 pt-1">
+                            <input type="checkbox" id="modalCameraIsDefaultCheckbox" class="rounded bg-zinc-800 border-zinc-700 text-cyan-600 focus:ring-cyan-500">
+                            <label for="modalCameraIsDefaultCheckbox" class="text-xs text-zinc-300 select-none">Definir esta câmera como Câmera Principal (Padrão ⭐)</label>
+                        </div>
+
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="button" onclick="testFormCamera()" class="flex-1 bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/40 font-bold py-1.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1">
+                                🧪 Testar Conexão
+                            </button>
+                            <button type="button" onclick="saveCameraFromModal()" class="flex-1 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold py-1.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1 shadow-lg shadow-cyan-950/50">
+                                💾 Salvar Câmera
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Opção de Cumprimento Automático de Pessoas -->
+                    <div class="flex items-center justify-between pt-1">
+                        <div>
+                            <div class="text-xs font-semibold text-zinc-300">👋 Cumprimentar Pessoas Automaticamente</div>
+                            <div class="text-[10px] text-zinc-500">O agente avisa e cumprimenta ao identificar alguém no ambiente</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="modalCameraAutoGreetCheckbox" checked class="sr-only peer">
+                            <div class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- Preview de Teste de Câmera -->
+                    <div id="cameraTestStatusResult" class="text-xs hidden p-3 rounded-xl border mt-2"></div>
+                    <div id="cameraPreviewContainer"
+                        class="hidden rounded-2xl overflow-hidden border border-zinc-700 relative bg-black aspect-video max-h-48 flex items-center justify-center mt-2">
+                        <img id="cameraPreviewImg" class="w-full h-full object-contain" alt="Preview da Câmera">
+                        <div class="absolute bottom-2 left-2 bg-black/70 px-2 py-0.5 rounded text-[10px] font-mono text-emerald-400">
+                            🟢 Snapshot Capturado
                         </div>
                     </div>
                 </div>
@@ -1184,23 +1220,17 @@
                 console.warn("Erro ao buscar credenciais Google:", err);
             }
 
-            // Carrega configurações de Câmera do banco de dados
+            // Carrega configurações de Câmera e Lista Multi-Câmeras do banco de dados
             try {
                 const token = getAuthToken();
                 if (token) {
+                    await loadUserCamerasToModal();
                     const camRes = await fetch("/api/user/camera-config", {
                         headers: { "Authorization": `Bearer ${token}` }
                     });
                     if (camRes.ok) {
                         const camData = await camRes.json();
-                        if (camTypeSelect) camTypeSelect.value = camData.camera_type || "device";
-                        if (camIpInput) camIpInput.value = camData.camera_ip_url || "";
-                        if (camUserInput) camUserInput.value = camData.camera_username || "";
-                        if (camPwdInput && !camPwdInput.value && camData.masked_password) {
-                            camPwdInput.placeholder = "Senha salva (preencha para alterar)";
-                        }
                         if (camAutoGreet) camAutoGreet.checked = (camData.camera_auto_greeting !== false);
-                        handleCameraTypeChange();
                     }
                 }
             } catch (err) {
@@ -1411,23 +1441,302 @@
             }
         }
 
-        async function testCameraConnectionFromModal() {
+        let _userCamerasCache = [];
+
+        function handleCameraTypeChange() {
+            const select = document.getElementById("modalCameraTypeSelect");
+            const ipFields = document.getElementById("ipCameraFields");
+            const devFields = document.getElementById("deviceCameraFields");
+            if (!select) return;
+            const isIp = select.value === "ip";
+            if (ipFields) ipFields.classList.toggle("hidden", !isIp);
+            if (devFields) devFields.classList.toggle("hidden", isIp);
+        }
+
+        function toggleAddCameraForm(show, clearForm = true) {
+            const container = document.getElementById("cameraFormContainer");
+            const title = document.getElementById("cameraFormTitle");
+            if (!container) return;
+            if (show) {
+                container.classList.remove("hidden");
+                if (clearForm) {
+                    if (title) title.innerHTML = "📹 Adicionar Nova Câmera";
+                    document.getElementById("modalCameraEditId").value = "";
+                    document.getElementById("modalCameraNameInput").value = "";
+                    document.getElementById("modalCameraTypeSelect").value = "ip";
+                    document.getElementById("modalCameraIpUrlInput").value = "";
+                    document.getElementById("modalCameraUserInput").value = "";
+                    document.getElementById("modalCameraPwdInput").value = "";
+                    document.getElementById("modalCameraPwdInput").placeholder = "senha";
+                    if (document.getElementById("modalCameraDeviceIndexInput")) {
+                        document.getElementById("modalCameraDeviceIndexInput").value = "0";
+                    }
+                    document.getElementById("modalCameraIsDefaultCheckbox").checked = false;
+                    handleCameraTypeChange();
+                }
+            } else {
+                container.classList.add("hidden");
+            }
+        }
+
+        async function loadUserCamerasToModal() {
+            const listEl = document.getElementById("modalCamerasList");
+            if (!listEl) return;
+            const token = getAuthToken();
+            if (!token) return;
+
+            try {
+                const res = await fetch("/api/user/cameras", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    _userCamerasCache = data.cameras || [];
+                    renderCamerasList(_userCamerasCache);
+                }
+            } catch (err) {
+                console.warn("Erro ao carregar lista de câmeras:", err);
+                listEl.innerHTML = `<div class="text-xs text-red-400 py-1">Erro ao listar câmeras: ${err.message}</div>`;
+            }
+        }
+
+        function renderCamerasList(cameras) {
+            const listEl = document.getElementById("modalCamerasList");
+            if (!listEl) return;
+            if (!cameras || cameras.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-xs text-zinc-400 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800 text-center">
+                        Nenhuma câmera cadastrada ainda. Clique em <strong>➕ Adicionar Câmera</strong> acima.
+                    </div>
+                `;
+                return;
+            }
+
+            let html = "";
+            cameras.forEach(cam => {
+                const isDef = cam.is_default;
+                const isIp = cam.camera_type === "ip";
+                const typeBadge = isIp 
+                    ? `<span class="bg-cyan-950/80 text-cyan-300 border border-cyan-500/30 text-[10px] px-2 py-0.5 rounded-full font-mono">🌐 IP</span>`
+                    : `<span class="bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px] px-2 py-0.5 rounded-full font-mono">💻 Local</span>`;
+                const defBadge = isDef
+                    ? `<span class="bg-amber-950/80 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-0.5">⭐ Padrão</span>`
+                    : "";
+                const detailText = isIp 
+                    ? (cam.camera_ip_url || "Sem URL configurada")
+                    : `Dispositivo índice: ${cam.camera_device_index || 0}`;
+
+                html += `
+                    <div class="bg-zinc-900/80 border ${isDef ? 'border-cyan-500/50 shadow-sm shadow-cyan-500/10' : 'border-zinc-800'} p-2.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition hover:border-zinc-700">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                <span class="font-bold text-xs text-white truncate">${escapeHtml(cam.name)}</span>
+                                ${defBadge}
+                                ${typeBadge}
+                            </div>
+                            <div class="text-[10px] text-zinc-400 font-mono truncate" title="${escapeHtml(detailText)}">
+                                ${escapeHtml(detailText)}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                            <button type="button" onclick="testSpecificCamera(${cam.id})"
+                                class="bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/30 px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1"
+                                title="Testar captura ao vivo">
+                                🧪 Testar
+                            </button>
+                            ${!isDef ? `
+                            <button type="button" onclick="setDefaultCamera(${cam.id})"
+                                class="bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-zinc-700 px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1"
+                                title="Tornar esta câmera a principal">
+                                ⭐ Padrão
+                            </button>
+                            ` : ''}
+                            <button type="button" onclick="editCameraInModal(${cam.id})"
+                                class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 p-1.5 rounded-lg text-xs transition"
+                                title="Editar configurações">
+                                ✏️
+                            </button>
+                            ${cameras.length > 1 ? `
+                            <button type="button" onclick="deleteCameraFromModal(${cam.id}, '${escapeHtml(cam.name)}')"
+                                class="bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/30 p-1.5 rounded-lg text-xs transition"
+                                title="Excluir câmera">
+                                🗑️
+                            </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            listEl.innerHTML = html;
+        }
+
+        function editCameraInModal(camId) {
+            const cam = _userCamerasCache.find(c => c.id === camId);
+            if (!cam) return;
+            toggleAddCameraForm(true, false);
+            const title = document.getElementById("cameraFormTitle");
+            if (title) title.innerHTML = `✏️ Editar: ${escapeHtml(cam.name)}`;
+            document.getElementById("modalCameraEditId").value = cam.id;
+            document.getElementById("modalCameraNameInput").value = cam.name || "";
+            document.getElementById("modalCameraTypeSelect").value = cam.camera_type || "device";
+            document.getElementById("modalCameraIpUrlInput").value = cam.camera_ip_url || "";
+            document.getElementById("modalCameraUserInput").value = cam.camera_username || "";
+            document.getElementById("modalCameraPwdInput").value = "";
+            document.getElementById("modalCameraPwdInput").placeholder = cam.has_password ? "Senha salva (preencha para alterar)" : "senha";
+            if (document.getElementById("modalCameraDeviceIndexInput")) {
+                document.getElementById("modalCameraDeviceIndexInput").value = cam.camera_device_index || 0;
+            }
+            document.getElementById("modalCameraIsDefaultCheckbox").checked = Boolean(cam.is_default);
+            handleCameraTypeChange();
+        }
+
+        async function saveCameraFromModal() {
+            const token = getAuthToken();
+            if (!token) return;
+
+            const camId = document.getElementById("modalCameraEditId")?.value;
+            const name = document.getElementById("modalCameraNameInput")?.value.trim() || "Câmera";
             const camType = document.getElementById("modalCameraTypeSelect")?.value || "device";
             const camIpUrl = document.getElementById("modalCameraIpUrlInput")?.value.trim() || "";
             const camUser = document.getElementById("modalCameraUserInput")?.value.trim() || "";
             const camPwd = document.getElementById("modalCameraPwdInput")?.value.trim() || "";
-            const autoGreet = document.getElementById("modalCameraAutoGreetCheckbox")?.checked;
+            const devIdx = parseInt(document.getElementById("modalCameraDeviceIndexInput")?.value || "0", 10);
+            const isDef = document.getElementById("modalCameraIsDefaultCheckbox")?.checked;
 
-            const testBtn = document.getElementById("testCameraBtn");
+            const payload = {
+                name: name,
+                camera_type: camType,
+                camera_ip_url: camIpUrl,
+                camera_username: camUser,
+                camera_password: camPwd,
+                camera_device_index: devIdx,
+                is_default: isDef,
+                enabled: true
+            };
+
+            try {
+                const url = camId ? `/api/user/cameras/${camId}` : `/api/user/cameras`;
+                const method = camId ? "PUT" : "POST";
+                const res = await fetch(url, {
+                    method: method,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok && data.status === "success") {
+                    showToast(data.message || "Câmera salva com sucesso!", "success");
+                    toggleAddCameraForm(false);
+                    await loadUserCamerasToModal();
+                } else {
+                    showToast(data.detail || data.message || "Erro ao salvar câmera.", "error");
+                }
+            } catch (err) {
+                showToast(`Erro ao salvar câmera: ${err.message}`, "error");
+            }
+        }
+
+        async function setDefaultCamera(camId) {
+            const token = getAuthToken();
+            if (!token) return;
+            try {
+                const res = await fetch(`/api/user/cameras/${camId}/set-default`, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    showToast("Câmera definida como principal!", "success");
+                    await loadUserCamerasToModal();
+                }
+            } catch (err) {
+                showToast(`Erro ao definir câmera padrão: ${err.message}`, "error");
+            }
+        }
+
+        async function deleteCameraFromModal(camId, camName) {
+            if (!confirm(`Deseja realmente excluir a câmera '${camName}'?`)) return;
+            const token = getAuthToken();
+            if (!token) return;
+            try {
+                const res = await fetch(`/api/user/cameras/${camId}`, {
+                    method: "DELETE",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    showToast("Câmera excluída com sucesso!", "success");
+                    await loadUserCamerasToModal();
+                }
+            } catch (err) {
+                showToast(`Erro ao excluir câmera: ${err.message}`, "error");
+            }
+        }
+
+        async function testSpecificCamera(camId) {
             const statusBox = document.getElementById("cameraTestStatusResult");
             const previewContainer = document.getElementById("cameraPreviewContainer");
             const previewImg = document.getElementById("cameraPreviewImg");
 
             if (!statusBox) return;
             statusBox.classList.remove("hidden");
-            statusBox.className = "text-xs p-3 rounded-xl border bg-zinc-800/80 border-zinc-700 text-zinc-300 flex items-center gap-2";
+            statusBox.className = "text-xs p-3 rounded-xl border bg-zinc-800/80 border-zinc-700 text-zinc-300 flex items-center gap-2 mt-2";
+            statusBox.innerHTML = `<span class="animate-spin">⏳</span> <span>Conectando e capturando imagem da câmera...</span>`;
+
+            try {
+                const token = getAuthToken();
+                const res = await fetch("/api/user/cameras/test", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ id: camId })
+                });
+                const data = await res.json();
+                if (data.success && data.snapshot_base64) {
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-emerald-950/40 border-emerald-500/50 text-emerald-300 mt-2";
+                    statusBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-emerald-400">
+                            <span>✅</span> <span>Câmera Conectada e Operacional!</span>
+                        </div>
+                        <div class="text-[11px] text-zinc-300">${data.message}</div>
+                    `;
+                    if (previewContainer && previewImg) {
+                        previewImg.src = data.snapshot_base64;
+                        previewContainer.classList.remove("hidden");
+                    }
+                } else {
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300 mt-2";
+                    statusBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-red-400">
+                            <span>❌</span> <span>Erro ao Conectar à Câmera</span>
+                        </div>
+                        <div class="text-[11px] text-zinc-300">${data.message || "Não foi possível obter imagem da câmera."}</div>
+                    `;
+                    if (previewContainer) previewContainer.classList.add("hidden");
+                }
+            } catch (err) {
+                statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300 mt-2";
+                statusBox.innerHTML = `<span>Erro ao testar câmera: ${err.message}</span>`;
+            }
+        }
+
+        async function testFormCamera() {
+            const camType = document.getElementById("modalCameraTypeSelect")?.value || "device";
+            const camIpUrl = document.getElementById("modalCameraIpUrlInput")?.value.trim() || "";
+            const camUser = document.getElementById("modalCameraUserInput")?.value.trim() || "";
+            const camPwd = document.getElementById("modalCameraPwdInput")?.value.trim() || "";
+            const devIdx = parseInt(document.getElementById("modalCameraDeviceIndexInput")?.value || "0", 10);
+
+            const statusBox = document.getElementById("cameraTestStatusResult");
+            const previewContainer = document.getElementById("cameraPreviewContainer");
+            const previewImg = document.getElementById("cameraPreviewImg");
+
+            if (!statusBox) return;
+            statusBox.classList.remove("hidden");
+            statusBox.className = "text-xs p-3 rounded-xl border bg-zinc-800/80 border-zinc-700 text-zinc-300 flex items-center gap-2 mt-2";
             statusBox.innerHTML = `<span class="animate-spin">⏳</span> <span>Testando captura da ${camType === 'ip' ? 'Câmera IP' : 'Câmera Local'}...</span>`;
-            if (testBtn) testBtn.disabled = true;
 
             if (camType === "device") {
                 await captureBrowserWebcamSnapshot();
@@ -1435,7 +1744,7 @@
 
             try {
                 const token = getAuthToken();
-                const res = await fetch("/api/user/camera-config/test", {
+                const res = await fetch("/api/user/cameras/test", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -1446,13 +1755,13 @@
                         camera_ip_url: camIpUrl,
                         camera_username: camUser,
                         camera_password: camPwd,
-                        camera_auto_greeting: autoGreet
+                        camera_device_index: devIdx
                     })
                 });
 
                 const data = await res.json();
                 if (data.success && data.snapshot_base64) {
-                    statusBox.className = "text-xs p-3 rounded-xl border bg-emerald-950/40 border-emerald-500/50 text-emerald-300";
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-emerald-950/40 border-emerald-500/50 text-emerald-300 mt-2";
                     statusBox.innerHTML = `
                         <div class="font-bold flex items-center gap-1.5 mb-1 text-emerald-400">
                             <span>✅</span> <span>Câmera Conectada e Operacional!</span>
@@ -1465,7 +1774,7 @@
                     }
                     speakResponse("Câmera conectada e operacional.");
                 } else {
-                    statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300 mt-2";
                     statusBox.innerHTML = `
                         <div class="font-bold flex items-center gap-1.5 mb-1 text-red-400">
                             <span>❌</span> <span>Erro ao Conectar à Câmera</span>
@@ -1476,12 +1785,14 @@
                     speakResponse("Erro ao conectar à câmera.");
                 }
             } catch (err) {
-                statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
+                statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300 mt-2";
                 statusBox.innerHTML = `<span>Erro ao testar câmera: ${err.message}</span>`;
                 speakResponse("Erro ao testar a câmera.");
-            } finally {
-                if (testBtn) testBtn.disabled = false;
             }
+        }
+
+        async function testCameraConnectionFromModal() {
+            await testFormCamera();
         }
 
         async function saveVoiceApiKeyFromModal() {
