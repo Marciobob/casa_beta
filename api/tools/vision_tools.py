@@ -255,7 +255,11 @@ def _fetch_ip_camera_snapshot(
     return None, f"Não foi possível obter imagem da Câmera IP no endereço '{raw_url}'."
 
 
-def capture_camera_frame(config: Optional[Dict[str, Any]] = None, camera_identifier: Optional[Any] = None) -> Tuple[Optional[bytes], Optional[str]]:
+def capture_camera_frame(
+    config: Optional[Dict[str, Any]] = None,
+    camera_identifier: Optional[Any] = None,
+    timeout: float = 4.0
+) -> Tuple[Optional[bytes], Optional[str]]:
     """
     Captura um quadro (frame JPEG) da câmera solicitada ou da câmera padrão do usuário.
     Retorna (bytes_jpeg, mensagem_erro).
@@ -279,7 +283,7 @@ def capture_camera_frame(config: Optional[Dict[str, Any]] = None, camera_identif
         ip_url = (cfg.get("camera_ip_url") or "").strip()
         username = (cfg.get("camera_username") or "").strip()
         password = (cfg.get("camera_password") or "").strip()
-        return _fetch_ip_camera_snapshot(ip_url, username, password)
+        return _fetch_ip_camera_snapshot(ip_url, username, password, timeout=timeout)
 
     # 2. CÂMERA DO DISPOSITIVO (WEBCAM LOCAL / BROWSER WEBCAM)
     device_index = int(cfg.get("camera_device_index", 0))

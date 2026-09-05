@@ -8,7 +8,7 @@ import base64
 import edge_tts
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from fastapi import FastAPI, HTTPException, Depends, Header, status
+from fastapi import FastAPI, HTTPException, Depends, Header, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
@@ -163,23 +163,28 @@ class ChatResponse(BaseModel):
 # DEPENDÊNCIA DE AUTENTICAÇÃO JWT
 # =========================================================================
 
-def get_current_user_token(authorization: Optional[str] = Header(None)):
-    """Valida o cabeçalho Authorization: Bearer <token>."""
-    if not authorization:
+def get_current_user_token(
+    authorization: Optional[str] = Header(None),
+    token: Optional[str] = Query(None)
+):
+    """Valida o cabeçalho Authorization: Bearer <token> ou parâmetro query ?token=<token>."""
+    jwt_token = None
+    if authorization:
+        parts = authorization.split()
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            jwt_token = parts[1]
+        elif len(parts) == 1:
+            jwt_token = parts[0]
+    elif token:
+        jwt_token = token
+        
+    if not jwt_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token JWT ausente. Faça login para acessar este recurso."
         )
     
-    parts = authorization.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Formato de token inválido. Use 'Bearer <token>'."
-        )
-        
-    token = parts[1]
-    payload = decode_access_token(token)
+    payload = decode_access_token(jwt_token)
     if not payload or "sub" not in payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1092,6 +1097,78 @@ def test_camera_endpoint(
             "message": err or "Não foi possível obter imagem da câmera.",
             "snapshot_base64": None
         }
+
+@app.get("/api/user/cameras/{camera_id}/snapshot")
+def get_camera_snapshot_endpoint(
+    camera_id: str,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    """Retorna um quadro JPEG direto da câmera especificada (suporta auth via Header ou ?token=...)."""
+    user_email = token_payload.get("sub", "")
+    cam = db_get_camera_by_id_or_name(user_email, camera_id)
+    if not cam:
+        raise HTTPException(status_code=404, detail="Câmera não encontrada.")
+    
+    frame_bytes, err = capture_camera_frame(cam, timeout=3.5)
+    if not frame_bytes:
+        raise HTTPException(status_code=502, detail=err or "Falha ao capturar imagem da câmera.")
+    
+    return Response(
+        content=frame_bytes,
+        media_type="image/jpeg",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
+
+@app.get("/api/user/cameras/{camera_id}/stream")
+async def get_camera_stream_endpoint(
+    camera_id: str,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    """Retorna um stream contínuo de vídeo MJPEG (multipart/x-mixed-replace) da câmera especificada."""
+    user_email = token_payload.get("sub", "")
+    cam = db_get_camera_by_id_or_name(user_email, camera_id)
+    if not cam:
+        raise HTTPException(status_code=404, detail="Câmera não encontrada.")
+
+    async def mjpeg_generator():
+        consecutive_errors = 0
+        while True:
+            try:
+                frame_bytes, err = await asyncio.to_thread(capture_camera_frame, cam, 3.0)
+                if frame_bytes:
+                    consecutive_errors = 0
+                    yield (
+                        b"--frame\r\n"
+                        b"Content-Type: image/jpeg\r\n"
+                        b"Content-Length: " + str(len(frame_bytes)).encode("ascii") + b"\r\n\r\n" +
+                        frame_bytes +
+                        b"\r\n"
+                    )
+                    await asyncio.sleep(0.12) # ~8 FPS
+                else:
+                    consecutive_errors += 1
+                    if consecutive_errors > 10:
+                        await asyncio.sleep(2.0)
+                    else:
+                        await asyncio.sleep(0.5)
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                await asyncio.sleep(1.0)
+
+    return StreamingResponse(
+        mjpeg_generator(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
 
 @app.get("/api/user/camera-config")
 def get_user_camera_config_endpoint(token_payload: dict = Depends(get_current_user_token)):
