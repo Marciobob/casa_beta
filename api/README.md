@@ -98,6 +98,9 @@ O **Casa Beta** é uma solução inteligente e modular desenvolvida sobre **Fast
 
 | Ferramenta | Descrição |
 |---|---|
+| `consultar_agente_antigravity` | Consulta o Agente Especialista Antigravity para dúvidas técnicas avançadas, código, arquitetura e diagnósticos. |
+| `executar_comando_antigravity` | Executa comandos shell/bash na máquina física e retorna saída real (stdout/stderr) e código de retorno. |
+| `perguntar_e_executar_antigravity` | Delega tarefas técnicas complexas ao motor Antigravity para análise e execução no computador. |
 | `gravar_memoria_longo_prazo` | Grava autonomamente preferências, hábitos, gostos e regras do usuário no SQLite. |
 | `consultar_memorias_longo_prazo` | Pesquisa na base de memórias consolidadas por termos ou categorias. |
 | `listar_todas_memorias` | Lista tudo o que o assistente sabe e lembra sobre o usuário. |
@@ -129,10 +132,10 @@ O **Casa Beta** é uma solução inteligente e modular desenvolvida sobre **Fast
 ## 💻 Tecnologias Utilizadas
 
 - **Backend**: Python 3.10+, FastAPI, Uvicorn, Pydantic, Python-Jose (JWT), Passlib/Bcrypt.
-- **IA & LLM**: LangChain, Google Generative AI (`gemini-2.5-flash-lite`), OpenAI (`gpt-4o-mini`).
-- **Áudio & Vídeo**: `edge-tts` (Microsoft Neural Voices), `yt-dlp`, `ffplay` (FFmpeg), `youtube-transcript-api`, OpenCV (`cv2`).
+- **IA & LLM**: LangChain, Google Antigravity SDK (`google-antigravity`), Google Generative AI (`gemini-2.5-flash-lite`), OpenAI (`gpt-4o-mini`).
+- **Áudio & Vídeo**: `edge-tts` (Microsoft Neural Voices), `yt-dlp`, `mpv`, `ffplay` (FFmpeg), `youtube-transcript-api`, OpenCV (`cv2`).
 - **Protocolos & IoT**: Paho-MQTT, CalDAV, IMAP4/SMTP SSL.
-- **Frontend**: HTML5, Tailwind CSS, JavaScript Vanilla ES6+, Three.js (Painel 3D), Web Speech API.
+- **Frontend**: HTML5, Tailwind CSS, JavaScript Vanilla ES6+, Web Speech API.
 - **Banco de Dados**: SQLite com isolamento relacional por usuário (`smarthome.db`).
 
 ---
@@ -153,14 +156,15 @@ casa_beta/api/
 ├── .env.example             # Modelo de variáveis de ambiente
 ├── smarthome.db             # Banco de dados local SQLite
 ├── static/                  # Interfaces web e assets
-│   ├── index.html           # Painel Principal e Terminal do Agente
-│   ├── casa.html            # Dashboard 3D da Casa Inteligente
+│   ├── index.html           # Painel Principal, Câmeras ao Vivo e Terminal do Agente
+│   ├── casa.html            # Dashboard de Controle dos Cômodos e Câmeras
 │   ├── login.html           # Tela de autenticação e registro
 │   ├── profile.html         # Gestão de Moradores e Reconhecimento Facial
 │   ├── config/              # Central Unificada de Configurações
 │   │   └── config.html      # Tela de configurações com permissões de sistema
 │   └── guide_modal.js       # Guia visual interativo do sistema
 └── tools/                   # Ferramentas modulares do Agente LangChain
+    ├── antigravity_tools.py # Integração com Google Antigravity SDK & Comandos Shell
     ├── memory_tools.py      # Memória de longo prazo e aprendizado contínuo
     ├── music_tools.py       # Player de áudio e streaming nos alto-falantes
     ├── system_tools.py      # Controle de volume, brilho e navegador do sistema
@@ -181,11 +185,37 @@ casa_beta/api/
 
 ---
 
+## 📦 Dependências do Sistema Operacional (Pacotes Externos APT)
+
+Para que todos os módulos de **áudio/música**, **visão computacional**, **controle de hardware** e **Antigravity** funcionem perfeitamente em um novo servidor Linux (Ubuntu/Debian), execute o comando abaixo para instalar as dependências do sistema operacional:
+
+```bash
+sudo apt update && sudo apt install -y \
+    python3 python3-pip python3-venv git curl \
+    ffmpeg mpv alsa-utils pulseaudio-utils brightnessctl \
+    libgl1 libglib2.0-0 v4l-utils
+```
+
+### 🔍 Por que cada pacote é necessário?
+1. **Áudio & Player nos Alto-falantes**:
+   - `ffmpeg` / `ffplay`: Transcodificação de áudio, reprodução de fluxos e conversão de formatos de voz.
+   - `mpv`: Player de áudio leve para streaming contínuo de músicas e rádio do YouTube em segundo plano.
+   - `alsa-utils` & `pulseaudio-utils`: Fornecem as ferramentas `amixer` e `pactl` usadas pelo agente para controlar o volume e mutar o som do computador.
+2. **Visão Computacional & Câmeras**:
+   - `libgl1` e `libglib2.0-0`: Bibliotecas gráficas essenciais para o OpenCV (`cv2`) rodar em servidores Linux sem interface gráfica.
+   - `v4l-utils`: Ferramenta Video4Linux para listar e gerenciar webcams USB locais (`v4l2-ctl`).
+3. **Controle de Hardware**:
+   - `brightnessctl`: Utilitário para ajuste percentual do brilho da tela e monitores conectados.
+4. **Google Antigravity Engine**:
+   - `git` e `curl`: Necessários para clonagem, integração com ferramentas de desenvolvimento e chamadas de API do ecossistema Antigravity.
+
+---
+
 ## 🚀 Instalação e Execução Local
 
 ### 1. Pré-requisitos
 - **Python 3.10** ou superior instalado (ou ambiente Conda).
-- **Git** instalado.
+- **Git** e pacotes do sistema listados na seção acima.
 
 ### 2. Clonar o Repositório e Criar Ambiente Virtual
 
@@ -204,7 +234,7 @@ conda create -n agente_api python=3.10 -y
 conda activate agente_api
 ```
 
-### 3. Instalar Dependências
+### 3. Instalar Dependências Python
 
 ```bash
 pip install --upgrade pip
@@ -233,7 +263,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 Acesse no navegador:
 - **Painel Geral & Terminal**: [http://localhost:8000/](http://localhost:8000/)
-- **Dashboard 3D dos Cômodos**: [http://localhost:8000/casa.html](http://localhost:8000/casa.html)
+- **Dashboard dos Cômodos & Câmeras**: [http://localhost:8000/casa.html](http://localhost:8000/casa.html)
 - **Perfil & Reconhecimento Facial**: [http://localhost:8000/profile.html](http://localhost:8000/profile.html)
 - **Documentação Swagger da API**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
@@ -243,11 +273,12 @@ Acesse no navegador:
 
 Guia completo para implantação em servidores Linux (Ubuntu 22.04 / 24.04 LTS ou Debian).
 
-### Passo 1: Atualizar o Sistema e Instalar Pacotes Básicos
+### Passo 1: Atualizar o Sistema e Instalar Pacotes do Sistema
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3 python3-pip python3-venv git nginx certbot python3-certbot-nginx libgl1 libglib2.0-0 ffmpeg
+sudo apt install -y python3 python3-pip python3-venv git curl nginx certbot python3-certbot-nginx \
+    ffmpeg mpv alsa-utils pulseaudio-utils brightnessctl libgl1 libglib2.0-0 v4l-utils
 ```
 
 ### Passo 2: Clonar o Projeto e Configurar Ambiente
