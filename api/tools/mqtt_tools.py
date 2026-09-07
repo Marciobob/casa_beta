@@ -57,10 +57,19 @@ def controlar_luzes(topico_ou_nome_comodo: str, acao: str) -> str:
     
     mqtt_logger.info(f"Comando de luz: Cômodo='{topico_ou_nome_comodo}' (slug='{slug}'), Ação='{acao_upper}'")
     
-    # Publica no broker MQTT se configurado
+    # Publica no broker MQTT
+    broker = _current_broker_config.get("broker") or "test.mosquitto.org"
+    raw_port = _current_broker_config.get("port", 1883)
     try:
-        broker = _current_broker_config.get("broker", "test.mosquitto.org")
-        port = int(_current_broker_config.get("port", 1883))
+        port = int(raw_port)
+    except Exception:
+        port = 1883
+
+    # Portas WebSockets comuns enviadas pelo front-end -> mapeia para TCP padrão 1883
+    if port in [8080, 8081, 8083, 8084, 8884, 443]:
+        port = 1883
+
+    try:
         publish.single(
             f"pensador/casa/{slug}/set",
             payload=acao_upper,
@@ -70,7 +79,7 @@ def controlar_luzes(topico_ou_nome_comodo: str, acao: str) -> str:
         )
         mqtt_logger.info(f"MQTT Publish Sucesso: pensador/casa/{slug}/set -> {acao_upper} (Broker: {broker}:{port})")
     except Exception as e:
-        mqtt_logger.warning(f"Falha ao enviar MQTT via paho-mqtt: {e}")
+        mqtt_logger.warning(f"Falha ao enviar MQTT via {broker}:{port}: {e}")
         
     status_texto = "ligada" if acao_upper == "ON" else "desligada"
     return f"Sucesso: A luz de '{topico_ou_nome_comodo}' foi {status_texto}."

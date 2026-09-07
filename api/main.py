@@ -29,7 +29,7 @@ except ImportError:
     pass
 
 try:
-    from api.agent import processar_comando_agente
+    from api.agent import processar_comando_agente, gerar_texto_para_fala
     from api.auth import register_user, authenticate_user, create_access_token, decode_access_token, get_user_by_email
     from api.database import (
         get_user_profile, save_user_profile, get_chat_history, save_chat_message, clear_chat_history,
@@ -52,7 +52,7 @@ try:
     from api.automation_engine import automation_engine, run_automation_now
     from api.logger import system_logger, auth_logger, vision_logger
 except ImportError:
-    from agent import processar_comando_agente
+    from agent import processar_comando_agente, gerar_texto_para_fala
     from auth import register_user, authenticate_user, create_access_token, decode_access_token, get_user_by_email
     from database import (
         get_user_profile, save_user_profile, get_chat_history, save_chat_message, clear_chat_history,
@@ -157,6 +157,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+    spoken_reply: Optional[str] = None
     actions: List[Dict[str, str]] = []
 
 # =========================================================================
@@ -447,6 +448,7 @@ async def chat_endpoint(request: ChatRequest, token_payload: dict = Depends(get_
         )
         
         reply_text = resultado.get("reply", "Comando processado.")
+        spoken_text = resultado.get("spoken_reply") or gerar_texto_para_fala(reply_text)
         
         # Salva a interação (pergunta + resposta) na tabela de histórico SQLite do usuário
         if user_email and reply_text:
@@ -461,6 +463,7 @@ async def chat_endpoint(request: ChatRequest, token_payload: dict = Depends(get_
 
         return ChatResponse(
             reply=reply_text,
+            spoken_reply=spoken_text,
             actions=resultado.get("actions", [])
         )
     except Exception as e:
@@ -520,6 +523,7 @@ async def chat_stream_endpoint(request: ChatRequest, token_payload: dict = Depen
                 )
 
                 reply_text = res.get("reply", "Comando processado com sucesso.")
+                spoken_text = res.get("spoken_reply") or gerar_texto_para_fala(reply_text)
                 actions = res.get("actions", [])
 
                 if user_email and reply_text:
@@ -534,7 +538,7 @@ async def chat_stream_endpoint(request: ChatRequest, token_payload: dict = Depen
 
                 loop.call_soon_threadsafe(
                     queue.put_nowait,
-                    {"type": "final", "reply": reply_text, "actions": actions}
+                    {"type": "final", "reply": reply_text, "spoken_reply": spoken_text, "actions": actions}
                 )
             except Exception as e:
                 system_logger.error(f"Erro no processamento do agente stream: {e}")
@@ -1151,10 +1155,10 @@ async def get_camera_stream_endpoint(
                     await asyncio.sleep(0.12) # ~8 FPS
                 else:
                     consecutive_errors += 1
-                    if consecutive_errors > 10:
-                        await asyncio.sleep(2.0)
+                    if consecutive_errors > 5:
+                        await asyncio.sleep(3.0)
                     else:
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(1.0)
             except asyncio.CancelledError:
                 break
             except Exception:
@@ -1829,7 +1833,7 @@ async def generate_tts(request: TTSRequest):
     if not request.text or not request.text.strip():
         raise HTTPException(status_code=400, detail="Texto para síntese de voz não pode ser vazio.")
     
-    clean_text = request.text.strip()
+    clean_text = (gerar_texto_para_fala(request.text.strip()) or request.text.strip()).strip()
     voice = request.voice or "pt-BR-FranciscaNeural"
     rate = request.rate or "+0%"
     pitch = request.pitch or "+0Hz"

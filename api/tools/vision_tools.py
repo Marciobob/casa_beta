@@ -287,7 +287,7 @@ def capture_camera_frame(
 
     # 2. CÂMERA DO DISPOSITIVO (WEBCAM LOCAL / BROWSER WEBCAM)
     device_index = int(cfg.get("camera_device_index", 0))
-    vision_logger.info(f"Tentando capturar frame da Câmera Local (Dispositivo índice {device_index})")
+    vision_logger.debug(f"Tentando capturar frame da Câmera Local (Dispositivo índice {device_index})")
 
     # Verifica se existem dispositivos /dev/video no Linux antes de inicializar OpenCV
     video_devices = [f"/dev/video{i}" for i in range(5) if os.path.exists(f"/dev/video{i}")]

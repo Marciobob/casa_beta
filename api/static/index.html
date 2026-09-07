@@ -504,92 +504,6 @@
         </div>
 
         <!-- ========================================================================= -->
-        <!-- SEÇÃO: CÂMERAS & VIGILÂNCIA AO VIVO (LIVE SURVEILLANCE HUB) -->
-        <!-- ========================================================================= -->
-        <section id="liveCamerasSection" class="mb-8">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-xl text-indigo-400 shadow-lg shadow-indigo-600/20">
-                        📹
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                            <span>Monitoramento & Câmeras Ao Vivo</span>
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30">
-                                <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
-                                AO VIVO
-                            </span>
-                        </h2>
-                        <p class="text-xs text-zinc-400">Transmissão em tempo real das câmeras instaladas na residência</p>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-2">
-                    <label for="cameraRefreshSelect" class="text-xs text-zinc-400 font-medium hidden sm:inline">Atualização:</label>
-                    <select id="cameraRefreshSelect" onchange="changeCameraRefreshRate(this.value)"
-                        class="bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-500 transition">
-                        <option value="stream" selected>⚡ Stream Contínuo (MJPEG)</option>
-                        <option value="1000">⏱️ Snapshot 1s</option>
-                        <option value="2000">⏱️ Snapshot 2s</option>
-                        <option value="5000">⏱️ Snapshot 5s</option>
-                        <option value="pause">⏸️ Pausar Feeds</option>
-                    </select>
-
-                    <button onclick="openCameraConfigModal()" title="Gerenciar Câmeras"
-                        class="bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/40 text-indigo-300 hover:text-white transition px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
-                        <span>⚙️</span>
-                        <span class="hidden sm:inline">Gerenciar</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Grid de Câmeras -->
-            <div id="liveCamerasGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                <!-- Preenchido via JavaScript -->
-            </div>
-        </section>
-
-        <!-- ========================================================================= -->
-        <!-- MODAL DE VISUALIZAÇÃO EM TELA CHEIA DA CÂMERA -->
-        <!-- ========================================================================= -->
-        <div id="cameraFullscreenModal"
-            class="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl hidden">
-            <div class="relative w-full max-w-5xl bg-zinc-900 border border-zinc-700 rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.8)] flex flex-col">
-                <!-- Header do Modal -->
-                <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/90">
-                    <div class="flex items-center gap-3">
-                        <span class="w-3 h-3 rounded-full bg-red-500 animate-ping"></span>
-                        <div>
-                            <h3 id="fullscreenCameraTitle" class="font-black text-lg text-white">Câmera Ao Vivo</h3>
-                            <p id="fullscreenCameraSubtitle" class="text-xs text-zinc-400 font-mono">Stream em alta definição</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="downloadFullscreenSnapshot()" title="Baixar Foto Instantânea"
-                            class="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition flex items-center gap-1.5 border border-zinc-700">
-                            <span>📸</span>
-                            <span>Salvar Foto</span>
-                        </button>
-                        <button onclick="closeCameraFullscreenModal()"
-                            class="w-9 h-9 rounded-xl bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 flex items-center justify-center transition font-bold">
-                            ✕
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Video / Imagem Display -->
-                <div class="relative w-full bg-black min-h-[380px] sm:min-h-[500px] flex items-center justify-center overflow-hidden">
-                    <div id="fullscreenSpinner" class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-950/80 z-10 hidden">
-                        <div class="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                        <span class="text-xs font-mono text-indigo-300">Conectando ao feed da câmera...</span>
-                    </div>
-                    <img id="fullscreenCameraImg" src="" alt="Feed da Câmera"
-                        class="w-full h-auto max-h-[75vh] object-contain block mx-auto transition-all duration-300">
-                </div>
-            </div>
-        </div>
-
-        <!-- ========================================================================= -->
         <!-- HUB DE FERRAMENTAS E INTEGRAÇÕES (CARDS INTERATIVOS) -->
         <!-- ========================================================================= -->
         <section class="mb-8">
@@ -1831,6 +1745,10 @@
             location.href = "/login.html";
         }
 
+        function getAuthToken() {
+            return localStorage.getItem("smartHomeToken") || authToken || "";
+        }
+
         const userObjStr = localStorage.getItem("smartHomeUser");
         if (userObjStr) {
             try {
@@ -1848,7 +1766,45 @@
             }
         }
 
-        const config = JSON.parse(localStorage.getItem("smartHomeConfig") || "{}");
+        const DEFAULT_CONFIG = {
+            broker: "test.mosquitto.org",
+            port: "8081",
+            topic_prefix: "pensador/casa",
+            rooms: [
+                { id: 1, name: "Sala", topic: "sala" },
+                { id: 2, name: "Quarto", topic: "quarto" },
+                { id: 3, name: "Cozinha", topic: "cozinha" },
+                { id: 4, name: "Escritório", topic: "escritorio" }
+            ]
+        };
+
+        let config = JSON.parse(localStorage.getItem("smartHomeConfig") || "null");
+        if (!config || !config.rooms || !config.rooms.length) {
+            config = DEFAULT_CONFIG;
+            localStorage.setItem("smartHomeConfig", JSON.stringify(config));
+        }
+
+        async function syncHouseConfigFromDatabase() {
+            try {
+                const currentToken = getAuthToken();
+                if (!currentToken) return;
+                const res = await fetch("/api/user/house-config", {
+                    headers: { "Authorization": `Bearer ${currentToken}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.rooms && data.rooms.length) {
+                        config.broker = data.broker || config.broker || "test.mosquitto.org";
+                        config.port = data.port || config.port || "8081";
+                        config.topic_prefix = data.topic_prefix || config.topic_prefix;
+                        config.rooms = data.rooms;
+                        localStorage.setItem("smartHomeConfig", JSON.stringify(config));
+                    }
+                }
+            } catch (err) {
+                console.warn("Falha ao sincronizar configuração da casa do banco:", err);
+            }
+        }
 
         function getAgentName() {
             const custom = localStorage.getItem("smartHomeAgentName");
@@ -2047,7 +2003,7 @@
                         </div>
                         <div class="flex items-start gap-2 pt-1 border-t border-zinc-900">
                             <span class="text-indigo-400 font-bold shrink-0">🤖 Sexta-Feira:</span>
-                            <span class="text-zinc-300 leading-relaxed">${escapeHtml(item.agent_response)}</span>
+                            <div class="text-zinc-300 leading-relaxed">${renderFormattedChatHtml(item.agent_response)}</div>
                         </div>
                     </div>
                 `).join("");
@@ -2081,6 +2037,127 @@
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
+        }
+
+        function renderFormattedChatHtml(rawText) {
+            if (!rawText) return "";
+
+            // 1. Escapa HTML perigoso mantendo texto base seguro
+            let safe = rawText
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+            // 2. Blocos de código com tokenização segura
+            const codeBlocks = [];
+            safe = safe.replace(/```(?:[a-zA-Z0-9_\-\.]+)?\n?([\s\S]*?)```/g, (match, code) => {
+                const idx = codeBlocks.length;
+                codeBlocks.push(`<pre class="my-2 p-2.5 bg-zinc-950/90 rounded-xl border border-zinc-800 text-emerald-400 font-mono text-[11px] overflow-x-auto select-all"><code>${code.trim()}</code></pre>`);
+                return `@@CODEBLOCK${idx}@@`;
+            });
+
+            // 3. Links markdown [Texto](URL) e URLs soltas com tokenização
+            const links = [];
+            safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, (match, label, url) => {
+                const idx = links.length;
+                links.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 py-0.5 my-0.5 rounded-lg bg-indigo-950/70 border border-indigo-500/40 text-indigo-300 hover:text-indigo-100 hover:bg-indigo-900 transition font-medium text-xs break-all" title="Abrir link: ${url}"><span>${label}</span><svg class="w-3 h-3 shrink-0 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`);
+                return `@@LINKTOKEN${idx}@@`;
+            });
+
+            safe = safe.replace(/(https?:\/\/[^\s<)]+)/g, (match, url) => {
+                const idx = links.length;
+                links.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-200 underline font-medium text-xs break-all my-0.5" title="Abrir link"><span>${url}</span><svg class="w-3 h-3 shrink-0 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`);
+                return `@@LINKTOKEN${idx}@@`;
+            });
+
+            // 4. Código inline `código`
+            safe = safe.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-zinc-900 rounded text-indigo-300 font-mono text-[11px] border border-zinc-800">$1</code>');
+
+            // 5. Cabeçalhos markdown
+            safe = safe.replace(/^### (.*$)/gim, '<h4 class="text-xs font-bold text-indigo-300 mt-2.5 mb-1 flex items-center gap-1.5">$1</h4>');
+            safe = safe.replace(/^## (.*$)/gim, '<h3 class="text-sm font-bold text-white mt-3 mb-1.5 pb-1 border-b border-zinc-800 flex items-center gap-1.5">$1</h3>');
+            safe = safe.replace(/^# (.*$)/gim, '<h2 class="text-sm font-extrabold text-white mt-3 mb-1.5 pb-1 border-b border-indigo-500/40">$1</h2>');
+
+            // 6. Negrito (**texto** ou __texto__)
+            safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-white">$1</strong>');
+            safe = safe.replace(/__([^_]+)__/g, '<strong class="font-semibold text-white">$1</strong>');
+
+            // 7. Itálico (*texto* ou _texto_)
+            safe = safe.replace(/(^|[^\*])\*([^\*]+)\*([^\*]|$)/g, '$1<em class="italic text-zinc-300">$2</em>$3');
+            safe = safe.replace(/(^|[^_])_([^_]+)_([^_]|$)/g, '$1<em class="italic text-zinc-300">$2</em>$3');
+
+            // 8. Listas com marcadores (- item ou * item)
+            safe = safe.replace(/^[\s]*[-*•]\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1 pl-1"><span class="text-indigo-400 font-bold shrink-0">•</span><div class="flex-1">$1</div></div>');
+
+            // 9. Listas numeradas (1. item)
+            safe = safe.replace(/^[\s]*(\d+)\.\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1 pl-1"><span class="text-indigo-400 font-bold shrink-0 font-mono text-[11px]">$1.</span><div class="flex-1">$2</div></div>');
+
+            // 10. Quebras de linha (preservando espaçamento entre parágrafos)
+            safe = safe.replace(/\n\n+/g, '<div class="h-2"></div>');
+            safe = safe.replace(/\n/g, '<br>');
+
+            // 11. Restaura links e blocos de código
+            safe = safe.replace(/@@LINKTOKEN(\d+)@@/g, (match, idx) => links[parseInt(idx, 10)] || "");
+            safe = safe.replace(/@@CODEBLOCK(\d+)@@/g, (match, idx) => codeBlocks[parseInt(idx, 10)] || "");
+
+            return safe;
+        }
+
+        function cleanTextForSpeech(text) {
+            if (!text) return "";
+            let t = text.replace(/```[\s\S]*?```/g, "");
+            t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+            t = t.replace(/^#{1,6}\s+/gm, "");
+            t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
+            t = t.replace(/\*([^*]+)\*/g, "$1");
+            t = t.replace(/__([^_]+)__/g, "$1");
+            t = t.replace(/_([^_]+)_/g, "$1");
+            t = t.replace(/`([^`]+)`/g, "$1");
+            t = t.replace(/~~([^~]+)~~/g, "$1");
+            t = t.replace(/^[\s]*[-*+•]\s+/gm, "");
+            t = t.replace(/^[\s]*\d+\.\s+/gm, "");
+            t = t.replace(/^[\s]*>\s+/gm, "");
+            t = t.replace(/^[\s]*[-*_]{3,}\s*$/gm, "");
+            t = t.replace(/(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?https?:\/\/\S+/gi, "");
+            t = t.replace(/(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?www\.\S+/gi, "");
+            t = t.replace(/\b(?:links?|urls?|fontes?|no link|pelo link)\s*:\s*$/gmi, "");
+            t = t.replace(/\b(?:links?|urls?|fontes?|no link|pelo link)\s*:\s*/gi, "");
+            t = t.replace(/\b(?:com mais detalhes em|mais detalhes em|acesse em|disponível em|veja em|no link|pelo link|no endereço|no site|no perfil)\s*(?=[.,;!?]|$)/gi, "");
+            t = t.replace(/\[\d+\]/g, "");
+            t = t.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "");
+
+            const linhas = t.split("\n").map(l => l.trim()).filter(Boolean);
+            const reconstruido = linhas.map(l => /[.!?:]$/.test(l) ? l : l + ".").join(" ");
+
+            t = reconstruido
+                .replace(/\s*([,.:;?!])\s*/g, "$1 ")
+                .replace(/:\s*\./g, ".")
+                .replace(/\.\s*\./g, ".")
+                .replace(/,\s*\./g, ".")
+                .replace(/\s+/g, " ")
+                .trim();
+
+            if (t.length > 420) {
+                const frases = t.split(/(?<=[.!?])\s+/);
+                const resumo = [];
+                let acc = 0;
+                for (const f of frases) {
+                    if (acc + f.length <= 420) {
+                        resumo.push(f);
+                        acc += f.length;
+                    } else {
+                        break;
+                    }
+                }
+                if (resumo.length === 0 && frases.length > 0) {
+                    resumo.push(frases[0].substring(0, 420).replace(/\s+\S*$/, "") + "...");
+                }
+                let finalT = resumo.join(" ").trim();
+                if (!finalT.endsWith(".")) finalT += ".";
+                finalT += " Os detalhes completos e links estão disponíveis na tela do chat.";
+                return finalT;
+            }
+            return t;
         }
 
         // =========================================================================
@@ -2164,10 +2241,44 @@
             return generalPhrases[Math.floor(Math.random() * generalPhrases.length)];
         }
 
-        // =========================================================================
-        // PROCESSAMENTO DE COMANDOS E CHAT COM O AGENTE
-        // =========================================================================
+        function isStopTalkingCommand(rawText) {
+            if (!rawText) return false;
+            const norm = normalizeText(rawText).trim();
+            if (!norm) return false;
+
+            // Se o comando menciona ações ou dispositivos (música, luz, pesquisa, etc.), NÃO É para calar o assistente
+            const isActionOrContent = /\b(musica|som|cancao|faixa|playlist|tocar|luz|lampada|ventilador|quarto|sala|cozinha|escritorio|garagem|entrada|alarme|timer|cronometro|tarefa|nota|compromisso|agenda|email|contato|camera|video|youtube|pesquisa|busca|janela|navegador|volume|brilho|investig|osint|computador|status|clima|tempo)\b/i.test(norm);
+            if (isActionOrContent) {
+                return false;
+            }
+
+            // Expressões puras e dedicadas para interromper a fala do assistente
+            const stopKeywords = [
+                "para", "pare", "parar", "parou", "pare por favor", "para por favor",
+                "silencio", "silenciar", "silencie", "silencia",
+                "cala a boca", "calada", "calado", "fica quieta", "fica quieto", "quieta", "quieto",
+                "chega", "basta", "ja deu", "para de falar", "parar de falar", "para a fala", "parar a fala",
+                "cancela", "cancelar", "cancela fala", "cancelar fala", "cancela resposta",
+                "stop", "shh", "psiu", "mudo", "mutar", "desliga a fala"
+            ];
+
+            const words = norm.split(/\s+/);
+            if (words.length <= 4) {
+                return stopKeywords.some(sw => norm === sw || norm.startsWith(sw + " ") || norm.endsWith(" " + sw) || norm.includes(sw));
+            }
+            return false;
+        }
+
         async function processCommand(userText) {
+            if (!userText || !userText.trim()) return;
+            const cleanText = userText.trim();
+
+            if (isStopTalkingCommand(cleanText)) {
+                silenciarAudio(true);
+                isProcessingCommand = false;
+                return;
+            }
+
             if (isProcessingCommand) return;
             isProcessingCommand = true;
 
@@ -2267,6 +2378,7 @@
                 }
 
                 let finalReply = "";
+                let finalSpokenReply = "";
                 let finalActions = [];
 
                 if (res.body && res.body.getReader) {
@@ -2294,6 +2406,7 @@
                                             logToConsole(`[Agente]: ${ev.message}`, "info");
                                         } else if (ev.type === "final") {
                                             finalReply = ev.reply || "";
+                                            finalSpokenReply = ev.spoken_reply || "";
                                             finalActions = ev.actions || [];
                                         } else if (ev.type === "error") {
                                             throw new Error(ev.message || "Erro no processamento do agente");
@@ -2308,6 +2421,7 @@
                 } else {
                     const data = await res.json();
                     finalReply = data.reply || "";
+                    finalSpokenReply = data.spoken_reply || "";
                     finalActions = data.actions || [];
                 }
 
@@ -2317,7 +2431,7 @@
 
                 const reply = finalReply || "Comando processado com sucesso.";
 
-                // Exibe resposta no chat
+                // Exibe resposta formatada no chat
                 if (chatBox) {
                     const agentMsgEl = document.createElement("div");
                     agentMsgEl.className = "flex items-start gap-3";
@@ -2325,8 +2439,8 @@
                         <div class="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-sm shrink-0 shadow-md">
                             🤖
                         </div>
-                        <div class="bg-zinc-800/80 border border-zinc-700/60 rounded-2xl rounded-tl-none p-3.5 text-xs text-zinc-200 max-w-[85%] leading-relaxed">
-                            ${escapeHtml(reply)}
+                        <div class="bg-zinc-800/80 border border-zinc-700/60 rounded-2xl rounded-tl-none p-3.5 text-xs text-zinc-200 max-w-[85%] leading-relaxed break-words">
+                            ${renderFormattedChatHtml(reply)}
                         </div>
                     `;
                     chatBox.appendChild(agentMsgEl);
@@ -2347,8 +2461,9 @@
 
                 logToConsole(`Resposta formulada: "${reply.substring(0, 80)}..."`, "info");
 
-                // Fala a resposta
-                speakResponse(reply);
+                // Fala a resposta limpa (sem URLs nem poluição)
+                const textToSpeak = finalSpokenReply || cleanTextForSpeech(reply);
+                speakResponse(textToSpeak);
 
                 // Recarrega o feed de memória
                 setTimeout(loadChatHistoryFeed, 1000);
@@ -2798,6 +2913,7 @@
         }
 
         let voiceRestartTimeout = null;
+        let speechSessionId = 0;
 
         async function processSpeechQueue() {
             if (speechQueue.length === 0) {
@@ -2812,11 +2928,12 @@
                         if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                             startVoiceRecognition();
                         }
-                    }, 800);
+                    }, 120);
                 }
                 return;
             }
 
+            const thisSession = speechSessionId;
             isProcessingQueue = true;
             isSpeakingTTS = true;
             isAudioPlayingActive = true;
@@ -2836,6 +2953,12 @@
                     await speakWithBrowserNativeAsync(item.text);
                 } else {
                     const audioData = await item.itemPromise;
+
+                    // Se a fala foi cancelada ou interrompida enquanto baixava o áudio, encerra imediatamente!
+                    if (thisSession !== speechSessionId || !isSpeakingTTS || !isProcessingQueue) {
+                        return;
+                    }
+
                     let played = false;
 
                     // Camada 1: HTML5 Audio Global no DOM (Blob) - Resiliente e imune a resets de Web Audio
@@ -2843,10 +2966,18 @@
                         played = await playAudioBlob(audioData.blob);
                     }
 
+                    if (thisSession !== speechSessionId || !isSpeakingTTS || !isProcessingQueue) {
+                        return;
+                    }
+
                     // Camada 2: Web Audio API
                     const ctx = getSharedAudioContext();
                     if (!played && audioData && audioData.audioBuffer && ctx && ctx.state === 'running') {
                         played = await playAudioBufferAsync(audioData.audioBuffer);
+                    }
+
+                    if (thisSession !== speechSessionId || !isSpeakingTTS || !isProcessingQueue) {
+                        return;
                     }
 
                     // Camada 3: Síntese Nativa do Navegador com watchdog anti-congelamento
@@ -2856,9 +2987,15 @@
                 }
             } catch (err) {
                 console.warn("[TTS Queue Play Error]:", err);
-                try {
-                    await speakWithBrowserNativeAsync(item.text);
-                } catch (e) { }
+                if (thisSession === speechSessionId && isSpeakingTTS && isProcessingQueue) {
+                    try {
+                        await speakWithBrowserNativeAsync(item.text);
+                    } catch (e) { }
+                }
+            }
+
+            if (thisSession !== speechSessionId || !isSpeakingTTS || !isProcessingQueue) {
+                return;
             }
 
             // Processa próximo áudio da fila sequencial
@@ -2986,7 +3123,44 @@
             });
         }
 
+        function silenciarAudio(notify = true) {
+            speechSessionId++; // Invalida imediatamente qualquer promise ou fallback de reprodução pendente
+            clearSpeechQueue();
+            if (currentPlayingAudio) {
+                try {
+                    currentPlayingAudio.pause();
+                    currentPlayingAudio.currentTime = 0;
+                    currentPlayingAudio.src = "";
+                } catch (e) { }
+                currentPlayingAudio = null;
+            }
+            if (currentAudioSourceNode) {
+                try { currentAudioSourceNode.stop(); } catch (e) { }
+                currentAudioSourceNode = null;
+            }
+            if ("speechSynthesis" in window) {
+                try { window.speechSynthesis.cancel(); } catch (e) { }
+            }
+            isSpeakingTTS = false;
+            isAudioPlayingActive = false;
+            isProcessingQueue = false;
+
+            if (notify) {
+                logToConsole("⏹️ Áudio e fala do agente foram interrompidos.", "action");
+            }
+
+            if (alwaysListen && !isProcessingCommand) {
+                clearTimeout(voiceRestartTimeout);
+                voiceRestartTimeout = setTimeout(() => {
+                    if (alwaysListen && !isListening) {
+                        startVoiceRecognition();
+                    }
+                }, 50);
+            }
+        }
+
         function clearSpeechQueue() {
+            speechSessionId++;
             speechQueue = [];
             isProcessingQueue = false;
             isSpeakingTTS = false;
@@ -3105,13 +3279,11 @@
                     latestHeardText = "";
                     return;
                 }
-                let interim = "";
-                let finalStr = "";
+                let fullTranscript = "";
                 for (let i = 0; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) finalStr += event.results[i][0].transcript + " ";
-                    else interim += event.results[i][0].transcript + " ";
+                    fullTranscript += event.results[i][0].transcript + " ";
                 }
-                const currentText = (finalStr || interim).trim();
+                const currentText = fullTranscript.trim();
                 if (currentText) {
                     latestHeardText = currentText;
                     const wText = document.getElementById("voiceWaveText");
@@ -3120,7 +3292,9 @@
             };
 
             rec.onerror = (event) => {
-                console.warn("[Speech onerror]:", event.error);
+                if (event.error !== "no-speech") {
+                    console.warn("[Speech onerror]:", event.error);
+                }
                 if (event.error === "not-allowed") {
                     alwaysListen = false;
                     updateAlwaysListenUI();
@@ -3156,7 +3330,6 @@
 
                 if (alwaysListen && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                     clearTimeout(voiceRestartTimeout);
-                    // Reinício rápido e contínuo (80ms) para não ter lacunas e não cortar o áudio do morador
                     voiceRestartTimeout = setTimeout(() => {
                         if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                             startVoiceRecognition();
@@ -3181,30 +3354,43 @@
             const normalized = normalizeText(raw);
             const patterns = new Set();
 
-            // 1. O próprio nome normalizado e variações
+            // 1. O próprio nome normalizado e variações com traço/espaço
             patterns.add(normalized);
             patterns.add(normalized.replace(/[-\s_]+/g, " "));
             patterns.add(normalized.replace(/[-\s_]+/g, "-"));
             patterns.add(normalized.replace(/[-\s_]+/g, ""));
 
-            // 2. Variações fonéticas para nomes específicos
-            if (normalized === "atena" || normalized === "athena") {
-                patterns.add("atena");
-                patterns.add("athena");
-                patterns.add("antena"); // Comum a Web Speech API transcrever 'Atena' como 'Antena'
-                patterns.add("atenas");
-                patterns.add("atennas");
-                patterns.add("a tena");
-                patterns.add("ah tena");
-            } else if (normalized.includes("sexta")) {
+            // 2. Variações fonéticas em Português Brasileiro
+            if (normalized.includes("sexta") || normalized.includes("cesta") || normalized.includes("sesta")) {
                 patterns.add("sexta-feira");
                 patterns.add("sexta feira");
                 patterns.add("sextafeira");
                 patterns.add("sexta");
+                patterns.add("cesta-feira");
+                patterns.add("cesta feira");
+                patterns.add("cesta");
+                patterns.add("sesta feira");
+                patterns.add("sesta");
+                patterns.add("6a feira");
+                patterns.add("6 feira");
+                patterns.add("sexta f");
+                patterns.add("seta feira");
+            } else if (normalized === "atena" || normalized === "athena" || normalized === "antena") {
+                patterns.add("atena");
+                patterns.add("athena");
+                patterns.add("antena"); // Muito comum na Web Speech API reconhecer 'Atena' como 'Antena'
+                patterns.add("atenas");
+                patterns.add("athenas");
+                patterns.add("a tena");
+                patterns.add("ah tena");
+                patterns.add("oh tena");
+                patterns.add("artena");
             } else if (normalized === "jarvis") {
                 patterns.add("jarvis");
                 patterns.add("jarves");
                 patterns.add("jarviz");
+                patterns.add("jarbis");
+                patterns.add("iárvis");
             } else if (normalized === "computador") {
                 patterns.add("computador");
                 patterns.add("computadora");
@@ -3223,9 +3409,9 @@
                 patterns.add(normalized.replace(/t/g, "th"));
             }
 
-            // 3. Prefixos comuns de chamado ("ei [nome]", "ok [nome]", "olá [nome]", "e aí [nome]")
+            // 3. Prefixos naturais de invocação ("ei [nome]", "olá [nome]", "oi [nome]", etc.)
             const baseList = Array.from(patterns);
-            const prefixes = ["ei ", "hey ", "ok ", "ola ", "e ai ", "ou ", "o "];
+            const prefixes = ["ei ", "hey ", "ok ", "ola ", "olá ", "oi ", "e ai ", "e aí ", "ou ", "o ", "ô ", "a ", "fala ", "fala aí ", "por favor "];
             baseList.forEach(nameVariant => {
                 prefixes.forEach(p => {
                     patterns.add(p + nameVariant);
@@ -3235,23 +3421,55 @@
             return Array.from(patterns).filter(Boolean);
         }
 
-        function handleWakeWordDetection(text) {
-            if (isProcessingCommand || isSpeakingTTS || isAudioPlayingActive) return;
-            const agentName = getAgentName();
-            const normalizedText = normalizeText(text);
+        function extractWakeWordAndCommand(text, agentName) {
+            if (!text || !text.trim()) return { isWake: false, command: "" };
+            const norm = normalizeText(text);
             const patterns = getWakeWordPatterns(agentName);
             patterns.sort((a, b) => b.length - a.length);
 
-            const escapedNames = patterns.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
-            const regex = new RegExp(`(?:^|\\b)(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
-            const wakeMatch = normalizedText.match(regex);
+            const escapedNames = patterns.map(n => normalizeText(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
+            const wakeRegex = new RegExp(`(?:^|\\b)(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
+            const match = norm.match(wakeRegex);
 
-            if (wakeMatch) {
-                const commandAfterWakeWord = wakeMatch[1].trim();
-                if (commandAfterWakeWord.length > 1) {
-                    processCommand(commandAfterWakeWord);
+            if (!match) {
+                return { isWake: false, command: "" };
+            }
+
+            const cmdNorm = match[1].trim();
+            if (!cmdNorm) {
+                return { isWake: true, command: "" };
+            }
+
+            // Preserva caixa, acentos e pontuação original da pergunta feita pelo morador
+            const wakePartLength = text.length - match[1].length;
+            let originalCmd = text.substring(wakePartLength).replace(/^[\s,.:;!?-]+/, "").trim();
+            originalCmd = originalCmd.replace(/^(?:por favor|por gentileza|faz favor)[,\s]*/i, "").trim();
+            originalCmd = originalCmd.replace(/^[\s,.:;!?-]+/, "").trim();
+
+            return { isWake: true, command: originalCmd || cmdNorm };
+        }
+
+        function handleWakeWordDetection(text) {
+            if (!text || !text.trim()) return;
+            if (isProcessingCommand || isSpeakingTTS || isAudioPlayingActive) return;
+            const norm = normalizeText(text);
+            const agentName = getAgentName();
+
+            const { isWake, command } = extractWakeWordAndCommand(text, agentName);
+
+            if (isWake) {
+                if (isStopTalkingCommand(command) || isStopTalkingCommand(norm)) {
+                    silenciarAudio(true);
                     return;
                 }
+
+                if (command.length > 1) {
+                    clearTimeout(wakeWordTimer);
+                    isWaitingCommandAfterWakeWord = false;
+                    processCommand(command);
+                    return;
+                }
+
                 if (!isWaitingCommandAfterWakeWord) {
                     isWaitingCommandAfterWakeWord = true;
                     speakResponse("Sim, estou ouvindo!");
@@ -3266,6 +3484,10 @@
             if (isWaitingCommandAfterWakeWord && text.trim()) {
                 clearTimeout(wakeWordTimer);
                 isWaitingCommandAfterWakeWord = false;
+                if (isStopTalkingCommand(norm)) {
+                    silenciarAudio(true);
+                    return;
+                }
                 processCommand(text.trim());
             }
         }
@@ -3366,11 +3588,32 @@
         }
 
         function connectMQTT() {
+            if (typeof mqtt === "undefined") {
+                console.warn("[MQTT]: Biblioteca mqtt.min.js ainda não carregada.");
+                return;
+            }
+
             const broker = (config && config.broker) || "test.mosquitto.org";
-            const port = (config && config.port) || 1883;
+            let port = (config && config.port) || "8081";
+            let protocol = (location.protocol === "https:") ? "wss" : (String(port) === "8080" ? "ws" : "wss");
+            if (location.protocol !== "https:" && (String(port) === "8080" || String(port) === "1883")) {
+                protocol = "ws";
+                port = "8080";
+            }
 
             try {
-                client = mqtt.connect(`wss://${broker}:${port}`);
+                if (client) {
+                    try { client.end(true); } catch (e) { }
+                    client = null;
+                }
+
+                client = mqtt.connect(`${protocol}://${broker}:${port}`, {
+                    connectTimeout: 5000,
+                    reconnectPeriod: 4000,
+                    clientId: "smarthome_web_" + Math.random().toString(16).substring(2, 10),
+                    clean: true
+                });
+
                 client.on("connect", () => {
                     const badge = document.getElementById("mqttBadgeStatus");
                     if (badge) {
@@ -3381,8 +3624,9 @@
                 });
 
                 client.on("message", (topic, payload) => {
-                    const state = payload.toString();
-                    const room = topic.split("/")[2];
+                    const state = payload.toString().trim();
+                    const parts = topic.split("/");
+                    const room = parts[parts.length - 2] || parts[parts.length - 1];
                     roomStates[room] = (state === "ON");
                     updateLightsSummary();
                 });
@@ -3392,6 +3636,14 @@
                     if (badge) {
                         badge.className = "text-[11px] px-2.5 py-1 rounded-full font-bold bg-red-500/10 text-red-400 border border-red-500/30 flex items-center gap-1";
                         badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> Offline`;
+                    }
+                });
+
+                client.on("close", () => {
+                    const badge = document.getElementById("mqttBadgeStatus");
+                    if (badge) {
+                        badge.className = "text-[11px] px-2.5 py-1 rounded-full font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1";
+                        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Conectando...`;
                     }
                 });
             } catch (e) {
@@ -3786,7 +4038,6 @@
                     const data = await res.json();
                     _userCamerasCache = data.cameras || [];
                     renderCamerasList(_userCamerasCache);
-                    renderLiveCamerasGrid(_userCamerasCache);
                 }
             } catch (err) {
                 console.warn("Erro ao carregar lista de câmeras:", err);
@@ -3851,7 +4102,7 @@
                                 ✏️
                             </button>
                             ${cameras.length > 1 ? `
-                            <button type="button" onclick="deleteCameraFromModal(${cam.id}, '${escapeHtml(cam.name)}')"
+                            <button type="button" onclick="deleteCameraFromModal(${cam.id})"
                                 class="bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/30 p-1.5 rounded-lg text-xs transition"
                                 title="Excluir câmera">
                                 🗑️
@@ -3950,7 +4201,8 @@
         }
 
         async function deleteCameraFromModal(camId, camName) {
-            if (!confirm(`Deseja realmente excluir a câmera '${camName}'?`)) return;
+            const targetName = camName || (_userCamerasCache && _userCamerasCache.find(c => c.id === camId)?.name) || "esta câmera";
+            if (!confirm(`Deseja realmente excluir a câmera '${targetName}'?`)) return;
             const token = localStorage.getItem("smartHomeToken") || authToken || "";
             if (!token) return;
             try {
@@ -4811,284 +5063,6 @@
             }
         }
 
-        // =========================================================================
-        // SEÇÃO DE CÂMERAS AO VIVO (LIVE SURVEILLANCE HUB)
-        // =========================================================================
-        let _liveCamerasRefreshTimer = null;
-        let _cameraRefreshMode = "stream"; // "stream", "1000", "2000", "5000", "pause"
-        let _fullscreenCamCurrentId = null;
-
-        async function loadLiveCamerasDashboard() {
-            const grid = document.getElementById("liveCamerasGrid");
-            if (!grid) return;
-            const token = getAuthToken();
-            if (!token) return;
-
-            try {
-                const res = await fetch("/api/user/cameras", {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    _userCamerasCache = data.cameras || [];
-                    renderLiveCamerasGrid(_userCamerasCache);
-                }
-            } catch (err) {
-                console.warn("[LiveCameras] Erro ao carregar lista de câmeras:", err);
-            }
-        }
-
-        function renderLiveCamerasGrid(cameras) {
-            const grid = document.getElementById("liveCamerasGrid");
-            if (!grid) return;
-
-            if (!cameras || cameras.length === 0) {
-                grid.innerHTML = `
-                    <div class="col-span-full bg-zinc-900/60 border border-dashed border-zinc-800 rounded-3xl p-8 text-center">
-                        <div class="w-12 h-12 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl mx-auto mb-3 shadow-inner">
-                            📹
-                        </div>
-                        <h3 class="font-bold text-white text-sm mb-1">Nenhuma Câmera Configurada</h3>
-                        <p class="text-xs text-zinc-400 mb-4 max-w-sm mx-auto">Adicione a webcam local do seu dispositivo ou câmeras IP (como ESP32-CAM) para vigilância em tempo real.</p>
-                        <button onclick="openCameraConfigModal()"
-                            class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-lg shadow-indigo-600/20">
-                            ➕ Configurar Câmeras
-                        </button>
-                    </div>
-                `;
-                return;
-            }
-
-            const token = getAuthToken();
-            let html = "";
-            cameras.forEach(cam => {
-                const isIp = cam.camera_type === "ip";
-                const isDef = cam.is_default;
-                const tokenParam = encodeURIComponent(token);
-                const streamUrl = `/api/user/cameras/${cam.id}/stream?token=${tokenParam}&t=${Date.now()}`;
-                const snapUrl = `/api/user/cameras/${cam.id}/snapshot?token=${tokenParam}&t=${Date.now()}`;
-                const feedSrc = _cameraRefreshMode === "stream" ? streamUrl : snapUrl;
-
-                html += `
-                    <div class="bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition rounded-3xl overflow-hidden shadow-xl flex flex-col group" id="camCard_${cam.id}">
-                        <!-- Card Header -->
-                        <div class="px-5 py-3.5 border-b border-zinc-800/80 bg-zinc-900/90 flex items-center justify-between gap-2">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span id="camDot_${cam.id}" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                <h4 class="font-bold text-xs text-white truncate" title="${escapeHtml(cam.name)}">${escapeHtml(cam.name)}</h4>
-                                ${isDef ? `<span class="bg-amber-500/10 text-amber-300 border border-amber-500/30 text-[9px] px-1.5 py-0.5 rounded-md font-bold shrink-0">⭐ Padrão</span>` : ''}
-                            </div>
-                            <div class="flex items-center gap-1.5 shrink-0">
-                                <span class="text-[10px] font-mono px-2 py-0.5 rounded-full ${isIp ? 'bg-cyan-950/80 text-cyan-300 border border-cyan-500/30' : 'bg-zinc-800 text-zinc-300 border border-zinc-700'}">
-                                    ${isIp ? '🌐 IP' : '💻 Local'}
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Video Frame -->
-                        <div class="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden cursor-pointer group/feed" onclick="openCameraFullscreen(${cam.id})">
-                            <img id="camImg_${cam.id}" src="${_cameraRefreshMode === 'pause' ? snapUrl : feedSrc}" alt="${escapeHtml(cam.name)}"
-                                class="w-full h-full object-cover group-hover/feed:scale-105 transition-transform duration-500"
-                                onerror="handleCameraFeedError(${cam.id})"
-                                onload="handleCameraFeedLoad(${cam.id})">
-
-                            <!-- Overlay Offline / Error -->
-                            <div id="camOfflineOverlay_${cam.id}" class="absolute inset-0 bg-zinc-950/90 flex flex-col items-center justify-center p-4 text-center hidden">
-                                <span class="text-2xl mb-1">⚠️</span>
-                                <span class="text-xs font-bold text-zinc-300 mb-0.5">Sem Sinal de Vídeo</span>
-                                <span class="text-[10px] font-mono text-zinc-500 mb-2">${isIp ? 'Falha de conexão com Câmera IP' : 'Dispositivo desconectado'}</span>
-                                <button onclick="event.stopPropagation(); refreshCameraFeed(${cam.id})"
-                                    class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-[10px] font-bold px-3 py-1.5 rounded-xl transition shadow-md">
-                                    🔄 Tentar Novamente
-                                </button>
-                            </div>
-
-                            <!-- Overlay de Ação no Hover -->
-                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover/feed:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
-                                <span class="px-3.5 py-1.5 rounded-xl bg-zinc-900/90 border border-white/20 text-white text-xs font-bold backdrop-blur-md flex items-center gap-1.5 shadow-xl">
-                                    <span>🔍</span> <span>Tela Cheia</span>
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Card Footer -->
-                        <div class="px-4 py-2.5 bg-zinc-950/70 border-t border-zinc-800/60 flex items-center justify-between text-xs">
-                            <span id="camStatusTag_${cam.id}" class="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
-                                ● Transmitindo
-                            </span>
-                            <div class="flex items-center gap-1">
-                                <button onclick="takeLiveSnapshot(${cam.id})" title="Baixar foto desta câmera"
-                                    class="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-indigo-600 text-zinc-300 hover:text-white transition text-xs border border-zinc-700/60">
-                                    📸
-                                </button>
-                                <button onclick="openCameraFullscreen(${cam.id})" title="Expandir em tela cheia"
-                                    class="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-indigo-600 text-zinc-300 hover:text-white transition text-xs border border-zinc-700/60">
-                                    ⛶
-                                </button>
-                                <button onclick="openCameraConfigModal()" title="Editar câmera"
-                                    class="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-white transition text-xs border border-zinc-700/60">
-                                    ⚙️
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            grid.innerHTML = html;
-            startLiveCameraRefreshInterval();
-        }
-
-        function handleCameraFeedError(camId) {
-            const overlay = document.getElementById(`camOfflineOverlay_${camId}`);
-            const dot = document.getElementById(`camDot_${camId}`);
-            const tag = document.getElementById(`camStatusTag_${camId}`);
-            if (overlay) overlay.classList.remove("hidden");
-            if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-red-500";
-            if (tag) {
-                tag.className = "text-[11px] text-red-400 font-mono flex items-center gap-1";
-                tag.innerText = "● Desconectado";
-            }
-        }
-
-        function handleCameraFeedLoad(camId) {
-            const overlay = document.getElementById(`camOfflineOverlay_${camId}`);
-            const dot = document.getElementById(`camDot_${camId}`);
-            const tag = document.getElementById(`camStatusTag_${camId}`);
-            if (overlay) overlay.classList.add("hidden");
-            if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
-            if (tag) {
-                tag.className = "text-[11px] text-emerald-400 font-mono flex items-center gap-1";
-                tag.innerText = "● Transmitindo";
-            }
-        }
-
-        function refreshCameraFeed(camId) {
-            const img = document.getElementById(`camImg_${camId}`);
-            if (!img) return;
-            const token = getAuthToken();
-            const tokenParam = encodeURIComponent(token);
-            if (_cameraRefreshMode === "stream") {
-                img.src = `/api/user/cameras/${camId}/stream?token=${tokenParam}&t=${Date.now()}`;
-            } else {
-                img.src = `/api/user/cameras/${camId}/snapshot?token=${tokenParam}&t=${Date.now()}`;
-            }
-        }
-
-        function changeCameraRefreshRate(val) {
-            _cameraRefreshMode = val;
-            if (_liveCamerasRefreshTimer) {
-                clearInterval(_liveCamerasRefreshTimer);
-                _liveCamerasRefreshTimer = null;
-            }
-
-            if (!_userCamerasCache || _userCamerasCache.length === 0) return;
-
-            const token = getAuthToken();
-            const tokenParam = encodeURIComponent(token);
-
-            _userCamerasCache.forEach(cam => {
-                const img = document.getElementById(`camImg_${cam.id}`);
-                if (!img) return;
-                if (val === "stream") {
-                    img.src = `/api/user/cameras/${cam.id}/stream?token=${tokenParam}&t=${Date.now()}`;
-                } else if (val === "pause") {
-                    img.src = `/api/user/cameras/${cam.id}/snapshot?token=${tokenParam}&t=${Date.now()}`;
-                } else {
-                    img.src = `/api/user/cameras/${cam.id}/snapshot?token=${tokenParam}&t=${Date.now()}`;
-                }
-            });
-
-            startLiveCameraRefreshInterval();
-        }
-
-        function startLiveCameraRefreshInterval() {
-            if (_liveCamerasRefreshTimer) {
-                clearInterval(_liveCamerasRefreshTimer);
-                _liveCamerasRefreshTimer = null;
-            }
-
-            if (_cameraRefreshMode !== "stream" && _cameraRefreshMode !== "pause") {
-                const intervalMs = parseInt(_cameraRefreshMode) || 2000;
-                _liveCamerasRefreshTimer = setInterval(() => {
-                    const token = getAuthToken();
-                    const tokenParam = encodeURIComponent(token);
-                    if (!_userCamerasCache) return;
-                    _userCamerasCache.forEach(cam => {
-                        const img = document.getElementById(`camImg_${cam.id}`);
-                        if (img) {
-                            const newImg = new Image();
-                            newImg.src = `/api/user/cameras/${cam.id}/snapshot?token=${tokenParam}&t=${Date.now()}`;
-                            newImg.onload = () => {
-                                img.src = newImg.src;
-                                handleCameraFeedLoad(cam.id);
-                            };
-                            newImg.onerror = () => {
-                                handleCameraFeedError(cam.id);
-                            };
-                        }
-                    });
-                }, intervalMs);
-            }
-        }
-
-        function takeLiveSnapshot(camId) {
-            const token = getAuthToken();
-            const tokenParam = encodeURIComponent(token);
-            const url = `/api/user/cameras/${camId}/snapshot?token=${tokenParam}&t=${Date.now()}`;
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `camera_${camId}_snapshot_${Date.now()}.jpg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        function openCameraFullscreen(camId) {
-            _fullscreenCamCurrentId = camId;
-            const modal = document.getElementById("cameraFullscreenModal");
-            const img = document.getElementById("fullscreenCameraImg");
-            const spinner = document.getElementById("fullscreenSpinner");
-            const title = document.getElementById("fullscreenCameraTitle");
-            const subtitle = document.getElementById("fullscreenCameraSubtitle");
-
-            const cam = (_userCamerasCache || []).find(c => c.id == camId);
-            if (cam && title) {
-                title.innerText = cam.name || `Câmera #${camId}`;
-                if (subtitle) subtitle.innerText = cam.camera_type === "ip" ? (cam.camera_ip_url || "Câmera IP") : `Dispositivo #${cam.camera_device_index || 0}`;
-            }
-
-            if (modal) modal.classList.remove("hidden");
-            if (spinner) spinner.classList.remove("hidden");
-
-            const token = getAuthToken();
-            const tokenParam = encodeURIComponent(token);
-            if (img) {
-                img.src = `/api/user/cameras/${camId}/stream?token=${tokenParam}&t=${Date.now()}`;
-                img.onload = () => {
-                    if (spinner) spinner.classList.add("hidden");
-                };
-                img.onerror = () => {
-                    if (spinner) spinner.classList.add("hidden");
-                    img.src = `/api/user/cameras/${camId}/snapshot?token=${tokenParam}&t=${Date.now()}`;
-                };
-            }
-        }
-
-        function closeCameraFullscreenModal() {
-            const modal = document.getElementById("cameraFullscreenModal");
-            const img = document.getElementById("fullscreenCameraImg");
-            if (modal) modal.classList.add("hidden");
-            if (img) img.src = "";
-            _fullscreenCamCurrentId = null;
-        }
-
-        function downloadFullscreenSnapshot() {
-            if (_fullscreenCamCurrentId) {
-                takeLiveSnapshot(_fullscreenCamCurrentId);
-            }
-        }
-
         function toggleAllLights(turnOn) {
             const targetState = turnOn ? "ON" : "OFF";
             const topics = ["saladeestar", "quartoprincipal", "cozinha", "escritorio", "garagem", "entrada"];
@@ -5101,9 +5075,6 @@
             updateLightsSummary();
         }
 
-        // =========================================================================
-        // INICIALIZAÇÃO E WATCHDOG CONTÍNUO DE ESCUTA
-        // =========================================================================
         function startContinuousWatchdog() {
             if (watchdogInterval) clearInterval(watchdogInterval);
             watchdogInterval = setInterval(() => {
@@ -5112,6 +5083,14 @@
                 }
             }, 1200);
         }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                if (isSpeakingTTS || isAudioPlayingActive || speechQueue.length > 0) {
+                    silenciarAudio(true);
+                }
+            }
+        });
 
         document.addEventListener("DOMContentLoaded", () => {
             autoUnlockAudioOnLoad();
@@ -5124,8 +5103,8 @@
             updateAlwaysListenUI();
             fetchAgentStatus();
             loadChatHistoryFeed();
+            syncHouseConfigFromDatabase();
             connectMQTT();
-            loadLiveCamerasDashboard();
 
             if (alwaysListen) {
                 setTimeout(startVoiceRecognition, 300);

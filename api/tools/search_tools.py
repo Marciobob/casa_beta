@@ -31,7 +31,13 @@ def pesquisar_na_internet(consulta: str) -> str:
                 if results:
                     formatted = []
                     for r in results:
-                        formatted.append(f"Título: {r.get('title', '')}\nResumo: {r.get('body', '')}\nLink: {r.get('href', '')}")
+                        title = (r.get("title") or "Sem título").strip()
+                        link = (r.get("href") or "").strip()
+                        body = (r.get("body") or "").strip()
+                        if link:
+                            formatted.append(f"- **[{title}]({link})**\n  {body}")
+                        else:
+                            formatted.append(f"- **{title}**\n  {body}")
                     return "\n\n".join(formatted)
         
         # Fallback simples caso ddgs não esteja disponível

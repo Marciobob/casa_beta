@@ -329,11 +329,11 @@
                     <label for="cameraRefreshSelect" class="text-xs text-zinc-400 font-medium hidden sm:inline">Atualização:</label>
                     <select id="cameraRefreshSelect" onchange="changeCameraRefreshRate(this.value)"
                         class="bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-500 transition">
-                        <option value="stream" selected>⚡ Stream Contínuo (MJPEG)</option>
+                        <option value="pause" selected>⏸️ Feeds Pausados (Sob Demanda)</option>
+                        <option value="stream">⚡ Stream Contínuo (MJPEG)</option>
                         <option value="1000">⏱️ Snapshot 1s</option>
                         <option value="2000">⏱️ Snapshot 2s</option>
                         <option value="5000">⏱️ Snapshot 5s</option>
-                        <option value="pause">⏸️ Pausar Feeds</option>
                     </select>
 
                     <button onclick="openCameraConfigModal()" title="Gerenciar Câmeras"
@@ -450,7 +450,7 @@
                 <span>🤖 Resposta do Agente:</span>
             </div>
             <div class="overflow-y-auto max-h-48 md:max-h-56 pr-1.5 space-y-1">
-                <p id="geminiResponseText" class="leading-relaxed whitespace-pre-wrap text-zinc-300"></p>
+                <div id="geminiResponseText" class="leading-relaxed break-words text-zinc-300 text-xs"></div>
             </div>
         </div>
 
@@ -947,6 +947,8 @@
         let lastActivityTimestamp = Date.now();
         let wakeLock = null;
         let alwaysListen = localStorage.getItem("alwaysListenSmartHome") !== "false";
+        let voiceRestartTimeout = null;
+        let interimDebounceTimer = null;
 
         // =========================================================================
         // GUARDIÃO DE AUTENTICAÇÃO JWT
@@ -954,6 +956,20 @@
         const authToken = localStorage.getItem("smartHomeToken");
         if (!authToken) {
             location.href = "/login.html";
+        }
+
+        function getAuthToken() {
+            return localStorage.getItem("smartHomeToken") || authToken || "";
+        }
+
+        function escapeHtml(text) {
+            if (!text) return "";
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
         }
 
         const userObjStr = localStorage.getItem("smartHomeUser");
@@ -975,7 +991,7 @@
 
         const DEFAULT_CONFIG = {
             broker: "test.mosquitto.org",
-            port: "8080",
+            port: "8081",
             topic_prefix: "pensador/casa",
             agentName: "Sexta-Feira",
             rooms: [
@@ -988,8 +1004,7 @@
 
         let config = JSON.parse(localStorage.getItem("smartHomeConfig") || "null");
         if (!config || !config.rooms || !config.rooms.length) {
-            config = { ...DEFAULT_CONFIG, ...(config || {}) };
-            if (!config.rooms || !config.rooms.length) config.rooms = DEFAULT_CONFIG.rooms;
+            config = DEFAULT_CONFIG;
             localStorage.setItem("smartHomeConfig", JSON.stringify(config));
         }
 
@@ -1003,8 +1018,8 @@
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.rooms && data.rooms.length) {
-                        config.broker = data.broker || config.broker;
-                        config.port = data.port || config.port;
+                        config.broker = data.broker || config.broker || "test.mosquitto.org";
+                        config.port = data.port || config.port || "8081";
                         config.topic_prefix = data.topic_prefix || config.topic_prefix;
                         config.rooms = data.rooms;
                         localStorage.setItem("smartHomeConfig", JSON.stringify(config));
@@ -1037,27 +1052,73 @@
                 : "Nenhum cômodo ligado";
         }
 
+        let client = null;
+
         function connectMQTT() {
-            client = mqtt.connect(`wss://${config.broker}:${config.port}`);
+            if (typeof mqtt === "undefined") {
+                console.warn("[MQTT]: Biblioteca mqtt.min.js ainda não carregada.");
+                return;
+            }
 
-            client.on("connect", () => {
-                document.getElementById("mqttBadge").innerHTML =
-                    `<span class="inline-block w-2.5 h-2.5 rounded-full bg-green-400"></span><span>🟢 MQTT Online</span>`;
-                client.subscribe("pensador/casa/+/state");
-            });
+            const broker = (config && config.broker) || "test.mosquitto.org";
+            let port = (config && config.port) || "8081";
+            let protocol = (location.protocol === "https:") ? "wss" : (String(port) === "8080" ? "ws" : "wss");
+            if (location.protocol !== "https:" && (String(port) === "8080" || String(port) === "1883")) {
+                protocol = "ws";
+                port = "8080";
+            }
 
-            client.on("message", (topic, payload) => {
-                const state = payload.toString();
-                const room = topic.split("/")[2];
-                roomStates[room] = (state === "ON");
-                renderRooms();
-                updateDashboard();
-            });
+            try {
+                if (client) {
+                    try { client.end(true); } catch (e) { }
+                    client = null;
+                }
 
-            client.on("error", () => {
-                document.getElementById("mqttBadge").innerHTML =
-                    `<span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500"></span><span>🔴 MQTT Offline</span>`;
-            });
+                const url = `${protocol}://${broker}:${port}`;
+                console.log(`[MQTT Casa]: Conectando a ${url}...`);
+
+                client = mqtt.connect(url, {
+                    connectTimeout: 5000,
+                    reconnectPeriod: 4000,
+                    clientId: "smarthome_casa_" + Math.random().toString(16).substring(2, 10),
+                    clean: true
+                });
+
+                client.on("connect", () => {
+                    console.log(`[MQTT Casa]: Conectado com sucesso ao broker ${broker}!`);
+                    const badge = document.getElementById("mqttBadge");
+                    if (badge) {
+                        badge.innerHTML = `<span class="inline-block w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse"></span><span>🟢 MQTT Online</span>`;
+                    }
+                    client.subscribe("pensador/casa/+/state");
+                });
+
+                client.on("message", (topic, payload) => {
+                    const state = payload.toString().trim();
+                    const parts = topic.split("/");
+                    const room = parts[parts.length - 2] || parts[parts.length - 1];
+                    roomStates[room] = (state === "ON");
+                    renderRooms();
+                    updateDashboard();
+                });
+
+                client.on("error", (err) => {
+                    console.warn(`[MQTT Casa Error]:`, err.message || err);
+                    const badge = document.getElementById("mqttBadge");
+                    if (badge) {
+                        badge.innerHTML = `<span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500"></span><span>🔴 Erro MQTT</span>`;
+                    }
+                });
+
+                client.on("close", () => {
+                    const badge = document.getElementById("mqttBadge");
+                    if (badge) {
+                        badge.innerHTML = `<span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span><span>🟡 Conectando MQTT...</span>`;
+                    }
+                });
+            } catch (err) {
+                console.warn("[MQTT Casa init error]:", err);
+            }
         }
 
         function toggleRoom(index) {
@@ -1644,7 +1705,7 @@
                                 ✏️
                             </button>
                             ${cameras.length > 1 ? `
-                            <button type="button" onclick="deleteCameraFromModal(${cam.id}, '${escapeHtml(cam.name)}')"
+                            <button type="button" onclick="deleteCameraFromModal(${cam.id})"
                                 class="bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/30 p-1.5 rounded-lg text-xs transition"
                                 title="Excluir câmera">
                                 🗑️
@@ -1743,7 +1804,8 @@
         }
 
         async function deleteCameraFromModal(camId, camName) {
-            if (!confirm(`Deseja realmente excluir a câmera '${camName}'?`)) return;
+            const targetName = camName || (_userCamerasCache && _userCamerasCache.find(c => c.id === camId)?.name) || "esta câmera";
+            if (!confirm(`Deseja realmente excluir a câmera '${targetName}'?`)) return;
             const token = getAuthToken();
             if (!token) return;
             try {
@@ -2038,7 +2100,9 @@
         function showResponse(text) {
             const box = document.getElementById("geminiResponseBox");
             const textEl = document.getElementById("geminiResponseText");
-            if (textEl) textEl.innerText = text;
+            if (textEl) {
+                textEl.innerHTML = renderFormattedChatHtml(text);
+            }
             if (box) box.classList.remove("hidden");
         }
 
@@ -2144,32 +2208,28 @@
             };
 
             rec.onresult = (event) => {
-                lastActivityTimestamp = Date.now();
                 if (isSpeakingTTS || isProcessingCommand || isAudioPlayingActive) {
                     latestHeardText = "";
                     return;
                 }
+                lastActivityTimestamp = Date.now();
 
-                let interim = "";
-                let finalStr = "";
-
+                let fullTranscript = "";
                 for (let i = 0; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalStr += event.results[i][0].transcript + " ";
-                    } else {
-                        interim += event.results[i][0].transcript + " ";
-                    }
+                    fullTranscript += event.results[i][0].transcript + " ";
                 }
 
-                const currentText = (finalStr || interim).trim();
-                if (currentText) {
-                    latestHeardText = currentText;
-                    setVoiceTranscript(`"${currentText}"`, false);
-                }
+                const currentText = fullTranscript.trim();
+                if (!currentText) return;
+
+                latestHeardText = currentText;
+                setVoiceTranscript(`"${currentText}"`, false);
             };
 
             rec.onerror = (event) => {
-                console.warn("[Speech onerror]:", event.error);
+                if (event.error !== "no-speech") {
+                    console.warn("[Speech onerror]:", event.error);
+                }
                 lastActivityTimestamp = Date.now();
                 if (event.error === "not-allowed") {
                     setVoiceStatus("⚠️", "Permissão de microfone negada", false);
@@ -2226,24 +2286,37 @@
             patterns.add(normalized.replace(/[-\s_]+/g, "-"));
             patterns.add(normalized.replace(/[-\s_]+/g, ""));
 
-            // 2. Variações fonéticas para nomes específicos
-            if (normalized === "atena" || normalized === "athena") {
-                patterns.add("atena");
-                patterns.add("athena");
-                patterns.add("antena"); // Comum a Web Speech API transcrever 'Atena' como 'Antena'
-                patterns.add("atenas");
-                patterns.add("atennas");
-                patterns.add("a tena");
-                patterns.add("ah tena");
-            } else if (normalized.includes("sexta")) {
+            // 2. Variações fonéticas em Português Brasileiro
+            if (normalized.includes("sexta") || normalized.includes("cesta") || normalized.includes("sesta")) {
                 patterns.add("sexta-feira");
                 patterns.add("sexta feira");
                 patterns.add("sextafeira");
                 patterns.add("sexta");
+                patterns.add("cesta-feira");
+                patterns.add("cesta feira");
+                patterns.add("cesta");
+                patterns.add("sesta feira");
+                patterns.add("sesta");
+                patterns.add("6a feira");
+                patterns.add("6 feira");
+                patterns.add("sexta f");
+                patterns.add("seta feira");
+            } else if (normalized === "atena" || normalized === "athena" || normalized === "antena") {
+                patterns.add("atena");
+                patterns.add("athena");
+                patterns.add("antena"); // Comum a Web Speech API transcrever 'Atena' como 'Antena'
+                patterns.add("atenas");
+                patterns.add("athenas");
+                patterns.add("a tena");
+                patterns.add("ah tena");
+                patterns.add("oh tena");
+                patterns.add("artena");
             } else if (normalized === "jarvis") {
                 patterns.add("jarvis");
                 patterns.add("jarves");
                 patterns.add("jarviz");
+                patterns.add("jarbis");
+                patterns.add("iárvis");
             } else if (normalized === "computador") {
                 patterns.add("computador");
                 patterns.add("computadora");
@@ -2262,9 +2335,9 @@
                 patterns.add(normalized.replace(/t/g, "th"));
             }
 
-            // 3. Prefixos comuns de chamado ("ei [nome]", "ok [nome]", "olá [nome]", "e aí [nome]")
+            // 3. Prefixos naturais de invocação ("ei [nome]", "olá [nome]", "oi [nome]", etc.)
             const baseList = Array.from(patterns);
-            const prefixes = ["ei ", "hey ", "ok ", "ola ", "e ai ", "ou ", "o "];
+            const prefixes = ["ei ", "hey ", "ok ", "ola ", "olá ", "oi ", "e ai ", "e aí ", "ou ", "o ", "ô ", "a ", "fala ", "fala aí ", "por favor "];
             baseList.forEach(nameVariant => {
                 prefixes.forEach(p => {
                     patterns.add(p + nameVariant);
@@ -2274,29 +2347,55 @@
             return Array.from(patterns).filter(Boolean);
         }
 
-        function handleWakeWordDetection(text) {
-            if (isProcessingCommand || isSpeakingTTS || isAudioPlayingActive) return;
-
-            const agentName = getAgentName();
-            const normalizedText = normalizeText(text);
+        function extractWakeWordAndCommand(text, agentName) {
+            if (!text || !text.trim()) return { isWake: false, command: "" };
+            const norm = normalizeText(text);
             const patterns = getWakeWordPatterns(agentName);
             patterns.sort((a, b) => b.length - a.length);
 
-            const escapedNames = patterns.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
-            const regex = new RegExp(`(?:^|\\b)(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
+            const escapedNames = patterns.map(n => normalizeText(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
+            const wakeRegex = new RegExp(`(?:^|\\b)(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
+            const match = norm.match(wakeRegex);
 
-            const wakeMatch = normalizedText.match(regex);
+            if (!match) {
+                return { isWake: false, command: "" };
+            }
 
-            if (wakeMatch) {
-                const commandAfterWakeWord = wakeMatch[1].trim();
+            const cmdNorm = match[1].trim();
+            if (!cmdNorm) {
+                return { isWake: true, command: "" };
+            }
 
-                if (commandAfterWakeWord.length > 1) {
+            // Preserva caixa, acentos e pontuação original da pergunta feita pelo morador
+            const wakePartLength = text.length - match[1].length;
+            let originalCmd = text.substring(wakePartLength).replace(/^[\s,.:;!?-]+/, "").trim();
+            originalCmd = originalCmd.replace(/^(?:por favor|por gentileza|faz favor)[,\s]*/i, "").trim();
+            originalCmd = originalCmd.replace(/^[\s,.:;!?-]+/, "").trim();
+
+            return { isWake: true, command: originalCmd || cmdNorm };
+        }
+
+        function handleWakeWordDetection(text) {
+            if (!text || !text.trim()) return;
+            if (isProcessingCommand || isSpeakingTTS || isAudioPlayingActive) return;
+            const norm = normalizeText(text);
+            const agentName = getAgentName();
+
+            const { isWake, command } = extractWakeWordAndCommand(text, agentName);
+
+            if (isWake) {
+                if (isStopTalkingCommand(command) || isStopTalkingCommand(norm)) {
+                    silenciarAudio(true);
+                    return;
+                }
+
+                if (command.length > 1) {
                     clearTimeout(wakeWordTimer);
                     isWaitingCommandAfterWakeWord = false;
                     showVoiceHud();
                     setVoiceStatus("✨", "Processando comando...", true);
-                    setVoiceTranscript(`"${agentName}, ${commandAfterWakeWord}"`, false);
-                    processCommandWithApi(commandAfterWakeWord);
+                    setVoiceTranscript(`"${agentName}, ${command}"`, false);
+                    processCommandWithApi(command);
                     return;
                 }
 
@@ -2306,7 +2405,7 @@
                     setVoiceStatus("⚡", `Sim! Diga o comando agora...`, true);
                     setVoiceTranscript(`"${agentName}..." (Aguardando instrução...)`, false);
 
-                    speakResponse("Olá, como posso ajudar?");
+                    speakResponse("Sim, estou ouvindo!");
 
                     clearTimeout(wakeWordTimer);
                     wakeWordTimer = setTimeout(() => {
@@ -2320,6 +2419,10 @@
             if (isWaitingCommandAfterWakeWord && text.trim()) {
                 clearTimeout(wakeWordTimer);
                 isWaitingCommandAfterWakeWord = false;
+                if (isStopTalkingCommand(norm)) {
+                    silenciarAudio(true);
+                    return;
+                }
                 showVoiceHud();
                 setVoiceStatus("✨", "Executando comando...", true);
                 setVoiceTranscript(`"${text.trim()}"`, false);
@@ -2353,7 +2456,7 @@
                     if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                         startVoiceRecognition();
                     }
-                }, 800);
+                }, 400);
             }
         }
 
@@ -2467,12 +2570,46 @@
             return generalPhrases[Math.floor(Math.random() * generalPhrases.length)];
         }
 
-        // =========================================================================
-        // CHAMADA AO AGENTE FASTAPI / LANGCHAIN (/api/chat)
-        // =========================================================================
+        function isStopTalkingCommand(rawText) {
+            if (!rawText) return false;
+            const norm = normalizeText(rawText).trim();
+            if (!norm) return false;
+
+            // Se o comando menciona ações ou dispositivos (música, som, luz, pesquisa, etc.), NÃO É para calar o assistente
+            const isActionOrContent = /\b(musica|som|cancao|faixa|playlist|tocar|luz|lampada|ventilador|quarto|sala|cozinha|escritorio|garagem|entrada|alarme|timer|cronometro|tarefa|nota|compromisso|agenda|email|contato|camera|video|youtube|pesquisa|busca|janela|navegador|volume|brilho|investig|osint|computador|status|clima|tempo)\b/i.test(norm);
+            if (isActionOrContent) {
+                return false;
+            }
+
+            // Expressões puras e dedicadas para interromper a fala do assistente
+            const stopKeywords = [
+                "para", "pare", "parar", "parou", "pare por favor", "para por favor",
+                "silencio", "silenciar", "silencie", "silencia",
+                "cala a boca", "calada", "calado", "fica quieta", "fica quieto", "quieta", "quieto",
+                "chega", "basta", "ja deu", "para de falar", "parar de falar", "para a fala", "parar a fala",
+                "cancela", "cancelar", "cancela fala", "cancelar fala", "cancela resposta",
+                "stop", "shh", "psiu", "mudo", "mutar", "desliga a fala"
+            ];
+
+            const words = norm.split(/\s+/);
+            if (words.length <= 4) {
+                return stopKeywords.some(sw => norm === sw || norm.startsWith(sw + " ") || norm.endsWith(" " + sw) || norm.includes(sw));
+            }
+            return false;
+        }
+
         async function processCommandWithApi(userCommand) {
+            if (!userCommand || !userCommand.trim()) return;
+            const cleanCmd = userCommand.trim();
+
+            if (isStopTalkingCommand(cleanCmd)) {
+                silenciarAudio(true);
+                isProcessingCommand = false;
+                return;
+            }
+
             primeAudioEngine();
-            console.log("[processCommandWithApi]: Enviando para FastAPI + LangChain:", `"${userCommand}"`);
+            console.log("[processCommandWithApi]: Enviando para FastAPI + LangChain:", `"${cleanCmd}"`);
 
             if (isProcessingCommand) return;
             isProcessingCommand = true;
@@ -2507,7 +2644,7 @@
                 agent_name: agentName,
                 rooms: roomsPayload,
                 rooms_state: roomStates,
-                broker: config.broker || "test.mosquitto.org",
+                broker: (config && config.broker) || "test.mosquitto.org",
                 port: 1883,
                 user_email: currentUserEmail
             };
@@ -2541,6 +2678,7 @@
                 }
 
                 let finalReply = "";
+                let finalSpokenReply = "";
                 let finalActions = [];
 
                 if (res.body && res.body.getReader) {
@@ -2567,6 +2705,7 @@
                                             showResponse(`⏳ ${ev.message}`);
                                         } else if (ev.type === "final") {
                                             finalReply = ev.reply || "";
+                                            finalSpokenReply = ev.spoken_reply || "";
                                             finalActions = ev.actions || [];
                                         } else if (ev.type === "error") {
                                             throw new Error(ev.message || "Erro no processamento do agente");
@@ -2581,6 +2720,7 @@
                 } else {
                     const data = await res.json();
                     finalReply = data.reply || "";
+                    finalSpokenReply = data.spoken_reply || "";
                     finalActions = data.actions || [];
                 }
 
@@ -2606,8 +2746,9 @@
                 setVoiceStatus("✅", "Concluído! 🤖", false);
                 showResponse(reply);
 
-                console.log("[TTS]: Falando resposta:", `"${reply}"`);
-                speakResponse(reply);
+                const textToSpeak = finalSpokenReply || cleanTextForSpeech(reply);
+                console.log("[TTS]: Falando resposta limpa:", `"${textToSpeak}"`);
+                speakResponse(textToSpeak);
 
             } catch (e) {
                 console.error("[API Error]:", e);
@@ -2621,20 +2762,125 @@
             }
         }
 
+        function renderFormattedChatHtml(rawText) {
+            if (!rawText) return "";
+
+            // 1. Escapa HTML perigoso mantendo texto base seguro
+            let safe = rawText
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+            // 2. Blocos de código com tokenização segura
+            const codeBlocks = [];
+            safe = safe.replace(/```(?:[a-zA-Z0-9_\-\.]+)?\n?([\s\S]*?)```/g, (match, code) => {
+                const idx = codeBlocks.length;
+                codeBlocks.push(`<pre class="my-2 p-2.5 bg-zinc-950/90 rounded-xl border border-zinc-800 text-emerald-400 font-mono text-[11px] overflow-x-auto select-all"><code>${code.trim()}</code></pre>`);
+                return `@@CODEBLOCK${idx}@@`;
+            });
+
+            // 3. Links markdown [Texto](URL) e URLs soltas com tokenização
+            const links = [];
+            safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, (match, label, url) => {
+                const idx = links.length;
+                links.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 py-0.5 my-0.5 rounded-lg bg-indigo-950/70 border border-indigo-500/40 text-indigo-300 hover:text-indigo-100 hover:bg-indigo-900 transition font-medium text-xs break-all" title="Abrir link: ${url}"><span>${label}</span><svg class="w-3 h-3 shrink-0 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`);
+                return `@@LINKTOKEN${idx}@@`;
+            });
+
+            safe = safe.replace(/(https?:\/\/[^\s<)]+)/g, (match, url) => {
+                const idx = links.length;
+                links.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-200 underline font-medium text-xs break-all my-0.5" title="Abrir link"><span>${url}</span><svg class="w-3 h-3 shrink-0 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`);
+                return `@@LINKTOKEN${idx}@@`;
+            });
+
+            // 4. Código inline `código`
+            safe = safe.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-zinc-900 rounded text-indigo-300 font-mono text-[11px] border border-zinc-800">$1</code>');
+
+            // 5. Cabeçalhos markdown
+            safe = safe.replace(/^### (.*$)/gim, '<h4 class="text-xs font-bold text-indigo-300 mt-2.5 mb-1 flex items-center gap-1.5">$1</h4>');
+            safe = safe.replace(/^## (.*$)/gim, '<h3 class="text-sm font-bold text-white mt-3 mb-1.5 pb-1 border-b border-zinc-800 flex items-center gap-1.5">$1</h3>');
+            safe = safe.replace(/^# (.*$)/gim, '<h2 class="text-sm font-extrabold text-white mt-3 mb-1.5 pb-1 border-b border-indigo-500/40">$1</h2>');
+
+            // 6. Negrito (**texto** ou __texto__)
+            safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-white">$1</strong>');
+            safe = safe.replace(/__([^_]+)__/g, '<strong class="font-semibold text-white">$1</strong>');
+
+            // 7. Itálico (*texto* ou _texto_)
+            safe = safe.replace(/(^|[^\*])\*([^\*]+)\*([^\*]|$)/g, '$1<em class="italic text-zinc-300">$2</em>$3');
+            safe = safe.replace(/(^|[^_])_([^_]+)_([^_]|$)/g, '$1<em class="italic text-zinc-300">$2</em>$3');
+
+            // 8. Listas com marcadores (- item ou * item)
+            safe = safe.replace(/^[\s]*[-*•]\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1 pl-1"><span class="text-indigo-400 font-bold shrink-0">•</span><div class="flex-1">$1</div></div>');
+
+            // 9. Listas numeradas (1. item)
+            safe = safe.replace(/^[\s]*(\d+)\.\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1 pl-1"><span class="text-indigo-400 font-bold shrink-0 font-mono text-[11px]">$1.</span><div class="flex-1">$2</div></div>');
+
+            // 10. Quebras de linha (preservando espaçamento entre parágrafos)
+            safe = safe.replace(/\n\n+/g, '<div class="h-2"></div>');
+            safe = safe.replace(/\n/g, '<br>');
+
+            // 11. Restaura links e blocos de código
+            safe = safe.replace(/@@LINKTOKEN(\d+)@@/g, (match, idx) => links[parseInt(idx, 10)] || "");
+            safe = safe.replace(/@@CODEBLOCK(\d+)@@/g, (match, idx) => codeBlocks[parseInt(idx, 10)] || "");
+
+            return safe;
+        }
+
         function cleanTextForSpeech(text) {
             if (!text) return "";
-            return text
-                .replace(/```[\s\S]*?```/g, "")
-                .replace(/`([^`]+)`/g, "$1")
-                .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-                .replace(/^#{1,6}\s+/gm, "")
-                .replace(/\*\*([^*]+)\*\*/g, "$1")
-                .replace(/\*([^*]+)\*/g, "$1")
-                .replace(/__([^_]+)__/g, "$1")
-                .replace(/_([^_]+)_/g, "$1")
-                .replace(/^\s*[-*+]\s+/gm, "")
-                .replace(/[*#_~`]/g, "")
+            let t = text.replace(/```[\s\S]*?```/g, "");
+            t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+            t = t.replace(/^#{1,6}\s+/gm, "");
+            t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
+            t = t.replace(/\*([^*]+)\*/g, "$1");
+            t = t.replace(/__([^_]+)__/g, "$1");
+            t = t.replace(/_([^_]+)_/g, "$1");
+            t = t.replace(/`([^`]+)`/g, "$1");
+            t = t.replace(/~~([^~]+)~~/g, "$1");
+            t = t.replace(/^[\s]*[-*+•]\s+/gm, "");
+            t = t.replace(/^[\s]*\d+\.\s+/gm, "");
+            t = t.replace(/^[\s]*>\s+/gm, "");
+            t = t.replace(/^[\s]*[-*_]{3,}\s*$/gm, "");
+            t = t.replace(/(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?https?:\/\/\S+/gi, "");
+            t = t.replace(/(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?www\.\S+/gi, "");
+            t = t.replace(/\b(?:links?|urls?|fontes?|no link|pelo link)\s*:\s*$/gmi, "");
+            t = t.replace(/\b(?:links?|urls?|fontes?|no link|pelo link)\s*:\s*/gi, "");
+            t = t.replace(/\b(?:com mais detalhes em|mais detalhes em|acesse em|disponível em|veja em|no link|pelo link|no endereço|no site|no perfil)\s*(?=[.,;!?]|$)/gi, "");
+            t = t.replace(/\[\d+\]/g, "");
+            t = t.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "");
+
+            const linhas = t.split("\n").map(l => l.trim()).filter(Boolean);
+            const reconstruido = linhas.map(l => /[.!?:]$/.test(l) ? l : l + ".").join(" ");
+
+            t = reconstruido
+                .replace(/\s*([,.:;?!])\s*/g, "$1 ")
+                .replace(/:\s*\./g, ".")
+                .replace(/\.\s*\./g, ".")
+                .replace(/,\s*\./g, ".")
+                .replace(/\s+/g, " ")
                 .trim();
+
+            if (t.length > 420) {
+                const frases = t.split(/(?<=[.!?])\s+/);
+                const resumo = [];
+                let acc = 0;
+                for (const f of frases) {
+                    if (acc + f.length <= 420) {
+                        resumo.push(f);
+                        acc += f.length;
+                    } else {
+                        break;
+                    }
+                }
+                if (resumo.length === 0 && frases.length > 0) {
+                    resumo.push(frases[0].substring(0, 420).replace(/\s+\S*$/, "") + "...");
+                }
+                let finalT = resumo.join(" ").trim();
+                if (!finalT.endsWith(".")) finalT += ".";
+                finalT += " Os detalhes completos e links estão disponíveis na tela do chat.";
+                return finalT;
+            }
+            return t;
         }
 
         // =========================================================================
@@ -2932,6 +3178,8 @@
             }
         }
 
+        let speechSessionId = 0;
+
         async function processSpeechQueue() {
             if (speechQueue.length === 0) {
                 isProcessingQueue = false;
@@ -2946,11 +3194,12 @@
                         if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                             startVoiceRecognition();
                         }
-                    }, 800);
+                    }, 120);
                 }
                 return;
             }
 
+            const thisSession = speechSessionId;
             isProcessingQueue = true;
             isSpeakingTTS = true;
             isAudioPlayingActive = true;
@@ -2970,6 +3219,12 @@
                     await speakWithBrowserNativeAsync(item.text);
                 } else {
                     const audioData = await item.itemPromise;
+
+                    // Se a fala foi cancelada ou interrompida enquanto baixava o áudio, encerra imediatamente!
+                    if (thisSession !== speechSessionId || !isSpeakingTTS || !isProcessingQueue) {
+                        return;
+                    }
+
                     let played = false;
 
                     // Camada 1: HTML5 Audio Global no DOM (Blob) - Resiliente e imune a resets de Web Audio
@@ -2977,10 +3232,18 @@
                         played = await playAudioBlob(audioData.blob);
                     }
 
+                    if (thisSession !== speechSessionId || !isSpeakingTTS || !isProcessingQueue) {
+                        return;
+                    }
+
                     // Camada 2: Web Audio API
                     const ctx = getSharedAudioContext();
                     if (!played && audioData && audioData.audioBuffer && ctx && ctx.state === 'running') {
                         played = await playAudioBufferAsync(audioData.audioBuffer);
+                    }
+
+                    if (thisSession !== speechSessionId || !isSpeakingTTS || !isProcessingQueue) {
+                        return;
                     }
 
                     // Camada 3: Síntese Nativa do Navegador com watchdog anti-congelamento
@@ -2990,9 +3253,15 @@
                 }
             } catch (err) {
                 console.warn("[TTS Queue Play Error]:", err);
-                try {
-                    await speakWithBrowserNativeAsync(item.text);
-                } catch (e) { }
+                if (thisSession === speechSessionId && isSpeakingTTS && isProcessingQueue) {
+                    try {
+                        await speakWithBrowserNativeAsync(item.text);
+                    } catch (e) { }
+                }
+            }
+
+            if (thisSession !== speechSessionId || !isSpeakingTTS || !isProcessingQueue) {
+                return;
             }
 
             // Processa próximo áudio da fila sequencial
@@ -3120,7 +3389,44 @@
             });
         }
 
+        function silenciarAudio(notify = true) {
+            speechSessionId++; // Invalida imediatamente qualquer promise ou fallback de reprodução pendente
+            clearSpeechQueue();
+            if (currentPlayingAudio) {
+                try {
+                    currentPlayingAudio.pause();
+                    currentPlayingAudio.currentTime = 0;
+                    currentPlayingAudio.src = "";
+                } catch (e) { }
+                currentPlayingAudio = null;
+            }
+            if (currentAudioSourceNode) {
+                try { currentAudioSourceNode.stop(); } catch (e) { }
+                currentAudioSourceNode = null;
+            }
+            if ("speechSynthesis" in window) {
+                try { window.speechSynthesis.cancel(); } catch (e) { }
+            }
+            isSpeakingTTS = false;
+            isAudioPlayingActive = false;
+            isProcessingQueue = false;
+
+            if (notify) {
+                setVoiceStatus("⏹️", "Áudio interrompido.", false);
+            }
+
+            if (alwaysListen && !isProcessingCommand) {
+                clearTimeout(voiceRestartTimeout);
+                voiceRestartTimeout = setTimeout(() => {
+                    if (alwaysListen && !isListening) {
+                        startVoiceRecognition();
+                    }
+                }, 50);
+            }
+        }
+
         function clearSpeechQueue() {
+            speechSessionId++;
             speechQueue = [];
             isProcessingQueue = false;
             isSpeakingTTS = false;
@@ -3794,8 +4100,20 @@
         // SEÇÃO DE CÂMERAS AO VIVO (LIVE SURVEILLANCE HUB)
         // =========================================================================
         let _liveCamerasRefreshTimer = null;
-        let _cameraRefreshMode = "stream"; // "stream", "1000", "2000", "5000", "pause"
+        let _cameraRefreshMode = "pause"; // "pause", "stream", "1000", "2000", "5000"
         let _fullscreenCamCurrentId = null;
+
+        function openCameraConfigModal() {
+            if (typeof openVoiceApiKeyModal === "function") {
+                openVoiceApiKeyModal();
+                setTimeout(() => {
+                    const camList = document.getElementById("modalCamerasList");
+                    if (camList) camList.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 200);
+            } else {
+                window.location.href = "/config";
+            }
+        }
 
         async function loadLiveCamerasDashboard() {
             const grid = document.getElementById("liveCamerasGrid");
@@ -3839,6 +4157,7 @@
             }
 
             const token = getAuthToken();
+            const isPaused = _cameraRefreshMode === "pause";
             let html = "";
             cameras.forEach(cam => {
                 const isIp = cam.camera_type === "ip";
@@ -3846,14 +4165,14 @@
                 const tokenParam = encodeURIComponent(token);
                 const streamUrl = `/api/user/cameras/${cam.id}/stream?token=${tokenParam}&t=${Date.now()}`;
                 const snapUrl = `/api/user/cameras/${cam.id}/snapshot?token=${tokenParam}&t=${Date.now()}`;
-                const feedSrc = _cameraRefreshMode === "stream" ? streamUrl : snapUrl;
+                const feedSrc = isPaused ? "" : (_cameraRefreshMode === "stream" ? streamUrl : snapUrl);
 
                 html += `
                     <div class="bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition rounded-3xl overflow-hidden shadow-xl flex flex-col group" id="camCard_${cam.id}">
                         <!-- Card Header -->
                         <div class="px-5 py-3.5 border-b border-zinc-800/80 bg-zinc-900/90 flex items-center justify-between gap-2">
                             <div class="flex items-center gap-2 min-w-0">
-                                <span id="camDot_${cam.id}" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span id="camDot_${cam.id}" class="w-2.5 h-2.5 rounded-full ${isPaused ? 'bg-zinc-500' : 'bg-emerald-400 animate-pulse'}"></span>
                                 <h4 class="font-bold text-xs text-white truncate" title="${escapeHtml(cam.name)}">${escapeHtml(cam.name)}</h4>
                                 ${isDef ? `<span class="bg-amber-500/10 text-amber-300 border border-amber-500/30 text-[9px] px-1.5 py-0.5 rounded-md font-bold shrink-0">⭐ Padrão</span>` : ''}
                             </div>
@@ -3865,11 +4184,21 @@
                         </div>
 
                         <!-- Video Frame -->
-                        <div class="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden cursor-pointer group/feed" onclick="openCameraFullscreen(${cam.id})">
-                            <img id="camImg_${cam.id}" src="${_cameraRefreshMode === 'pause' ? snapUrl : feedSrc}" alt="${escapeHtml(cam.name)}"
-                                class="w-full h-full object-cover group-hover/feed:scale-105 transition-transform duration-500"
+                        <div class="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden cursor-pointer group/feed" onclick="${isPaused ? `startSingleCameraStream(${cam.id})` : `openCameraFullscreen(${cam.id})`}">
+                            <img id="camImg_${cam.id}" src="${feedSrc}" alt="${escapeHtml(cam.name)}"
+                                class="w-full h-full object-cover group-hover/feed:scale-105 transition-transform duration-500 ${isPaused ? 'hidden' : ''}"
                                 onerror="handleCameraFeedError(${cam.id})"
                                 onload="handleCameraFeedLoad(${cam.id})">
+
+                            <!-- Overlay Pausado / Sob Demanda -->
+                            <div id="camPauseOverlay_${cam.id}" class="absolute inset-0 bg-zinc-950/85 flex flex-col items-center justify-center p-4 text-center ${isPaused ? '' : 'hidden'}">
+                                <button onclick="event.stopPropagation(); startSingleCameraStream(${cam.id})"
+                                    class="w-12 h-12 rounded-2xl bg-indigo-600/30 border border-indigo-500/40 text-white flex items-center justify-center text-xl mb-2 hover:scale-110 active:scale-95 transition shadow-lg cursor-pointer">
+                                    ▶️
+                                </button>
+                                <span class="text-xs font-bold text-zinc-200">Clique para Iniciar Vídeo</span>
+                                <span class="text-[10px] text-zinc-400">Transmissão sob demanda</span>
+                            </div>
 
                             <!-- Overlay Offline / Error -->
                             <div id="camOfflineOverlay_${cam.id}" class="absolute inset-0 bg-zinc-950/90 flex flex-col items-center justify-center p-4 text-center hidden">
@@ -3892,8 +4221,8 @@
 
                         <!-- Card Footer -->
                         <div class="px-4 py-2.5 bg-zinc-950/70 border-t border-zinc-800/60 flex items-center justify-between text-xs">
-                            <span id="camStatusTag_${cam.id}" class="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
-                                ● Transmitindo
+                            <span id="camStatusTag_${cam.id}" class="text-[11px] ${isPaused ? 'text-zinc-400' : 'text-emerald-400'} font-mono flex items-center gap-1">
+                                ${isPaused ? '⏸️ Pausado' : '● Transmitindo'}
                             </span>
                             <div class="flex items-center gap-1">
                                 <button onclick="takeLiveSnapshot(${cam.id})" title="Baixar foto desta câmera"
@@ -3918,6 +4247,27 @@
             startLiveCameraRefreshInterval();
         }
 
+        function startSingleCameraStream(camId) {
+            const token = getAuthToken();
+            const tokenParam = encodeURIComponent(token);
+            const img = document.getElementById(`camImg_${camId}`);
+            const pauseOverlay = document.getElementById(`camPauseOverlay_${camId}`);
+            const offlineOverlay = document.getElementById(`camOfflineOverlay_${camId}`);
+            const tag = document.getElementById(`camStatusTag_${camId}`);
+            const dot = document.getElementById(`camDot_${camId}`);
+            if (pauseOverlay) pauseOverlay.classList.add("hidden");
+            if (offlineOverlay) offlineOverlay.classList.add("hidden");
+            if (img) {
+                img.classList.remove("hidden");
+                img.src = `/api/user/cameras/${camId}/stream?token=${tokenParam}&t=${Date.now()}`;
+            }
+            if (tag) {
+                tag.className = "text-[11px] text-emerald-400 font-mono flex items-center gap-1";
+                tag.innerText = "● Transmitindo";
+            }
+            if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
+        }
+
         function handleCameraFeedError(camId) {
             const overlay = document.getElementById(`camOfflineOverlay_${camId}`);
             const dot = document.getElementById(`camDot_${camId}`);
@@ -3931,10 +4281,14 @@
         }
 
         function handleCameraFeedLoad(camId) {
+            const img = document.getElementById(`camImg_${camId}`);
+            if (img) img.classList.remove("hidden");
             const overlay = document.getElementById(`camOfflineOverlay_${camId}`);
+            const pauseOverlay = document.getElementById(`camPauseOverlay_${camId}`);
             const dot = document.getElementById(`camDot_${camId}`);
             const tag = document.getElementById(`camStatusTag_${camId}`);
             if (overlay) overlay.classList.add("hidden");
+            if (pauseOverlay) pauseOverlay.classList.add("hidden");
             if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
             if (tag) {
                 tag.className = "text-[11px] text-emerald-400 font-mono flex items-center gap-1";
@@ -3947,7 +4301,12 @@
             if (!img) return;
             const token = getAuthToken();
             const tokenParam = encodeURIComponent(token);
-            if (_cameraRefreshMode === "stream") {
+            const overlay = document.getElementById(`camOfflineOverlay_${camId}`);
+            const pauseOverlay = document.getElementById(`camPauseOverlay_${camId}`);
+            if (overlay) overlay.classList.add("hidden");
+            if (pauseOverlay) pauseOverlay.classList.add("hidden");
+            img.classList.remove("hidden");
+            if (_cameraRefreshMode === "stream" || _cameraRefreshMode === "pause") {
                 img.src = `/api/user/cameras/${camId}/stream?token=${tokenParam}&t=${Date.now()}`;
             } else {
                 img.src = `/api/user/cameras/${camId}/snapshot?token=${tokenParam}&t=${Date.now()}`;
@@ -3968,14 +4327,30 @@
 
             _userCamerasCache.forEach(cam => {
                 const img = document.getElementById(`camImg_${cam.id}`);
+                const overlay = document.getElementById(`camPauseOverlay_${cam.id}`);
+                const tag = document.getElementById(`camStatusTag_${cam.id}`);
+                const dot = document.getElementById(`camDot_${cam.id}`);
                 if (!img) return;
+
                 if (val === "stream") {
+                    if (overlay) overlay.classList.add("hidden");
+                    img.classList.remove("hidden");
                     img.src = `/api/user/cameras/${cam.id}/stream?token=${tokenParam}&t=${Date.now()}`;
+                    if (tag) { tag.className = "text-[11px] text-emerald-400 font-mono flex items-center gap-1"; tag.innerText = "● Transmitindo"; }
+                    if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
                 } else if (val === "pause") {
-                    // Mantém o último frame ou recarrega um snapshot estático
-                    img.src = `/api/user/cameras/${cam.id}/snapshot?token=${tokenParam}&t=${Date.now()}`;
+                    img.src = "";
+                    img.classList.add("hidden");
+                    if (overlay) overlay.classList.remove("hidden");
+                    if (tag) { tag.className = "text-[11px] text-zinc-400 font-mono flex items-center gap-1"; tag.innerText = "⏸️ Pausado"; }
+                    if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-zinc-500";
                 } else {
+                    if (overlay) overlay.classList.add("hidden");
+                    img.classList.remove("hidden");
                     img.src = `/api/user/cameras/${cam.id}/snapshot?token=${tokenParam}&t=${Date.now()}`;
+                    const sec = parseInt(val) / 1000;
+                    if (tag) { tag.className = "text-[11px] text-indigo-400 font-mono flex items-center gap-1"; tag.innerText = `⏱️ Snapshot ${sec}s`; }
+                    if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse";
                 }
             });
 
@@ -4083,9 +4458,6 @@
             updateDashboard();
         }
 
-        // =========================================================================
-        // INICIALIZAÇÃO E WATCHDOG CONTÍNUO DE ESCUTA
-        // =========================================================================
         function startContinuousWatchdog() {
             if (watchdogInterval) clearInterval(watchdogInterval);
             watchdogInterval = setInterval(() => {
@@ -4094,6 +4466,14 @@
                 }
             }, 1200);
         }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                if (isSpeakingTTS || isAudioPlayingActive || speechQueue.length > 0) {
+                    silenciarAudio(true);
+                }
+            }
+        });
 
         // Inicialização
         autoUnlockAudioOnLoad();

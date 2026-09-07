@@ -58,6 +58,12 @@ try:
         perguntar_e_executar_antigravity,
         set_antigravity_context
     )
+    from api.tools.osint_tools import (
+        investigar_pessoa_osint,
+        buscar_usuario_redes_sociais_sherlock,
+        verificar_email_osint_holehe,
+        set_osint_context
+    )
     from api.tools.memory_tools import (
         gravar_memoria_longo_prazo,
         consultar_memorias_longo_prazo,
@@ -99,6 +105,12 @@ except ImportError:
         executar_comando_antigravity,
         perguntar_e_executar_antigravity,
         set_antigravity_context
+    )
+    from tools.osint_tools import (
+        investigar_pessoa_osint,
+        buscar_usuario_redes_sociais_sherlock,
+        verificar_email_osint_holehe,
+        set_osint_context
     )
     from tools.memory_tools import (
         gravar_memoria_longo_prazo,
@@ -149,33 +161,94 @@ def get_chat_model(model_name: str, api_key: str):
             temperature=0.1
         )
 
-def remover_markdown(texto: str) -> str:
-    """Remove caracteres e formatações Markdown para deixar o texto 100% puro para voz e leitura."""
+def gerar_texto_para_fala(texto: str, max_chars: int = 420) -> str:
+    """
+    Transforma qualquer texto (com Markdown, links, tabelas e termos técnicos) em um
+    texto falado limpo, natural, fluido e sem poluição, perfeito para sintetizadores de voz (TTS).
+    Remove URLs completas, preposições vazias de links, símbolos Markdown e emojis.
+    """
     if not texto:
         return ""
     
-    # Remove blocos de código ```...```
+    # 1. Remove blocos de código completos ```...```
     t = re.sub(r'```[\s\S]*?```', '', texto)
-    # Remove código inline `...`
-    t = re.sub(r'`([^`]+)`', r'\1', t)
-    # Remove links [texto](url) -> texto
-    # t = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', t)
-    # Remove títulos markdown (#, ##, ###)
+    
+    # 2. Transforma links markdown [Texto Legível](URL) apenas no Texto Legível
+    t = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', t)
+    
+    # 3. Remove cabeçalhos markdown (#, ##, ###)
     t = re.sub(r'^#{1,6}\s+', '', t, flags=re.MULTILINE)
-    # Remove negrito e itálico (**texto**, *texto*, __texto__, _texto_)
+    
+    # 4. Remove negrito, itálico, tachado e código inline
     t = re.sub(r'\*\*([^*]+)\*\*', r'\1', t)
     t = re.sub(r'\*([^*]+)\*', r'\1', t)
     t = re.sub(r'__([^_]+)__', r'\1', t)
     t = re.sub(r'_([^_]+)_', r'\1', t)
-    # Remove marcadores de listas (*, -, + no início da linha)
-    t = re.sub(r'^\s*[-*+]\s+', '', t, flags=re.MULTILINE)
-    # Remove citações (> texto)
+    t = re.sub(r'`([^`]+)`', r'\1', t)
+    t = re.sub(r'~~([^~]+)~~', r'\1', t)
+    
+    # 5. Remove marcadores de lista (*, -, +, •, 1.) no início de linhas
+    t = re.sub(r'^\s*[-*+•]\s+', '', t, flags=re.MULTILINE)
+    t = re.sub(r'^\s*\d+\.\s+', '', t, flags=re.MULTILINE)
+    
+    # 6. Remove citações (> texto) e divisores (---, ***)
     t = re.sub(r'^\s*>\s+', '', t, flags=re.MULTILINE)
-    # Remove linhas horizontais (---, ***)
     t = re.sub(r'^\s*[-*_]{3,}\s*$', '', t, flags=re.MULTILINE)
-    # Remove quebras de linha excessivas
-    t = re.sub(r'\n{3,}', '\n\n', t)
-    return t.strip()
+    
+    # 7. Remove URLs puras e expressões que as introduzem diretamente
+    t = re.sub(r'(?i)(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?https?:\/\/\S+', '', t)
+    t = re.sub(r'(?i)(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?www\.\S+', '', t)
+    
+    # 8. Remove rótulos soltos de link no final da linha ou antes de pontuação (ex: "Link:", "URL:", "Fonte:")
+    t = re.sub(r'(?i)\b(?:links?|urls?|fontes?|acesse em|disponível em|veja em|no link|pelo link)\s*:\s*$', '', t, flags=re.MULTILINE)
+    t = re.sub(r'(?i)\b(?:links?|urls?|fontes?|acesse em|disponível em|veja em|no link|pelo link)\s*:\s*', '', t)
+    t = re.sub(r'(?i)\b(?:com mais detalhes em|mais detalhes em|acesse em|disponível em|veja em|no link|pelo link|no endereço|no site|no perfil)\s*(?=[.,;!?]|$)', '', t)
+    
+    # 9. Remove colchetes de referências numéricas [1], [2]
+    t = re.sub(r'\[\d+\]', '', t)
+    
+    # 10. Remove emojis
+    t = re.sub(r'[\U00010000-\U0010ffff]', '', t)
+    
+    # 11. Converte quebras de linha em pausas suaves com ponto
+    linhas = [l.strip() for l in t.split('\n') if l.strip()]
+    reconstruido = []
+    for l in linhas:
+        if not re.search(r'[.!?:]$', l):
+            l += '.'
+        reconstruido.append(l)
+    t = " ".join(reconstruido)
+    
+    # 12. Limpa pontuações repetidas e múltiplos espaços
+    t = re.sub(r'\s*([,.:;?!])\s*', r'\1 ', t)
+    t = re.sub(r':\s*\.', '.', t)
+    t = re.sub(r'\.\s*\.', '.', t)
+    t = re.sub(r',\s*\.', '.', t)
+    t = re.sub(r'\s+', ' ', t).strip()
+    
+    # 13. Se for excessivamente longo para síntese de voz (ex: relatórios OSINT extensos)
+    if len(t) > max_chars:
+        frases = re.split(r'(?<=[.!?])\s+', t)
+        resumo = []
+        acc = 0
+        for f in frases:
+            if acc + len(f) <= max_chars:
+                resumo.append(f)
+                acc += len(f)
+            else:
+                break
+        if not resumo and frases:
+            resumo.append(frases[0][:max_chars].rsplit(' ', 1)[0] + '...')
+        t = " ".join(resumo).strip()
+        if not t.endswith('.'):
+            t += '.'
+        t += " Os detalhes completos e links estão disponíveis na tela do chat."
+        
+    return t
+
+def remover_markdown(texto: str) -> str:
+    """Função legada para compatibilidade retroativa."""
+    return gerar_texto_para_fala(texto)
 
 def get_tool_friendly_status(tool_name: str) -> str:
     """Retorna uma mensagem amigável em português sobre a ferramenta que o agente está executando."""
@@ -235,7 +308,10 @@ def get_tool_friendly_status(tool_name: str) -> str:
         "esquecer_memoria": "Removendo memória do banco de dados...",
         "consultar_agente_antigravity": "Consultando o agente especialista Antigravity...",
         "executar_comando_antigravity": "Executando comando na máquina física via Antigravity...",
-        "perguntar_e_executar_antigravity": "Delegando análise e execução ao Antigravity..."
+        "perguntar_e_executar_antigravity": "Delegando análise e execução ao Antigravity...",
+        "investigar_pessoa_osint": "Realizando investigação OSINT completa e sintetizando dossiê com o Antigravity...",
+        "buscar_usuario_redes_sociais_sherlock": "Rastreando perfis nas redes sociais com Sherlock...",
+        "verificar_email_osint_holehe": "Verificando contas vinculadas ao e-mail com Holehe..."
     }
     return status_map.get(tool_name, "Processando solicitação com ferramentas...")
 
@@ -279,6 +355,7 @@ def processar_comando_agente(
     set_automation_context(user_email=user_email or "")
     set_system_tools_context(user_email=user_email or "")
     set_antigravity_context(user_email=user_email or "", api_key=api_key or "", model_name=modelo or "")
+    set_osint_context(user_email=user_email or "", api_key=api_key or "", model_name=modelo or "")
     set_memory_context(user_email=user_email or "")
     
     # Carrega credenciais do Google do usuário ativo
@@ -308,6 +385,9 @@ def processar_comando_agente(
         consultar_agente_antigravity,
         executar_comando_antigravity,
         perguntar_e_executar_antigravity,
+        investigar_pessoa_osint,
+        buscar_usuario_redes_sociais_sherlock,
+        verificar_email_osint_holehe,
         pesquisar_na_internet,
         pesquisar_e_transcrever_youtube,
         controlar_luzes,
@@ -442,11 +522,19 @@ Suas capacidades e ferramentas disponíveis:
    - 'consultar_agente_antigravity': Use SEMPRE que você tiver alguma dúvida técnica, complexa, de programação, arquitetura de software, infraestrutura, engenharia ou quando o usuário pedir para perguntar/consultar o Antigravity (ex: 'pergunta pro Antigravity', 'o que o Antigravity acha disso?', 'tira uma dúvida com o Antigravity', 'qual a melhor solução técnica para isso?'). O Antigravity atua como seu engenheiro consultor sênior.
    - 'executar_comando_antigravity': Use SEMPRE que o usuário pedir para executar comandos de terminal/shell na máquina física / computador (ex: 'execute o comando df -h', 'veja o uptime do servidor', 'liste os arquivos da pasta', 'execute o comando ... na máquina'). Retorna a saída real do terminal (stdout/stderr) e o código de saída do Linux.
    - 'perguntar_e_executar_antigravity': Use quando o usuário pedir para delegar uma tarefa completa de diagnóstico ou resolução técnica no computador ao Antigravity.
+20. INTELIGÊNCIA OSINT (OPEN SOURCE INTELLIGENCE) & FERRAMENTAS KALI LINUX:
+   - 'investigar_pessoa_osint': Use SEMPRE que o usuário pedir para investigar uma pessoa, buscar dados de alguém, levantar informações sobre um perfil ou @ do Instagram (ex: 'investiga o @fulano', 'pesquise sobre o Marcio Silva no Instagram @marciobob', 'faça um levantamento OSINT sobre tal pessoa', 'veja tudo o que tem na internet sobre fulano'). Ela aciona ferramentas como Sherlock, Holehe, busca web direcionada e sintetiza um dossiê analítico completo através do Antigravity.
+   - 'buscar_usuario_redes_sociais_sherlock': Use quando o objetivo for especificamente rastrear e listar em quais redes sociais ou plataformas um username/@ possui perfil ativo usando o Sherlock do Kali Linux.
+   - 'verificar_email_osint_holehe': Use quando o objetivo for especificamente verificar em quais serviços e plataformas da internet um e-mail possui conta cadastrada usando o Holehe.
 
-REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO:
-- NUNCA use formatação Markdown (NÃO use asteriscos '**', '#' de títulos, marcadores de lista '-' ou '•', nem itálicos).
-- Responda SEMPRE em TEXTO PURO (plain text) contínuo, limpo e direto, otimizado para sintetizadores de voz (TTS).
-- Responda sempre em português brasileiro de forma natural, simpática e objetiva.
+REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO VISUAL:
+- Formate sua resposta de maneira elegante e organizada para visualização na tela do chat utilizando Markdown bem estruturado:
+  * Utilize tópicos e marcadores de lista ('- ' ou '1. ') para organizar múltiplos itens, resultados ou informações.
+  * Destaque palavras-chave, nomes próprios, datas e status em negrito ('**destaque**').
+  * Utilize subtítulos ('### Título') para dividir seções em respostas mais detalhadas ou relatórios (ex: OSINT, pesquisas, listas).
+  * Sempre que citar links, perfis de redes sociais, artigos, vídeos ou sites da internet, utilize SEMPRE a formatação de link Markdown com texto descritivo e amigável: [Título do Artigo ou Nome da Plataforma](URL) em vez de jogar URLs soltas e desordenadas no texto.
+- Responda sempre em português brasileiro de forma educada, prestativa, inteligente e objetiva.
+- O sistema possui um pipeline separado que converte automaticamente sua resposta em áudio limpo para a voz, portanto você DEVE incluir links descritivos, formatação e detalhes completos no texto para a melhor experiência visual do usuário na tela do chat.
 - Se a solicitação do usuário exigir uma ação (olhar câmera, identificar pessoas, gerenciar notas/listas, gerenciar tarefas, consultar/salvar contatos, consultar/agendar na agenda, ler/enviar/responder e-mail, ligar/desligar luz, consultar status, consultar perfil, buscar na web ou memorizar/consultar fatos aprendidos), invoque a ferramenta correspondente.
 """
 
@@ -539,9 +627,10 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO:
             else:
                 raw_reply = str(output_text)
                 
-            # Sanitiza o texto para remover qualquer markdown residual
-            clean_reply = remover_markdown(raw_reply)
-            executed_reply = clean_reply.strip() or "Comando processado com sucesso."
+            display_reply = raw_reply.strip() or "Comando processado com sucesso."
+            spoken_reply = gerar_texto_para_fala(display_reply)
+            executed_reply = display_reply
+            executed_spoken = spoken_reply
             
             if candidate_model != modelo:
                 agent_logger.info(f"Comando executado com sucesso utilizando o modelo contingência/fallback '{candidate_model}'")
@@ -555,19 +644,21 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO:
             
     if executed_reply is None:
         agent_logger.error(f"Todos os modelos da cadeia de fallback falharam. Último erro: {last_error}")
-        clean_reply = "Desculpe, os servidores da inteligência artificial estão enfrentando alta demanda temporária neste momento. Por favor, tente novamente em alguns instantes."
+        display_reply = "Desculpe, os servidores da inteligência artificial estão enfrentando alta demanda temporária neste momento. Por favor, tente novamente em alguns instantes."
+        spoken_reply = display_reply
     else:
-        clean_reply = executed_reply
+        display_reply = executed_reply
+        spoken_reply = executed_spoken
         
     actions = get_executed_actions()
-    agent_logger.info(f"Resposta final formulada (texto puro): '{clean_reply}' | Ações: {actions}")
+    agent_logger.info(f"Resposta final (chat): '{display_reply[:90]}...' | Fala (áudio limpo): '{spoken_reply[:80]}...' | Ações: {actions}")
     
     # Dispara o aprendizado contínuo em segundo plano (background thread assíncrona)
     if user_email and api_key and prompt_text:
         try:
             trigger_background_continuous_learning(
                 user_message=prompt_text,
-                agent_response=clean_reply,
+                agent_response=display_reply,
                 user_email=user_email,
                 api_key=api_key,
                 model_name=modelo
@@ -576,6 +667,7 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO:
             agent_logger.warning(f"Falha ao disparar aprendizado contínuo em background: {bg_learn_err}")
 
     return {
-        "reply": clean_reply.strip() or "Comando processado com sucesso.",
+        "reply": display_reply.strip() or "Comando processado com sucesso.",
+        "spoken_reply": spoken_reply.strip() or "Comando processado com sucesso.",
         "actions": actions
     }
