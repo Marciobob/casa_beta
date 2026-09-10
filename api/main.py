@@ -6,6 +6,7 @@ import asyncio
 import threading
 import base64
 import edge_tts
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, Depends, Header, Query, Response, status
@@ -40,14 +41,17 @@ try:
         db_get_user_cameras, db_get_camera_by_id_or_name, db_save_user_camera, db_delete_user_camera, db_set_default_camera,
         db_save_user_photo, db_get_user_photo, db_get_all_residents,
         db_save_telegram_config, db_get_telegram_config,
+        db_save_slack_config, db_get_slack_config,
         db_save_ai_config, db_get_ai_config,
         db_save_house_config, db_get_house_config,
         db_create_automation, db_get_automations, db_get_automation_by_id,
         db_update_automation, db_delete_automation, db_toggle_automation,
         db_get_automations_count,
-        db_save_agent_memory, db_search_agent_memories, db_get_all_agent_memories, db_delete_agent_memory, db_get_recent_important_memories_summary
+        db_save_agent_memory, db_search_agent_memories, db_get_all_agent_memories, db_delete_agent_memory, db_get_recent_important_memories_summary,
+        db_add_screen_notification, db_get_unread_screen_notifications, db_clear_screen_notifications
     )
     from api.tools.vision_tools import capture_camera_frame, set_latest_browser_snapshot
+    from api.tools.slack_tools import get_slack_auth_info, send_slack_message_payload, build_slack_report_blocks
     from api.telegram_bot import send_telegram_message, get_telegram_bot_info, telegram_manager
     from api.automation_engine import automation_engine, run_automation_now
     from api.logger import system_logger, auth_logger, vision_logger
@@ -63,14 +67,17 @@ except ImportError:
         db_get_user_cameras, db_get_camera_by_id_or_name, db_save_user_camera, db_delete_user_camera, db_set_default_camera,
         db_save_user_photo, db_get_user_photo, db_get_all_residents,
         db_save_telegram_config, db_get_telegram_config,
+        db_save_slack_config, db_get_slack_config,
         db_save_ai_config, db_get_ai_config,
         db_save_house_config, db_get_house_config,
         db_create_automation, db_get_automations, db_get_automation_by_id,
         db_update_automation, db_delete_automation, db_toggle_automation,
         db_get_automations_count,
-        db_save_agent_memory, db_search_agent_memories, db_get_all_agent_memories, db_delete_agent_memory, db_get_recent_important_memories_summary
+        db_save_agent_memory, db_search_agent_memories, db_get_all_agent_memories, db_delete_agent_memory, db_get_recent_important_memories_summary,
+        db_add_screen_notification, db_get_unread_screen_notifications, db_clear_screen_notifications
     )
     from tools.vision_tools import capture_camera_frame, set_latest_browser_snapshot
+    from tools.slack_tools import get_slack_auth_info, send_slack_message_payload, build_slack_report_blocks
     from telegram_bot import send_telegram_message, get_telegram_bot_info, telegram_manager
     from automation_engine import automation_engine, run_automation_now
     from logger import system_logger, auth_logger, vision_logger
@@ -588,6 +595,7 @@ def agent_status_endpoint(token_payload: dict = Depends(get_current_user_token))
     profile = get_user_profile(user_email)
     cam_cfg = db_get_camera_config(user_email)
     tg_cfg = db_get_telegram_config(user_email)
+    slack_cfg = db_get_slack_config(user_email)
     
     return {
         "status": "online",
@@ -642,6 +650,13 @@ def agent_status_endpoint(token_payload: dict = Depends(get_current_user_token))
                 "enabled": bool(tg_cfg.get("enabled")),
                 "chat_id": tg_cfg.get("chat_id") if tg_cfg.get("chat_id") else None,
                 "protocol": "Telegram Bot API (Long-Polling)"
+            },
+            "slack": {
+                "name": "Slack Workspace",
+                "connected": bool(slack_cfg.get("configured")),
+                "enabled": bool(slack_cfg.get("enabled")),
+                "channel": slack_cfg.get("default_channel") or "#general",
+                "protocol": "Slack Incoming Webhook & Bot REST API"
             },
             "mqtt": {
                 "name": "Automação Residencial MQTT",
@@ -1388,6 +1403,133 @@ def test_user_telegram_config_endpoint(
     }
 
 # =========================================================================
+# CONFIGURAÇÃO DO SLACK DO USUÁRIO (SQLite)
+# =========================================================================
+
+class SlackConfigRequest(BaseModel):
+    bot_token: Optional[str] = ""
+    webhook_url: Optional[str] = ""
+    default_channel: Optional[str] = ""
+    enabled: Optional[bool] = True
+    notify_camera: Optional[bool] = True
+    notify_tasks: Optional[bool] = True
+
+class SlackTestRequest(BaseModel):
+    bot_token: Optional[str] = ""
+    webhook_url: Optional[str] = ""
+    default_channel: Optional[str] = ""
+
+@app.get("/api/user/slack-config")
+def get_user_slack_config_endpoint(token_payload: dict = Depends(get_current_user_token)):
+    """Retorna a configuração do Slack do usuário logado (com token mascarado)."""
+    user_email = token_payload.get("sub", "")
+    cfg = db_get_slack_config(user_email)
+    token = cfg.get("bot_token", "")
+    webhook = cfg.get("webhook_url", "")
+    
+    masked_token = ""
+    if token:
+        if len(token) > 10:
+            masked_token = token[:6] + ("*" * (len(token) - 10)) + token[-4:]
+        else:
+            masked_token = "********"
+            
+    masked_webhook = ""
+    if webhook:
+        if len(webhook) > 25:
+            masked_webhook = webhook[:25] + "..." + webhook[-6:]
+        else:
+            masked_webhook = "********"
+            
+    return {
+        "configured": cfg.get("configured", False),
+        "bot_token": token,
+        "masked_token": masked_token,
+        "webhook_url": webhook,
+        "masked_webhook": masked_webhook,
+        "default_channel": cfg.get("default_channel", ""),
+        "enabled": cfg.get("enabled", False),
+        "notify_camera": cfg.get("notify_camera", True),
+        "notify_tasks": cfg.get("notify_tasks", True)
+    }
+
+@app.post("/api/user/slack-config")
+def save_user_slack_config_endpoint(
+    req: SlackConfigRequest,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    """Salva o Bot Token, Webhook URL e preferências do Slack no SQLite."""
+    user_email = token_payload.get("sub", "")
+    current = db_get_slack_config(user_email)
+    
+    clean_token = req.bot_token.strip() if req.bot_token is not None and req.bot_token != "" else current.get("bot_token", "")
+    clean_webhook = req.webhook_url.strip() if req.webhook_url is not None and req.webhook_url != "" else current.get("webhook_url", "")
+    clean_channel = req.default_channel.strip() if req.default_channel is not None else current.get("default_channel", "")
+    
+    res = db_save_slack_config(
+        user_email=user_email,
+        bot_token=clean_token,
+        webhook_url=clean_webhook,
+        default_channel=clean_channel,
+        enabled=bool(req.enabled),
+        notify_camera=bool(req.notify_camera),
+        notify_tasks=bool(req.notify_tasks)
+    )
+    
+    return {
+        "status": "success",
+        "message": "Configurações do Slack salvas com sucesso!",
+        "config": res
+    }
+
+@app.post("/api/user/slack-config/test")
+def test_user_slack_config_endpoint(
+    req: Optional[SlackTestRequest] = None,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    """Testa o Webhook ou Bot Token do Slack e envia uma notificação / relatório de teste."""
+    user_email = token_payload.get("sub", "")
+    cfg = db_get_slack_config(user_email)
+    
+    token = (req.bot_token if req and req.bot_token else cfg.get("bot_token", "")).strip()
+    webhook = (req.webhook_url if req and req.webhook_url else cfg.get("webhook_url", "")).strip()
+    channel = (req.default_channel if req and req.default_channel else cfg.get("default_channel", "")).strip()
+    
+    if not token and not webhook:
+        raise HTTPException(status_code=400, detail="Informe ao menos o Webhook URL ou o Bot Token do Slack para testar.")
+        
+    now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+    blocks = build_slack_report_blocks(
+        titulo="Teste de Conexão: Smart Home AI Agent",
+        conteudo=(
+            f"✅ *Conexão Estabelecida com Sucesso!*\n\n"
+            f"O agente inteligente residencial **Sexta-Feira** está integrado ao seu workspace do Slack ({user_email}).\n"
+            f"• *Status:* Operacional & Pronto para Enviar Relatórios e Alertas\n"
+            f"• *Canal Padrão:* `{channel or '#general'}`\n"
+            f"• *Horário do Teste:* {now_str}"
+        ),
+        tipo_alerta="sucesso"
+    )
+    
+    payload = {
+        "text": f"🤖 Teste de Conexão Smart Home AI Agent ({user_email}) - Conectado com sucesso em {now_str}!",
+        "blocks": blocks
+    }
+    if channel:
+        payload["channel"] = channel
+        
+    ok, err_msg = send_slack_message_payload(token, webhook, payload, channel=channel)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"Falha ao enviar mensagem de teste para o Slack: {err_msg}")
+        
+    return {
+        "status": "success",
+        "message": f"Mensagem de teste enviada com sucesso ao Slack! ({err_msg})",
+        "channel": channel or "#general",
+        "timestamp": now_str
+    }
+
+# =========================================================================
 # CONFIGURAÇÃO DE IA, MODELO E VOZ DO USUÁRIO (SQLite)
 # =========================================================================
 
@@ -1614,6 +1756,24 @@ AUTOMATION_TEMPLATES = [
             "cooldown_seconds": 600,
             "custom_message": "🏠 Seja bem-vindo(a) de volta! Luzes acesas para sua chegada."
         }
+    },
+    {
+        "id": "slack_channel_monitor",
+        "name": "💬 Notificar Mensagens do Slack no Telegram, Tela & Voz",
+        "description": "Monitora continuamente o canal do Slack (#importações). Ao chegar mensagens, verifica se você está na câmera e fala por voz, exibe alerta na tela e envia no Telegram.",
+        "icon": "💬",
+        "automation_type": "slack_message_monitor",
+        "trigger_type": "slack_new_message",
+        "trigger_value": "#importações",
+        "action_type": "multi_channel_alert",
+        "action_payload": {
+            "channel": "#importações",
+            "notify_telegram": True,
+            "notify_screen": True,
+            "check_camera_presence": True,
+            "speak_voice": True,
+            "custom_message": "Nova mensagem no canal do Slack"
+        }
     }
 ]
 
@@ -1731,6 +1891,30 @@ def run_user_automation_endpoint(
         "executed": ok,
         "message": msg
     }
+
+# =========================================================================
+# NOTIFICAÇÕES NA TELA / SCREEN ALERTS EM TEMPO REAL
+# =========================================================================
+
+@app.get("/api/user/notifications/unread")
+def get_user_unread_notifications_endpoint(
+    mark_as_read: bool = True,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    """Retorna as notificações em tempo real destinadas à tela do usuário."""
+    user_email = token_payload.get("sub", "")
+    if not user_email:
+        return {"notifications": []}
+    notifs = db_get_unread_screen_notifications(user_email, mark_as_read=mark_as_read, limit=10)
+    return {"notifications": notifs}
+
+@app.post("/api/user/notifications/clear")
+def clear_user_notifications_endpoint(token_payload: dict = Depends(get_current_user_token)):
+    """Limpa as notificações da tela do usuário."""
+    user_email = token_payload.get("sub", "")
+    if user_email:
+        db_clear_screen_notifications(user_email)
+    return {"status": "success", "message": "Notificações limpas com sucesso."}
 
 # =========================================================================
 # SÍNTESE DE VOZ NEURAL HUMANA (TTS)

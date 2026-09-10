@@ -764,6 +764,80 @@
                     </div>
                 </div>
 
+                <!-- SEÇÃO SLACK WORKSPACE & RELATÓRIOS -->
+                <div class="pt-3 border-t border-zinc-800">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                            <span>💬</span> Slack Workspace (Webhook & Bot)
+                        </label>
+                        <button type="button" id="testSlackBtn" onclick="testSlackConnectionFromModal()"
+                            class="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+                            🧪 Testar Slack
+                        </button>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-[11px] font-semibold text-zinc-400">Webhook URL do Slack (Recomendado)</label>
+                                <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer"
+                                    class="text-[10px] text-emerald-400 hover:underline flex items-center gap-0.5">
+                                    🔗 Criar no Slack API ↗
+                                </a>
+                            </div>
+                            <input id="modalSlackWebhookInput" type="password"
+                                placeholder="ex: https://hooks.slack.com/services/T000/B000/XXXX"
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 font-mono text-white">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Bot Token (Opcional)</label>
+                                <input id="modalSlackTokenInput" type="password"
+                                    placeholder="ex: xoxb-1234567890-..."
+                                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Canal Padrão</label>
+                                <input id="modalSlackChannelInput" type="text"
+                                    placeholder="ex: #geral ou #alertas"
+                                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono text-white">
+                            </div>
+                        </div>
+
+                        <!-- Toggles do Slack -->
+                        <div class="space-y-2 pt-1">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-semibold text-zinc-300">🟢 Ativar Integração com Slack</div>
+                                    <div class="text-[10px] text-zinc-500">Permite ao agente publicar relatórios e enviar avisos</div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="modalSlackEnabledCheckbox" checked
+                                        class="sr-only peer">
+                                    <div
+                                        class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600">
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-semibold text-zinc-300">🔔 Alertas de Mudança & Câmera no Slack</div>
+                                    <div class="text-[10px] text-zinc-500">Envia alertas quando dispositivos mudarem ou intrusos forem vistos</div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="modalSlackNotifyCameraCheckbox" checked
+                                        class="sr-only peer">
+                                    <div
+                                        class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600">
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Status do Teste do Slack -->
+                        <div id="slackTestStatusResult" class="text-xs hidden p-3 rounded-xl border"></div>
+                    </div>
+                </div>
+
                 <!-- SEÇÃO COMANDOS DA MÁQUINA FÍSICA -->
                 <div class="pt-3 border-t border-zinc-800">
                     <div class="flex items-center justify-between">
@@ -885,6 +959,7 @@
                                     <label class="block text-xs text-zinc-400 mb-1">Tipo de Tarefa</label>
                                     <select id="autoFormType" onchange="handleAutoTypeChange()"
                                         class="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 transition">
+                                        <option value="slack_message_monitor">💬 Monitor de Mensagens no Slack (Câmera + Voz + Telegram)</option>
                                         <option value="video_face_recognition">📹 Reconhecer Morador na Câmera (Reconhecimento Facial)</option>
                                         <option value="video_unknown_alert">🚨 Alerta de Visitante / Pessoa Não Cadastrada</option>
                                         <option value="video_presence_detection">👥 Detecção de Qualquer Pessoa na Câmera</option>
@@ -933,6 +1008,9 @@
 
         </div>
     </div>
+
+    <!-- REAL-TIME SCREEN TOAST NOTIFICATION CONTAINER -->
+    <div id="screenToastContainer" class="fixed top-5 right-5 z-[99999] flex flex-col gap-3 max-w-sm w-full pointer-events-none transition-all"></div>
 
     <script>
         let client;
@@ -1411,6 +1489,40 @@
                 }
             } catch (err) {
                 console.warn("Erro ao buscar configurações do Telegram:", err);
+            }
+
+            // Carrega configurações do Slack do banco de dados
+            const slkWebhookInput = document.getElementById("modalSlackWebhookInput");
+            const slkTokenInput = document.getElementById("modalSlackTokenInput");
+            const slkChannelInput = document.getElementById("modalSlackChannelInput");
+            const slkEnabled = document.getElementById("modalSlackEnabledCheckbox");
+            const slkNotifCam = document.getElementById("modalSlackNotifyCameraCheckbox");
+            const slkStatusBox = document.getElementById("slackTestStatusResult");
+            if (slkStatusBox) slkStatusBox.classList.add("hidden");
+
+            try {
+                const token = getAuthToken();
+                if (token) {
+                    const slkRes = await fetch("/api/user/slack-config", {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    if (slkRes.ok) {
+                        const slkData = await slkRes.json();
+                        if (slkWebhookInput) {
+                            slkWebhookInput.value = slkData.webhook_url || "";
+                            if (slkData.configured && !slkWebhookInput.value) slkWebhookInput.placeholder = "Webhook configurado no banco";
+                        }
+                        if (slkTokenInput) {
+                            slkTokenInput.value = slkData.bot_token || "";
+                            if (slkData.bot_token && !slkTokenInput.value) slkTokenInput.placeholder = "Bot Token configurado";
+                        }
+                        if (slkChannelInput) slkChannelInput.value = slkData.default_channel || "";
+                        if (slkEnabled) slkEnabled.checked = (slkData.enabled !== false);
+                        if (slkNotifCam) slkNotifCam.checked = (slkData.notify_camera !== false);
+                    }
+                }
+            } catch (err) {
+                console.warn("Erro ao buscar configurações do Slack:", err);
             }
 
             if (modal) modal.classList.remove("hidden");
@@ -2059,6 +2171,33 @@
                     });
                 } catch (err) {
                     console.warn("Aviso ao salvar configurações do Telegram:", err);
+                }
+
+                // Salva configurações do Slack
+                try {
+                    const slkWebhook = document.getElementById("modalSlackWebhookInput") ? document.getElementById("modalSlackWebhookInput").value.trim() : "";
+                    const slkToken = document.getElementById("modalSlackTokenInput") ? document.getElementById("modalSlackTokenInput").value.trim() : "";
+                    const slkChannel = document.getElementById("modalSlackChannelInput") ? document.getElementById("modalSlackChannelInput").value.trim() : "";
+                    const slkEnabled = document.getElementById("modalSlackEnabledCheckbox") ? document.getElementById("modalSlackEnabledCheckbox").checked : true;
+                    const slkNotifCam = document.getElementById("modalSlackNotifyCameraCheckbox") ? document.getElementById("modalSlackNotifyCameraCheckbox").checked : true;
+
+                    await fetch("/api/user/slack-config", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            webhook_url: slkWebhook,
+                            bot_token: slkToken,
+                            default_channel: slkChannel,
+                            enabled: slkEnabled,
+                            notify_camera: slkNotifCam,
+                            notify_tasks: true
+                        })
+                    });
+                } catch (err) {
+                    console.warn("Aviso ao salvar configurações do Slack:", err);
                 }
             }
 
@@ -3746,7 +3885,7 @@
 
             handleAutoTypeChange();
 
-            // Preenche campos de payload se for automação de vídeo
+            // Preenche campos de payload se for automação de vídeo ou monitor do Slack
             if (t.action_payload) {
                 if (t.action_payload.target_person && document.getElementById("autoVideoTarget")) {
                     document.getElementById("autoVideoTarget").value = t.action_payload.target_person;
@@ -3757,6 +3896,12 @@
                 if (t.action_payload.agent_action_prompt && document.getElementById("autoVideoAgentAction")) {
                     document.getElementById("autoVideoAgentAction").value = t.action_payload.agent_action_prompt;
                 }
+                if (t.action_payload.channel && document.getElementById("autoSlackChannel")) {
+                    document.getElementById("autoSlackChannel").value = t.action_payload.channel;
+                }
+                if (t.action_payload.agent_action_prompt && document.getElementById("autoSlackAgentAction")) {
+                    document.getElementById("autoSlackAgentAction").value = t.action_payload.agent_action_prompt;
+                }
             }
 
             const formCard = document.querySelector("#automationsTabNew .p-5");
@@ -3764,12 +3909,71 @@
         }
 
         function handleAutoTypeChange() {
-            const type = document.getElementById("autoFormType")?.value || "video_face_recognition";
+            const type = document.getElementById("autoFormType")?.value || "slack_message_monitor";
             const triggerLabel = document.getElementById("autoFormTriggerLabel");
             const triggerInput = document.getElementById("autoFormTriggerValue");
             const dynamicFields = document.getElementById("autoDynamicFields");
 
-            if (type === "video_face_recognition") {
+            if (type === "slack_message_monitor") {
+                if (triggerLabel) triggerLabel.innerText = "Intervalo de Verificação (Segundos)";
+                if (triggerInput && (!triggerInput.value || triggerInput.value.includes(":"))) triggerInput.value = "30";
+                if (dynamicFields) dynamicFields.innerHTML = `
+                    <div class="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 space-y-3">
+                        <div class="flex items-center gap-2 text-xs font-bold text-emerald-300">
+                            <span>💬</span> <span>Monitoramento de Canal do Slack (Câmera + Voz + Telegram)</span>
+                        </div>
+                        <p class="text-[11px] text-zinc-300 leading-relaxed">
+                            Monitora mensagens novas no canal do Slack em tempo real. Quando chegar mensagem, a IA <strong>verifica se você está na frente do computador pela câmera</strong> e <strong>fala em voz alta com você</strong>, além de exibir um banner toast instantâneo e enviar notificação no Telegram.
+                        </p>
+                        
+                        <div class="grid sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] text-zinc-400 mb-1">Canal do Slack</label>
+                                <input id="autoSlackChannel" type="text" placeholder="#importações" value="#importações"
+                                    class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500 font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-zinc-400 mb-1">Intervalo de Repouso (Cooldown)</label>
+                                <select id="autoSlackCooldown" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500">
+                                    <option value="30">30 Segundos</option>
+                                    <option value="60" selected>1 Minuto (Padrão)</option>
+                                    <option value="120">2 Minutos</option>
+                                    <option value="300">5 Minutos</option>
+                                    <option value="0">Sem Cooldown</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pt-1 border-t border-emerald-900/40">
+                            <label class="block text-[11px] text-zinc-300 mb-1 flex items-center justify-between">
+                                <span>⚡ Ação Residencial Opcional ao Receber Mensagem (Texto Livre)</span>
+                                <span class="text-[10px] text-emerald-400 font-mono">Opcional</span>
+                            </label>
+                            <input id="autoSlackAgentAction" type="text" placeholder="Ex: Acender a luz do quarto, acender a luz da mesa"
+                                class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500 transition">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-900/40">
+                            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                                <input type="checkbox" id="autoSlackCheckCamera" checked class="rounded border-zinc-700 bg-zinc-900 text-emerald-500">
+                                <span>📷 Checar Presença na Câmera</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                                <input type="checkbox" id="autoSlackSpeakVoice" checked class="rounded border-zinc-700 bg-zinc-900 text-emerald-500">
+                                <span>🗣️ Falar por Voz se Presente</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                                <input type="checkbox" id="autoSlackNotifyScreen" checked class="rounded border-zinc-700 bg-zinc-900 text-emerald-500">
+                                <span>🖥️ Banner Toast na Tela</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                                <input type="checkbox" id="autoSlackNotifyTelegram" checked class="rounded border-zinc-700 bg-zinc-900 text-emerald-500">
+                                <span>📱 Notificar no Telegram</span>
+                            </label>
+                        </div>
+                    </div>
+                `;
+            } else if (type === "video_face_recognition") {
                 if (triggerLabel) triggerLabel.innerText = "Intervalo de Varredura da Câmera (Segundos)";
                 if (triggerInput && (!triggerInput.value || triggerInput.value.includes(":"))) triggerInput.value = "30";
                 
@@ -3953,7 +4157,27 @@
             let actionType = "telegram_alert";
             let payload = {};
 
-            if (autoType.startsWith("video_")) {
+            if (autoType === "slack_message_monitor") {
+                triggerType = "slack_new_message";
+                actionType = "slack_message_monitor";
+                const channel = document.getElementById("autoSlackChannel")?.value.trim() || "#importações";
+                const checkCam = document.getElementById("autoSlackCheckCamera") ? document.getElementById("autoSlackCheckCamera").checked : true;
+                const speakVoice = document.getElementById("autoSlackSpeakVoice") ? document.getElementById("autoSlackSpeakVoice").checked : true;
+                const notifyScreen = document.getElementById("autoSlackNotifyScreen") ? document.getElementById("autoSlackNotifyScreen").checked : true;
+                const notifyTelegram = document.getElementById("autoSlackNotifyTelegram") ? document.getElementById("autoSlackNotifyTelegram").checked : true;
+                const agentAction = document.getElementById("autoSlackAgentAction")?.value.trim() || "";
+                const cooldownVal = parseInt(document.getElementById("autoSlackCooldown")?.value ?? "60");
+
+                payload = {
+                    channel,
+                    check_camera_presence: checkCam,
+                    speak_voice: speakVoice,
+                    notify_screen: notifyScreen,
+                    notify_telegram: notifyTelegram,
+                    agent_action_prompt: agentAction,
+                    cooldown_seconds: isNaN(cooldownVal) ? 60 : cooldownVal
+                };
+            } else if (autoType.startsWith("video_")) {
                 triggerType = "interval_seconds";
                 actionType = "video_alert";
                 
@@ -4475,6 +4699,103 @@
             }
         });
 
+        // =========================================================================
+        // SISTEMA DE NOTIFICAÇÕES TOAST EM TEMPO REAL & SÍNTESE DE VOZ
+        // =========================================================================
+        const activeToastIds = new Set();
+        let screenNotifPollerInterval = null;
+
+        async function checkUnreadScreenNotifications() {
+            const token = (typeof getAuthToken === "function" ? getAuthToken() : null) || localStorage.getItem("smartHomeToken") || "";
+            if (!token) return;
+
+            try {
+                const res = await fetch("/api/user/notifications/unread", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (!res.ok) return;
+
+                const data = await res.json();
+                const unread = data.notifications || [];
+                if (unread.length === 0) return;
+
+                unread.forEach(notif => {
+                    renderScreenToastNotification(notif);
+                    
+                    // Se houver instrução de fala por voz (quando usuário está na frente do computador)
+                    if (notif.metadata && (notif.metadata.speak || notif.metadata.spoken_phrase)) {
+                        const phrase = notif.metadata.spoken_phrase || notif.message;
+                        if (phrase && typeof speakResponse === "function") {
+                            speakResponse(phrase);
+                        }
+                    }
+                });
+            } catch (err) {
+                // Silencioso em caso de instabilidade de rede temporária
+            }
+        }
+
+        function renderScreenToastNotification(notif) {
+            const container = document.getElementById("screenToastContainer");
+            if (!container) return;
+
+            const toastId = "toast_" + (notif.id || Math.random().toString(36).substring(2, 9));
+            if (activeToastIds.has(toastId)) return;
+            activeToastIds.add(toastId);
+
+            const toast = document.createElement("div");
+            toast.id = toastId;
+            toast.className = "pointer-events-auto bg-zinc-900/95 border border-amber-500/50 backdrop-blur-xl shadow-2xl shadow-amber-500/10 rounded-2xl p-4 text-zinc-100 flex gap-3.5 items-start transform transition-all duration-300 translate-x-full opacity-0";
+            
+            const icon = notif.icon || "💬";
+            const title = notif.title || "Nova Notificação";
+            const message = notif.message || "";
+            const source = notif.source ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-medium">${notif.source.toUpperCase()}</span>` : "";
+
+            toast.innerHTML = `
+                <div class="text-2xl p-2 rounded-xl bg-amber-500/15 border border-amber-500/30 flex-shrink-0 flex items-center justify-center">
+                    ${icon}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <h4 class="text-xs font-bold text-zinc-100 truncate">${title}</h4>
+                        ${source}
+                    </div>
+                    <p class="text-xs text-zinc-300 leading-relaxed break-words">${message}</p>
+                </div>
+                <button onclick="dismissScreenToast('${toastId}')" class="text-zinc-500 hover:text-zinc-200 transition text-sm flex-shrink-0 p-1">
+                    ✕
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            // Animação suave de entrada
+            requestAnimationFrame(() => {
+                toast.classList.remove("translate-x-full", "opacity-0");
+                toast.classList.add("translate-x-0", "opacity-100");
+            });
+
+            // Auto-dismiss após 8 segundos
+            setTimeout(() => {
+                dismissScreenToast(toastId);
+            }, 8000);
+        }
+
+        function dismissScreenToast(toastId) {
+            const toast = document.getElementById(toastId);
+            if (!toast) return;
+            toast.classList.add("translate-x-full", "opacity-0");
+            setTimeout(() => {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+                activeToastIds.delete(toastId);
+            }, 300);
+        }
+
+        // Inicia o poller a cada 3.5 segundos
+        if (screenNotifPollerInterval) clearInterval(screenNotifPollerInterval);
+        screenNotifPollerInterval = setInterval(checkUnreadScreenNotifications, 3500);
+
         // Inicialização
         autoUnlockAudioOnLoad();
         syncUserAiConfig();
@@ -4484,6 +4805,7 @@
         updateDashboard();
         connectMQTT();
         loadLiveCamerasDashboard();
+        checkUnreadScreenNotifications();
 
         if (alwaysListen) {
             updateAlwaysListenUI();
@@ -4499,6 +4821,7 @@
             syncHouseConfigFromDatabase();
             requestScreenWakeLock();
             loadLiveCamerasDashboard();
+            checkUnreadScreenNotifications();
             if (alwaysListen) {
                 setTimeout(startVoiceRecognition, 300);
                 startContinuousWatchdog();

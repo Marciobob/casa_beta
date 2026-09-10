@@ -89,6 +89,8 @@ O **Casa Beta** é uma solução inteligente e modular desenvolvida sobre **Fast
   - E-mails (Gmail), Compromissos (Calendar), Contatos, Tarefas e Listas de Compras (Keep).
 - **🤖 Bot do Telegram Bidirecional**:
   - Recebe comandos por texto e voz, envia fotos da câmera e notificações de automações.
+- **💬 Integração com Slack Workspace (Relatórios Executivos & Notificações de Mudança)**:
+  - Envio de relatórios estruturados com Block Kit, alertas em tempo real sobre alterações de estado na casa e leitura de canais.
 - **⚙️ Motor de Automações em Segundo Plano**:
   - Regras agendadas de agenda, lembretes, rotinas de iluminação e alertas de movimento.
 
@@ -105,6 +107,11 @@ O **Casa Beta** é uma solução inteligente e modular desenvolvida sobre **Fast
 | `consultar_memorias_longo_prazo` | Pesquisa na base de memórias consolidadas por termos ou categorias. |
 | `listar_todas_memorias` | Lista tudo o que o assistente sabe e lembra sobre o usuário. |
 | `esquecer_memoria` | Exclui memórias obsoletas ou a pedido do morador. |
+| `enviar_mensagem_slack` | Envia mensagens de texto e avisos rápidos diretamente para canais ou webhooks do Slack. |
+| `enviar_relatorio_slack` | Envia relatórios executivos com design rico (Block Kit), badges visuais de status e rodapé temporal no Slack. |
+| `enviar_alerta_mudanca_slack` | Notifica no Slack alterações de estado em tempo real (luzes acesas/apagadas, portas, presença, tarefas). |
+| `enviar_foto_slack` | Captura a câmera do ambiente e faz upload da foto diretamente no Slack. |
+| `ler_mensagens_slack` | Consulta as últimas mensagens recebidas em um canal do Slack via Bot Token. |
 | `tocar_musica` | Busca e inicia reprodução de áudio de músicas, artistas e podcasts no YouTube em segundo plano. |
 | `parar_musica` | Interrompe e silencia a reprodução da música no alto-falante. |
 | `status_musica` | Informa qual música/áudio está tocando no momento. |

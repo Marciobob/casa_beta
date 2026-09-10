@@ -63,6 +63,12 @@ def init_db():
             telegram_enabled INTEGER DEFAULT 0,
             telegram_notify_camera INTEGER DEFAULT 1,
             telegram_notify_tasks INTEGER DEFAULT 1,
+            slack_bot_token TEXT DEFAULT '',
+            slack_webhook_url TEXT DEFAULT '',
+            slack_default_channel TEXT DEFAULT '',
+            slack_enabled INTEGER DEFAULT 0,
+            slack_notify_camera INTEGER DEFAULT 1,
+            slack_notify_tasks INTEGER DEFAULT 1,
             api_key TEXT DEFAULT '',
             ai_model TEXT DEFAULT 'gemini-2.5-flash-lite',
             agent_name TEXT DEFAULT 'Sexta-Feira',
@@ -88,6 +94,12 @@ def init_db():
         ("telegram_enabled", "INTEGER DEFAULT 0"),
         ("telegram_notify_camera", "INTEGER DEFAULT 1"),
         ("telegram_notify_tasks", "INTEGER DEFAULT 1"),
+        ("slack_bot_token", "TEXT DEFAULT ''"),
+        ("slack_webhook_url", "TEXT DEFAULT ''"),
+        ("slack_default_channel", "TEXT DEFAULT ''"),
+        ("slack_enabled", "INTEGER DEFAULT 0"),
+        ("slack_notify_camera", "INTEGER DEFAULT 1"),
+        ("slack_notify_tasks", "INTEGER DEFAULT 1"),
         ("api_key", "TEXT DEFAULT ''"),
         ("ai_model", "TEXT DEFAULT 'gemini-2.5-flash-lite'"),
         ("agent_name", "TEXT DEFAULT 'Sexta-Feira'"),
@@ -288,6 +300,26 @@ def init_db():
         ON user_cameras(user_email, is_default DESC, id ASC)
     """)
     
+    # Tabela de Notificações na Tela / Screen Alerts em Tempo Real
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS screen_notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            source TEXT DEFAULT 'slack',
+            icon TEXT DEFAULT '💬',
+            metadata TEXT DEFAULT '{}',
+            is_read INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_screen_notifications_user
+        ON screen_notifications(user_email, is_read, id DESC)
+    """)
+    
     conn.commit()
     conn.close()
     system_logger.info("Tabelas do banco de dados verificadas/criadas com sucesso.")
@@ -328,6 +360,12 @@ def get_user_profile(user_email: str) -> Dict[str, Any]:
         "telegram_enabled": 0,
         "telegram_notify_camera": 1,
         "telegram_notify_tasks": 1,
+        "slack_bot_token": "",
+        "slack_webhook_url": "",
+        "slack_default_channel": "",
+        "slack_enabled": 0,
+        "slack_notify_camera": 1,
+        "slack_notify_tasks": 1,
         "api_key": "",
         "ai_model": "gemini-2.5-flash-lite",
         "voice": "pt-BR-FranciscaNeural",
@@ -356,6 +394,13 @@ def save_user_profile(user_email: str, profile_data: Dict[str, Any]) -> Dict[str
     telegram_notify_camera = profile_data.get("telegram_notify_camera", current.get("telegram_notify_camera", 1))
     telegram_notify_tasks = profile_data.get("telegram_notify_tasks", current.get("telegram_notify_tasks", 1))
     
+    slack_bot_token = profile_data.get("slack_bot_token", current.get("slack_bot_token", "")) or ""
+    slack_webhook_url = profile_data.get("slack_webhook_url", current.get("slack_webhook_url", "")) or ""
+    slack_default_channel = profile_data.get("slack_default_channel", current.get("slack_default_channel", "")) or ""
+    slack_enabled = profile_data.get("slack_enabled", current.get("slack_enabled", 0))
+    slack_notify_camera = profile_data.get("slack_notify_camera", current.get("slack_notify_camera", 1))
+    slack_notify_tasks = profile_data.get("slack_notify_tasks", current.get("slack_notify_tasks", 1))
+    
     api_key = profile_data.get("api_key", current.get("api_key", "")) or ""
     ai_model = profile_data.get("ai_model", current.get("ai_model", "gemini-2.5-flash-lite")) or "gemini-2.5-flash-lite"
     voice = profile_data.get("voice", current.get("voice", "pt-BR-FranciscaNeural")) or "pt-BR-FranciscaNeural"
@@ -372,9 +417,11 @@ def save_user_profile(user_email: str, profile_data: Dict[str, Any]) -> Dict[str
             camera_auto_greeting, camera_device_index,
             telegram_bot_token, telegram_chat_id, telegram_enabled,
             telegram_notify_camera, telegram_notify_tasks,
+            slack_bot_token, slack_webhook_url, slack_default_channel,
+            slack_enabled, slack_notify_camera, slack_notify_tasks,
             api_key, ai_model, voice,
             updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(user_email) DO UPDATE SET
             blood_type=excluded.blood_type,
             favorite_movies=excluded.favorite_movies,
@@ -398,6 +445,12 @@ def save_user_profile(user_email: str, profile_data: Dict[str, Any]) -> Dict[str
             telegram_enabled=excluded.telegram_enabled,
             telegram_notify_camera=excluded.telegram_notify_camera,
             telegram_notify_tasks=excluded.telegram_notify_tasks,
+            slack_bot_token=excluded.slack_bot_token,
+            slack_webhook_url=excluded.slack_webhook_url,
+            slack_default_channel=excluded.slack_default_channel,
+            slack_enabled=excluded.slack_enabled,
+            slack_notify_camera=excluded.slack_notify_camera,
+            slack_notify_tasks=excluded.slack_notify_tasks,
             api_key=excluded.api_key,
             ai_model=excluded.ai_model,
             voice=excluded.voice,
@@ -426,6 +479,12 @@ def save_user_profile(user_email: str, profile_data: Dict[str, Any]) -> Dict[str
         1 if telegram_enabled else 0,
         1 if telegram_notify_camera else 0,
         1 if telegram_notify_tasks else 0,
+        slack_bot_token.strip(),
+        slack_webhook_url.strip(),
+        slack_default_channel.strip(),
+        1 if slack_enabled else 0,
+        1 if slack_notify_camera else 0,
+        1 if slack_notify_tasks else 0,
         api_key.strip(),
         ai_model.strip(),
         voice.strip(),
@@ -944,6 +1003,92 @@ def db_get_telegram_config(user_email: str) -> Dict[str, Any]:
         "notify_camera": True,
         "notify_tasks": True,
         "configured": bool(env_token)
+    }
+
+# =========================================================================
+# CONFIGURAÇÃO DO SLACK (SQLite)
+# =========================================================================
+
+def db_save_slack_config(
+    user_email: str,
+    bot_token: str = "",
+    webhook_url: str = "",
+    default_channel: str = "",
+    enabled: bool = True,
+    notify_camera: bool = True,
+    notify_tasks: bool = True
+) -> Dict[str, Any]:
+    """Salva a configuração do Slack do usuário no SQLite."""
+    clean_email = (user_email or "").strip().lower()
+    clean_token = (bot_token or "").strip()
+    clean_webhook = (webhook_url or "").strip()
+    clean_channel = (default_channel or "").strip()
+    is_enabled = 1 if enabled else 0
+    notif_cam = 1 if notify_camera else 0
+    notif_tsk = 1 if notify_tasks else 0
+    updated_at = datetime.now(timezone.utc).isoformat()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO user_profiles (
+            user_email, slack_bot_token, slack_webhook_url, slack_default_channel,
+            slack_enabled, slack_notify_camera, slack_notify_tasks, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_email) DO UPDATE SET
+            slack_bot_token=excluded.slack_bot_token,
+            slack_webhook_url=excluded.slack_webhook_url,
+            slack_default_channel=excluded.slack_default_channel,
+            slack_enabled=excluded.slack_enabled,
+            slack_notify_camera=excluded.slack_notify_camera,
+            slack_notify_tasks=excluded.slack_notify_tasks,
+            updated_at=excluded.updated_at
+    """, (clean_email, clean_token, clean_webhook, clean_channel, is_enabled, notif_cam, notif_tsk, updated_at))
+    conn.commit()
+    conn.close()
+    system_logger.info(f"Configuração do Slack salva para o usuário: {clean_email} (Enabled: {enabled}, Channel: {clean_channel})")
+    return db_get_slack_config(clean_email)
+
+def db_get_slack_config(user_email: str) -> Dict[str, Any]:
+    """Retorna as configurações do Slack salvas para o usuário."""
+    clean_email = (user_email or "").strip().lower()
+    if clean_email:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT slack_bot_token, slack_webhook_url, slack_default_channel,
+                   slack_enabled, slack_notify_camera, slack_notify_tasks
+            FROM user_profiles WHERE user_email = ?
+        """, (clean_email,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            token = (row["slack_bot_token"] or "").strip()
+            webhook = (row["slack_webhook_url"] or "").strip()
+            channel = (row["slack_default_channel"] or "").strip()
+            return {
+                "bot_token": token,
+                "webhook_url": webhook,
+                "default_channel": channel,
+                "enabled": bool(row["slack_enabled"]),
+                "notify_camera": bool(row["slack_notify_camera"]),
+                "notify_tasks": bool(row["slack_notify_tasks"]),
+                "configured": bool((token or webhook) and (row["slack_enabled"] or channel or webhook))
+            }
+            
+    # Fallback para .env
+    env_token = (os.getenv("SLACK_BOT_TOKEN") or "").strip()
+    env_webhook = (os.getenv("SLACK_WEBHOOK_URL") or "").strip()
+    env_channel = (os.getenv("SLACK_DEFAULT_CHANNEL") or "").strip()
+    return {
+        "bot_token": env_token,
+        "webhook_url": env_webhook,
+        "default_channel": env_channel,
+        "enabled": bool(env_token or env_webhook),
+        "notify_camera": True,
+        "notify_tasks": True,
+        "configured": bool(env_token or env_webhook)
     }
 
 def db_get_all_active_telegram_bots() -> List[Dict[str, Any]]:
@@ -2137,6 +2282,93 @@ def db_get_recent_important_memories_summary(user_email: str, limit: int = 10) -
         lines.append(f"- {cat_badge} {fact_text}")
     
     return "\n".join(lines)
+
+# =========================================================================
+# NOTIFICAÇÕES NA TELA / SCREEN ALERTS EM TEMPO REAL (SQLite)
+# =========================================================================
+
+def db_add_screen_notification(
+    user_email: str,
+    title: str,
+    message: str,
+    source: str = "slack",
+    icon: str = "💬",
+    metadata: Optional[Dict[str, Any]] = None
+) -> int:
+    """Registra uma notificação na tela para ser consumida em tempo real pelo frontend."""
+    clean_email = (user_email or "").strip().lower()
+    now = datetime.now(timezone.utc).isoformat()
+    meta_json = json.dumps(metadata or {}, ensure_ascii=False)
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO screen_notifications (
+            user_email, title, message, source, icon, metadata, is_read, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+    """, (clean_email, title[:200], message[:2000], source, icon, meta_json, now))
+    notif_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return notif_id
+
+def db_get_unread_screen_notifications(
+    user_email: str,
+    mark_as_read: bool = True,
+    limit: int = 10
+) -> List[Dict[str, Any]]:
+    """Retorna as notificações não lidas para exibição no painel da tela."""
+    clean_email = (user_email or "").strip().lower()
+    if not clean_email:
+        return []
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, user_email, title, message, source, icon, metadata, is_read, created_at
+        FROM screen_notifications
+        WHERE user_email = ? AND is_read = 0
+        ORDER BY id ASC
+        LIMIT ?
+    """, (clean_email, limit))
+    rows = cursor.fetchall()
+    
+    notifications = []
+    ids_to_mark = []
+    for r in rows:
+        ids_to_mark.append(r["id"])
+        meta = {}
+        try:
+            meta = json.loads(r["metadata"]) if r["metadata"] else {}
+        except Exception:
+            pass
+        notifications.append({
+            "id": r["id"],
+            "title": r["title"],
+            "message": r["message"],
+            "source": r["source"],
+            "icon": r["icon"],
+            "metadata": meta,
+            "created_at": r["created_at"]
+        })
+        
+    if mark_as_read and ids_to_mark:
+        placeholders = ",".join("?" for _ in ids_to_mark)
+        cursor.execute(f"UPDATE screen_notifications SET is_read = 1 WHERE id IN ({placeholders})", ids_to_mark)
+        conn.commit()
+        
+    conn.close()
+    return notifications
+
+def db_clear_screen_notifications(user_email: str):
+    """Marca todas as notificações da tela como lidas para o usuário."""
+    clean_email = (user_email or "").strip().lower()
+    if not clean_email:
+        return
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE screen_notifications SET is_read = 1 WHERE user_email = ?", (clean_email,))
+    conn.commit()
+    conn.close()
 
 # Inicializa o banco automaticamente ao carregar o módulo
 init_db()

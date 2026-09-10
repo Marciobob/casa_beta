@@ -258,20 +258,22 @@ def _fetch_ip_camera_snapshot(
 def capture_camera_frame(
     config: Optional[Dict[str, Any]] = None,
     camera_identifier: Optional[Any] = None,
-    timeout: float = 4.0
+    timeout: float = 4.0,
+    user_email: Optional[str] = None
 ) -> Tuple[Optional[bytes], Optional[str]]:
     """
     Captura um quadro (frame JPEG) da câmera solicitada ou da câmera padrão do usuário.
     Retorna (bytes_jpeg, mensagem_erro).
     """
+    active_user = (user_email or _ACTIVE_VISION_USER or "").strip().lower()
     cfg = config
     if not cfg:
-        if camera_identifier and _ACTIVE_VISION_USER:
-            cfg = db_get_camera_by_id_or_name(_ACTIVE_VISION_USER, camera_identifier)
+        if camera_identifier and active_user:
+            cfg = db_get_camera_by_id_or_name(active_user, camera_identifier)
         elif _ACTIVE_CAMERA_CONFIG:
             cfg = _ACTIVE_CAMERA_CONFIG
-        elif _ACTIVE_VISION_USER:
-            cfg = db_get_camera_by_id_or_name(_ACTIVE_VISION_USER, "padrao")
+        elif active_user:
+            cfg = db_get_camera_by_id_or_name(active_user, "padrao")
             
     if not cfg:
         cfg = {"camera_type": "device", "camera_device_index": 0}
@@ -328,7 +330,7 @@ def capture_camera_frame(
                     vision_logger.debug(f"Tentativa de acesso à câmera no índice {idx} falhou: {e_dev}")
 
     # Fallback: snapshot enviado pelo navegador via interface web
-    cached = get_latest_browser_snapshot(_ACTIVE_VISION_USER)
+    cached = get_latest_browser_snapshot(active_user)
     if cached:
         vision_logger.info("Utilizando snapshot recebido pelo navegador do usuário.")
         return cached, None

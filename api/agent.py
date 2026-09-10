@@ -40,6 +40,15 @@ try:
     )
     from api.tools.vision_tools import ver_camera, detectar_e_cumprimentar_pessoas, identificar_morador_ou_visitante, status_camera, set_vision_context
     from api.tools.telegram_tools import enviar_mensagem_telegram, enviar_foto_telegram, set_telegram_context
+    from api.tools.slack_tools import (
+        enviar_mensagem_slack,
+        enviar_relatorio_slack,
+        enviar_alerta_mudanca_slack,
+        enviar_foto_slack,
+        ler_mensagens_slack,
+        listar_canais_slack,
+        set_slack_context
+    )
     from api.tools.automation_tools import (
         listar_automacoes,
         controlar_automacao,
@@ -72,7 +81,7 @@ try:
         set_memory_context,
         trigger_background_continuous_learning
     )
-    from api.database import db_get_google_credentials, db_get_camera_config, db_get_recent_important_memories_summary
+    from api.database import db_get_google_credentials, db_get_camera_config, db_get_recent_important_memories_summary, db_get_ai_config
 except ImportError:
     from logger import agent_logger
     from tools.search_tools import pesquisar_na_internet
@@ -88,6 +97,15 @@ except ImportError:
     )
     from tools.vision_tools import ver_camera, detectar_e_cumprimentar_pessoas, identificar_morador_ou_visitante, status_camera, set_vision_context
     from tools.telegram_tools import enviar_mensagem_telegram, enviar_foto_telegram, set_telegram_context
+    from tools.slack_tools import (
+        enviar_mensagem_slack,
+        enviar_relatorio_slack,
+        enviar_alerta_mudanca_slack,
+        enviar_foto_slack,
+        ler_mensagens_slack,
+        listar_canais_slack,
+        set_slack_context
+    )
     from tools.automation_tools import (
         listar_automacoes,
         controlar_automacao,
@@ -120,7 +138,7 @@ except ImportError:
         set_memory_context,
         trigger_background_continuous_learning
     )
-    from database import db_get_google_credentials, db_get_camera_config, db_get_recent_important_memories_summary
+    from database import db_get_google_credentials, db_get_camera_config, db_get_recent_important_memories_summary, db_get_ai_config
 
 def get_fallback_models(primary_model: str) -> List[str]:
     """Retorna lista de modelos de fallback ordenados por preferência caso o modelo primário sofra 503/429 ou sobrecarga."""
@@ -279,6 +297,12 @@ def get_tool_friendly_status(tool_name: str) -> str:
         "status_camera": "Verificando status da câmera...",
         "enviar_mensagem_telegram": "Enviando mensagem no Telegram...",
         "enviar_foto_telegram": "Enviando foto no Telegram...",
+        "enviar_mensagem_slack": "Enviando mensagem para o Slack...",
+        "enviar_relatorio_slack": "Formatando e publicando relatório executivo no Slack...",
+        "enviar_alerta_mudanca_slack": "Enviando alerta de alteração de estado para o Slack...",
+        "enviar_foto_slack": "Capturando e enviando foto da residência para o Slack...",
+        "ler_mensagens_slack": "Consultando mensagens recentes no canal do Slack...",
+        "listar_canais_slack": "Consultando lista de canais disponíveis no Slack...",
         "listar_automacoes": "Consultando regras de automação...",
         "controlar_automacao": "Atualizando regra de automação...",
         "criar_automacao": "Criando nova automação...",
@@ -339,6 +363,14 @@ def processar_comando_agente(
     if not broker_config and ("broker" in kwargs or "port" in kwargs):
         broker_config = {"broker": kwargs.get("broker", "test.mosquitto.org"), "port": kwargs.get("port", 1883)}
         
+    if not api_key and user_email:
+        ai_cfg = db_get_ai_config(user_email)
+        api_key = (ai_cfg.get("api_key") or "").strip()
+        if not modelo or modelo == "gemini-2.5-flash-lite":
+            modelo = ai_cfg.get("ai_model", modelo) or modelo
+        if not agent_name or agent_name == "Sexta-Feira":
+            agent_name = ai_cfg.get("agent_name", agent_name) or agent_name
+            
     history_count = len(chat_history) if chat_history else 0
     agent_logger.info(
         f"Comando recebido: '{prompt_text}' | Modelo: '{modelo}' | Agente: '{agent_name}' | "
@@ -352,6 +384,7 @@ def processar_comando_agente(
     set_keep_context(user_email=user_email or "")
     set_vision_context(user_email=user_email or "", api_key=api_key or "", model_name=modelo or "")
     set_telegram_context(user_email=user_email or "")
+    set_slack_context(user_email=user_email or "")
     set_automation_context(user_email=user_email or "")
     set_system_tools_context(user_email=user_email or "")
     set_antigravity_context(user_email=user_email or "", api_key=api_key or "", model_name=modelo or "")
@@ -415,6 +448,12 @@ def processar_comando_agente(
         status_camera,
         enviar_mensagem_telegram,
         enviar_foto_telegram,
+        enviar_mensagem_slack,
+        enviar_relatorio_slack,
+        enviar_alerta_mudanca_slack,
+        enviar_foto_slack,
+        ler_mensagens_slack,
+        listar_canais_slack,
         listar_automacoes,
         controlar_automacao,
         criar_automacao,
@@ -494,10 +533,17 @@ Suas capacidades e ferramentas disponíveis:
 8. TELEGRAM & NOTIFICAÇÕES EXTERNAS:
    - 'enviar_mensagem_telegram': Use quando o usuário pedir para enviar um aviso, mensagem ou notificação externa para o Telegram dele (ex: "Me envie uma mensagem no Telegram avisando disso").
    - 'enviar_foto_telegram': Use quando o usuário pedir para capturar a câmera e enviar a foto diretamente no Telegram dele.
-9. CONTROLE DE AUTOMAÇÕES E SEGUNDO PLANO:
-   - 'listar_automacoes': Use quando o usuário perguntar quais automações estão ativas, o que está agendado, pedir para ver suas regras de segundo plano, regras de câmera/vídeo, lembretes ou resumos.
-   - 'controlar_automacao': Use para ativar ('ativar') ou desativar ('desativar') uma regra de automação existente pelo nome ou ID (ex: "Desative a automação do quarto", "Ative a regra de reconhecimento facial", "Desligue o lembrete de reuniões").
-   - 'criar_automacao': Use para criar novas regras de automação periódicas, de vídeo ou de agenda conforme pedido pelo usuário.
+9. SLACK & INTEGRAÇÃO DE WORKSPACE (RELATÓRIOS, MUDANÇAS & CANAIS):
+   - 'enviar_mensagem_slack': Use quando o usuário pedir para enviar um aviso, mensagem de texto ou notificação para o Slack ou canal específico (ex: "Mande uma mensagem no Slack", "Avise a equipe no Slack", "Mande no canal #geral").
+   - 'enviar_relatorio_slack': Use SEMPRE que o usuário pedir para você trazer/enviar relatórios, resumos executivos, status da casa, pesquisas ou análises no Slack (ex: "Traga um relatório no Slack", "Me envie um relatório do status da casa no Slack", "Envie o resumo do dia no Slack"). Esta ferramenta gera cartões elegantes no Block Kit com badges de status ('info', 'sucesso', 'aviso', 'erro', 'urgente', 'relatorio', 'status') e rodapé temporal.
+   - 'enviar_alerta_mudanca_slack': Use SEMPRE que você detectar ou for instruído a avisar sobre alterações de estado no sistema (ex: mudança de luzes acesas/apagadas, portas, presença detectada, alteração de automações ou tarefas concluídas).
+   - 'enviar_foto_slack': Use quando o usuário pedir para capturar a câmera e postar a foto em um canal do Slack.
+   - 'ler_mensagens_slack': Use quando o usuário perguntar o que foi falado no Slack, quais as últimas mensagens de um canal ou novidades compartilhadas na equipe (ex: "O que falaram no canal importações?", "Leia as mensagens do Slack").
+   - 'listar_canais_slack': Use quando o usuário perguntar quais canais existem no Slack, pedir para listar os canais ou verificar quais canais estão disponíveis no workspace.
+10. CONTROLE DE AUTOMAÇÕES E SEGUNDO PLANO:
+   - 'listar_automacoes': Use quando o usuário perguntar quais automações estão ativas, o que está agendado, pedir para ver suas regras de segundo plano, regras de câmera/vídeo, monitor do Slack, lembretes ou resumos.
+   - 'controlar_automacao': Use para ativar ('ativar') ou desativar ('desativar') uma regra de automação existente pelo nome ou ID (ex: "Desative a automação do quarto", "Ative a regra de reconhecimento facial", "Desligue o lembrete de reuniões", "Desative o monitor do Slack").
+   - 'criar_automacao': Use para criar novas regras de automação periódicas, de vídeo/câmera, lembretes de agenda, resumos diários ou monitoramento do Slack. Sempre que o usuário pedir para monitorar mensagens no Slack (ex: no canal '#importações' ou outro canal), verificar pela câmera se ele está na frente do computador, falar com ele por voz se estiver presente, exibir notificação toast na tela e avisar no Telegram, crie uma automação com tipo='slack_message_monitor', canal_slack='#importações' (ou canal indicado), verificar_camera=True, falar_voz=True, notificar_tela=True, notificar_telegram=True.
    - 'excluir_automacao': Use para apagar/excluir permanentemente uma regra de automação.
    - 'executar_automacao_agora': Use para testar ou executar uma automação sob demanda imediatamente.
 10. MANUAL E GUIA DE AJUDA DO SISTEMA:

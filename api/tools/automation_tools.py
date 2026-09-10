@@ -73,7 +73,7 @@ def _find_user_automation(user_email: str, identifier: str) -> Optional[Dict[str
         if ident_str.lower() in a.get("name", "").lower() or a.get("name", "").lower() in ident_str.lower():
             return a
 
-    # 4. Busca por tipo de automação (ex: "camera", "agenda", "resumo")
+    # 4. Busca por tipo de automação (ex: "camera", "agenda", "resumo", "slack")
     type_map = {
         "camera": "video_face_recognition",
         "video": "video_face_recognition",
@@ -83,7 +83,11 @@ def _find_user_automation(user_email: str, identifier: str) -> Optional[Dict[str
         "calendario": "calendar_reminder",
         "resumo": "daily_summary",
         "matinal": "daily_summary",
-        "luzes": "mqtt_schedule"
+        "luzes": "mqtt_schedule",
+        "slack": "slack_message_monitor",
+        "monitor": "slack_message_monitor",
+        "importacoes": "slack_message_monitor",
+        "importações": "slack_message_monitor"
     }
     for keyword, mapped_type in type_map.items():
         if keyword in ident_str.lower():
@@ -129,6 +133,8 @@ def listar_automacoes() -> str:
             type_desc = "⏰ Lembrete de Agenda no Telegram"
         elif auto_type == "daily_summary":
             type_desc = "☀️ Resumo Diário no Telegram"
+        elif auto_type == "slack_message_monitor":
+            type_desc = "💬 Monitor de Mensagens no Slack (Câmera + Voz + Telegram)"
         elif auto_type == "mqtt_schedule":
             type_desc = "💡 Agendamento de Luzes (MQTT)"
         elif auto_type == "custom_prompt":
@@ -136,10 +142,12 @@ def listar_automacoes() -> str:
 
         payload = a.get("action_payload", {}) or {}
         action_desc = ""
+        if payload.get("channel"):
+            action_desc += f" | Canal: {payload.get('channel')}"
         if payload.get("agent_action_prompt"):
-            action_desc = f" | Ação: '{payload.get('agent_action_prompt')}'"
+            action_desc += f" | Ação: '{payload.get('agent_action_prompt')}'"
         elif payload.get("custom_message"):
-            action_desc = f" | Msg: '{payload.get('custom_message')}'"
+            action_desc += f" | Msg: '{payload.get('custom_message')}'"
 
         lines.append(
             f"• [ID {a.get('id')}] **{a.get('name')}** - {status_icon}\n"
@@ -152,10 +160,10 @@ def listar_automacoes() -> str:
 @tool
 def controlar_automacao(identificador: str, acao: str) -> str:
     """
-    Ativa ou desativa uma automação de segundo plano existente (ex: reconhecimento facial na câmera, lembrete de agenda, resumo diário).
+    Ativa ou desativa uma automação de segundo plano existente (ex: reconhecimento facial na câmera, lembrete de agenda, resumo diário, monitor do Slack).
     
     Args:
-        identificador: O ID numérico da automação (ex: "69") ou o nome/termo correspondente (ex: "meu quarto", "lembrete de agenda", "resumo matinal").
+        identificador: O ID numérico da automação (ex: "69") ou o nome/termo correspondente (ex: "meu quarto", "lembrete de agenda", "resumo matinal", "monitor slack").
         acao: 'ativar' (ou 'ligar', 'enable') para ativar a regra; 'desativar' (ou 'desligar', 'disable') para desativá-la; ou 'alternar' ('toggle').
     """
     user_email = _get_active_user()
@@ -197,33 +205,49 @@ def controlar_automacao(identificador: str, acao: str) -> str:
 @tool
 def criar_automacao(
     nome: str,
-    tipo: str = "video_face_recognition",
+    tipo: str = "slack_message_monitor",
     gatilho_valor: str = "30",
     comando_acao_residencial: Optional[str] = None,
     alvo_pessoa: str = "todos",
+    canal_slack: Optional[str] = None,
+    verificar_camera: bool = True,
+    falar_voz: bool = True,
+    notificar_tela: bool = True,
+    notificar_telegram: bool = True,
     mensagem_telegram: Optional[str] = None,
-    cooldown_segundos: int = 300
+    mensagem_slack: Optional[str] = None,
+    cooldown_segundos: int = 60
 ) -> str:
     """
     Cria e registra uma nova automação de segundo plano no sistema.
     
     Args:
-        nome: Nome descritivo da regra (ex: "Acender quarto ao chegar", "Resumo diário às 08:00").
+        nome: Nome descritivo da regra (ex: "Monitorar canal importações no Slack", "Acender quarto ao chegar", "Resumo diário às 08:00").
         tipo: Tipo da automação:
+              - 'slack_message_monitor': Monitorar mensagens em canal do Slack, verificar presença na câmera, falar por voz, exibir Toast na tela e notificar Telegram.
               - 'video_face_recognition': Monitorar câmera e reconhecer morador.
               - 'video_unknown_alert': Alerta de pessoa não cadastrada/visitante.
               - 'video_presence_detection': Detecção de qualquer presença humana.
-              - 'calendar_reminder': Lembrete de compromissos da Google Agenda no Telegram.
-              - 'daily_summary': Resumo matinal diário de compromissos e tarefas no Telegram.
+              - 'calendar_reminder': Lembrete de compromissos da Google Agenda no Telegram e Slack.
+              - 'daily_summary': Resumo matinal diário de compromissos e tarefas no Telegram e Slack.
+              - 'slack_alert': Notificação periódica direta no Slack.
+              - 'telegram_alert': Notificação periódica direta no Telegram.
               - 'custom_prompt': Comando inteligente periódico do agente.
         gatilho_valor: O valor do gatilho:
-                       - Para vídeo: segundos de intervalo entre verificações (ex: "30" ou "15").
+                       - Para monitor do Slack ou vídeo: segundos de intervalo entre verificações (ex: "30" ou "15").
                        - Para agenda: minutos de antecedência (ex: "15" ou "30").
                        - Para resumo diário: horário no formato HH:MM (ex: "08:00" ou "21:00").
+                       - Para periódico/intervalo: minutos de intervalo (ex: "60" ou "30").
         comando_acao_residencial: Comando em linguagem natural que a IA executará ao disparar (ex: "acender luz do quarto 1", "ligar luzes da sala e entrada").
         alvo_pessoa: Nome do morador alvo para reconhecimento ou "todos".
+        canal_slack: Canal do Slack a ser monitorado (ex: "#importações" ou "importações").
+        verificar_camera: Se True, verifica via câmera se o usuário está na frente do computador antes de falar.
+        falar_voz: Se True, fala a notificação por voz se o usuário estiver presente na câmera.
+        notificar_tela: Se True, exibe banner/toast instantâneo na interface web.
+        notificar_telegram: Se True, envia notificação no Telegram do usuário.
         mensagem_telegram: Mensagem personalizada de notificação para o Telegram.
-        cooldown_segundos: Tempo em segundos entre disparos consecutivos para evitar repetições (ex: 300 para 5 min, 60 para 1 min, 0 para sem cooldown).
+        mensagem_slack: Mensagem personalizada de notificação para o Slack.
+        cooldown_segundos: Tempo em segundos entre disparos consecutivos para evitar repetições (ex: 60 para 1 min, 300 para 5 min, 0 para sem cooldown).
     """
     user_email = _get_active_user()
     if not user_email:
@@ -234,7 +258,27 @@ def criar_automacao(
     action_type = "video_alert"
     payload = {}
 
-    if "video" in clean_tipo or "facial" in clean_tipo or "camera" in clean_tipo:
+    if "slack_message_monitor" in clean_tipo or "slack_monitor" in clean_tipo or "monitor" in clean_tipo or ("slack" in clean_tipo and ("mensagem" in clean_tipo or "canal" in clean_tipo or "camera" in clean_tipo or "voz" in clean_tipo or "import" in clean_tipo)):
+        clean_tipo = "slack_message_monitor"
+        trigger_type = "slack_new_message"
+        action_type = "slack_message_monitor"
+        target_chan = (canal_slack or "#importações").strip()
+        if not target_chan.startswith("#") and not target_chan.startswith("C") and not target_chan.startswith("G"):
+            target_chan = f"#{target_chan}"
+        
+        gat_val = str(gatilho_valor).strip() if str(gatilho_valor).isdigit() else "30"
+        payload = {
+            "channel": target_chan,
+            "check_camera_presence": bool(verificar_camera),
+            "speak_voice": bool(falar_voz),
+            "notify_screen": bool(notificar_tela),
+            "notify_telegram": bool(notificar_telegram),
+            "agent_action_prompt": comando_acao_residencial or "",
+            "cooldown_seconds": int(cooldown_segundos) if cooldown_segundos is not None else 60
+        }
+        gatilho_valor = gat_val
+
+    elif "video" in clean_tipo or "facial" in clean_tipo or "camera" in clean_tipo:
         if "unknown" in clean_tipo or "intruso" in clean_tipo or "visitante" in clean_tipo:
             clean_tipo = "video_unknown_alert"
             target = "desconhecido"
@@ -251,7 +295,8 @@ def criar_automacao(
             "detection_mode": clean_tipo,
             "target_person": target,
             "notify_telegram": True,
-            "custom_message": mensagem_telegram or "🎉 Evento identificado na câmera da residência!",
+            "notify_slack": True,
+            "custom_message": mensagem_slack or mensagem_telegram or "🎉 Evento identificado na câmera da residência!",
             "agent_action_prompt": comando_acao_residencial or "",
             "cooldown_seconds": int(cooldown_segundos) if cooldown_segundos is not None else 300
         }
@@ -265,6 +310,16 @@ def criar_automacao(
         trigger_type = "daily_time"
         action_type = "telegram_alert"
         payload = {}
+    elif "slack" in clean_tipo:
+        clean_tipo = "slack_alert"
+        trigger_type = "interval_minutes"
+        action_type = "slack_alert"
+        payload = {"message": mensagem_slack or mensagem_telegram or comando_acao_residencial or nome}
+    elif "telegram" in clean_tipo:
+        clean_tipo = "telegram_alert"
+        trigger_type = "interval_minutes"
+        action_type = "telegram_alert"
+        payload = {"message": mensagem_telegram or comando_acao_residencial or nome}
     else:
         clean_tipo = "custom_prompt"
         trigger_type = "interval_minutes"
@@ -284,7 +339,7 @@ def criar_automacao(
         )
         if created:
             clear_video_cooldown(created.get("id"))
-            return f"Automação '{nome}' (ID {created.get('id')}) criada e ativada com sucesso! Gatilho: {gatilho_valor}."
+            return f"Automação '{nome}' (ID {created.get('id')}) criada e ativada com sucesso! Gatilho: {gatilho_valor}s | Tipo: {clean_tipo}."
         return "Falha ao salvar automação no banco de dados."
     except Exception as e:
         return f"Erro ao criar automação: {e}"
@@ -338,7 +393,7 @@ def executar_automacao_agora(identificador: str) -> str:
         except ImportError:
             from automation_engine import AutomationEngine
 
-        engine = AutomationEngine(poll_interval=10)
+        engine = AutomationEngine(check_interval_seconds=10)
         ok, msg = engine.execute_automation_action(auto, is_manual=True)
         if ok:
             return f"Automação '{auto['name']}' executada com sucesso: {msg}"

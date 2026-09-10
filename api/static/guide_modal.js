@@ -88,6 +88,33 @@ const SYSTEM_GUIDES = {
         dicas: "Você pode enviar áudios de voz pelo Telegram que a Sexta-Feira escuta, transcreve e responde com áudio em português!"
     },
 
+    slack: {
+        icone: "💬",
+        titulo: "Integração Slack Workspace",
+        categoria: "Relatórios, Alertas & Notificações de Mudança",
+        resumo: "Publique relatórios executivos em Block Kit, receba notificações de alterações de status e consulte canais da sua equipe diretamente com o agente.",
+        passo_a_passo: [
+            "<b>Opção 1 (Mais Rápida - Incoming Webhook):</b>",
+            "1. Acesse <a href='https://api.slack.com/apps' target='_blank' class='text-indigo-400 underline font-bold'>api.slack.com/apps</a> e clique em <b>Create New App</b> (From scratch).",
+            "2. Ative o recurso <b>Incoming Webhooks</b> na barra lateral.",
+            "3. Clique em <b>Add New Webhook to Workspace</b>, escolha o canal (ex: <i>#geral</i> ou <i>#alertas</i>) e clique em Autorizar.",
+            "4. Copie a <b>Webhook URL</b> gerada (ex: <code>https://hooks.slack.com/services/...</code>) e cole no painel.",
+            "<br><b>Opção 2 (Avançada - Bot Token com Leitura de Canais):</b>",
+            "1. No seu Slack App, vá em <b>OAuth & Permissions</b>.",
+            "2. Adicione os escopos de Bot: <code>chat:write</code>, <code>channels:history</code>, <code>channels:read</code>, <code>files:write</code>.",
+            "3. Clique em <b>Install to Workspace</b> e copie o <b>Bot User OAuth Token</b> (começa com <code>xoxb-...</code>).",
+            "4. Cole o Token e o canal padrão (ex: <i>#general</i>) e clique em <b>🧪 Testar Conexão</b>."
+        ],
+        exemplos_comandos: [
+            "Sexta-Feira, envie um relatório completo do status da casa no Slack",
+            "Publique um resumo das tarefas e compromissos de hoje no canal #geral do Slack",
+            "Me notifique no Slack se a luz da sala for acesa ou apagada",
+            "O que foi falado recentemente no canal #geral do Slack?",
+            "Envie uma foto da câmera no Slack"
+        ],
+        dicas: "O agente gera cartões elegantes com design profissional (Block Kit), cores de status ('info', 'sucesso', 'aviso', 'erro') e rodapé de horário em tempo real!"
+    },
+
     google: {
         icone: "🌐",
         titulo: "Integração Google (Gmail, Agenda, Tarefas & Keep)",

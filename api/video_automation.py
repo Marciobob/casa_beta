@@ -14,7 +14,10 @@ try:
     from api.database import (
         db_get_all_residents,
         db_get_camera_config,
+        db_get_user_cameras,
+        db_get_camera_by_id_or_name,
         db_get_telegram_config,
+        db_get_slack_config,
         db_get_ai_config,
         db_record_automation_run,
         db_is_event_already_notified,
@@ -22,6 +25,7 @@ try:
         get_user_profile
     )
     from api.telegram_bot import send_telegram_photo, send_telegram_message
+    from api.tools.slack_tools import send_slack_message_payload, build_slack_report_blocks
     from api.tools.vision_tools import capture_camera_frame, analyze_image_with_vision, set_vision_context
     from api.tools.mqtt_tools import controlar_luzes
 except ImportError:
@@ -29,7 +33,10 @@ except ImportError:
     from database import (
         db_get_all_residents,
         db_get_camera_config,
+        db_get_user_cameras,
+        db_get_camera_by_id_or_name,
         db_get_telegram_config,
+        db_get_slack_config,
         db_get_ai_config,
         db_record_automation_run,
         db_is_event_already_notified,
@@ -37,6 +44,7 @@ except ImportError:
         get_user_profile
     )
     from telegram_bot import send_telegram_photo, send_telegram_message
+    from tools.slack_tools import send_slack_message_payload, build_slack_report_blocks
     from tools.vision_tools import capture_camera_frame, analyze_image_with_vision, set_vision_context
     from tools.mqtt_tools import controlar_luzes
 
@@ -178,12 +186,35 @@ def evaluate_video_automation(rule: Dict[str, Any], now_local: datetime, is_manu
     
     vision_logger.info(f"[VideoAutomation] Processando regra '{rule_name}' (ID {auto_id}) - Modo: {detection_mode}, Alvo: {target_person}")
     
-    # 1. Captura o quadro atual da câmera configurada
-    cam_cfg = db_get_camera_config(user_email)
-    frame_bytes, err = capture_camera_frame(cam_cfg)
-    
+    # 1. Captura o quadro das câmeras cadastradas do usuário
+    cams = db_get_user_cameras(user_email)
+    target_cam_ident = payload.get("camera_id") or payload.get("camera_name") or payload.get("camera")
+    if target_cam_ident and str(target_cam_ident).strip().lower() not in ["todas", "all", "qualquer"]:
+        cam_cfg = db_get_camera_by_id_or_name(user_email, target_cam_ident)
+        cams_to_evaluate = [cam_cfg] if cam_cfg else []
+    else:
+        cams_to_evaluate = cams if cams else [db_get_camera_config(user_email)]
+
+    frame_bytes = None
+    err = None
+    active_cam_name = ""
+
+    for cam in cams_to_evaluate:
+        if not cam or not cam.get("enabled", True):
+            continue
+        c_bytes, c_err = capture_camera_frame(cam, timeout=3.0)
+        if c_bytes:
+            has_p, _, _ = opencv_detect_person_or_face(c_bytes, detection_mode=detection_mode, min_confidence=0.45)
+            frame_bytes = c_bytes
+            active_cam_name = cam.get("name") or f"Câmera {cam.get('id')}"
+            if has_p:
+                break
+        else:
+            if not err:
+                err = c_err
+
     if not frame_bytes:
-        msg = f"Câmera inacessível: {err or 'Não foi possível capturar o quadro de vídeo.'}"
+        msg = f"Câmeras inacessíveis: {err or 'Não foi possível capturar o quadro de vídeo de nenhuma câmera cadastrada.'}"
         vision_logger.warning(f"[VideoAutomation] {msg}")
         if is_manual:
             db_record_automation_run(auto_id, "error", msg)
@@ -197,13 +228,13 @@ def evaluate_video_automation(rule: Dict[str, Any], now_local: datetime, is_manu
     )
     
     if not has_person and not is_manual:
-        msg = f"Nenhuma pessoa ou rosto detectado no frame pelo OpenCV ({opencv_details}). Chamada à IA omitida para economizar tokens."
+        msg = f"Nenhuma pessoa ou rosto detectado na câmera '{active_cam_name}' pelo OpenCV ({opencv_details}). Chamada à IA omitida para economizar tokens."
         vision_logger.info(f"[VideoAutomation] [OpenCV Pre-Filter] 🛡️ {msg}")
         return False, msg
     elif not has_person and is_manual:
-        vision_logger.info(f"[VideoAutomation] [OpenCV Pre-Filter] {opencv_details} (Modo manual de teste: executando chamada à IA)")
+        vision_logger.info(f"[VideoAutomation] [OpenCV Pre-Filter] {opencv_details} na câmera '{active_cam_name}' (Modo manual de teste: executando chamada à IA)")
     else:
-        vision_logger.info(f"[VideoAutomation] [OpenCV Pre-Filter] 👤 {opencv_details}. Enviando quadro para identificação com IA Vision...")
+        vision_logger.info(f"[VideoAutomation] [OpenCV Pre-Filter] 👤 {opencv_details} na câmera '{active_cam_name}'. Enviando quadro para identificação com IA Vision...")
 
     # 3. Recupera fotos cadastradas dos moradores no SQLite
     residents = db_get_all_residents()
@@ -384,8 +415,8 @@ Responda OBRIGATORIAMENTE no formato JSON puro:
     bot_token = tg_cfg.get("bot_token", "")
     chat_id = tg_cfg.get("chat_id", "")
     
+    caption = f"📹 *{notification_title}*\n{notification_body}\n\n⏱️ _{now_local.strftime('%d/%m/%Y às %H:%M:%S')}_"
     if notify_telegram and bot_token and chat_id:
-        caption = f"📹 *{notification_title}*\n{notification_body}\n\n⏱️ _{now_local.strftime('%d/%m/%Y às %H:%M:%S')}_"
         ok_photo, resp_photo = send_telegram_photo(bot_token, chat_id, frame_bytes, caption=caption)
         if ok_photo:
             execution_reports.append("Foto e alerta enviados com sucesso no Telegram")
@@ -396,6 +427,26 @@ Responda OBRIGATORIAMENTE no formato JSON puro:
             execution_reports.append(f"Aviso em texto enviado no Telegram (Falha na foto: {resp_photo})")
     elif notify_telegram:
         execution_reports.append("Telegram não configurado para envio de foto")
+
+    # Ação 1.1: Envio de Notificação no Slack
+    slack_cfg = db_get_slack_config(user_email)
+    if slack_cfg.get("enabled") and slack_cfg.get("notify_camera") and (slack_cfg.get("bot_token") or slack_cfg.get("webhook_url")):
+        slack_blocks = build_slack_report_blocks(
+            titulo=notification_title,
+            conteudo=f"{notification_body}\n⏱️ _{now_local.strftime('%d/%m/%Y às %H:%M:%S')}_",
+            tipo_alerta="aviso" if "intruso" in detection_mode.lower() or "desconhecido" in notification_title.lower() else "info"
+        )
+        ok_slack, resp_slack = send_slack_message_payload(
+            slack_cfg.get("bot_token", ""),
+            slack_cfg.get("webhook_url", ""),
+            {"text": caption, "blocks": slack_blocks},
+            channel=slack_cfg.get("default_channel", "")
+        )
+        if ok_slack:
+            execution_reports.append("Alerta enviado com sucesso no Slack")
+            vision_logger.info(f"[VideoAutomation] Alerta de câmera publicado no Slack")
+        else:
+            vision_logger.warning(f"[VideoAutomation] Falha ao enviar alerta no Slack: {resp_slack}")
 
     agent_action_prompt = str(payload.get("agent_action_prompt") or payload.get("custom_action") or "").strip()
 
