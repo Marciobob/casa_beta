@@ -328,28 +328,39 @@ class AutomationEngine:
                             msg_lines.append("\n_Tenha um excelente compromisso!_")
                             text_alert = "\n".join(msg_lines)
 
-                            send_ok, _ = send_telegram_message(bot_token, chat_id, text_alert, parse_mode="Markdown")
+                            action_type = rule.get("action_type", "")
+                            payload = rule.get("action_payload", {}) or {}
+                            notify_tg = (action_type == "telegram_alert" or payload.get("notify_telegram", True)) and action_type != "slack_alert"
+                            notify_slack = (action_type == "slack_alert" or payload.get("notify_slack", False))
                             
-                            # Notificação no Slack se configurado
-                            slack_cfg = db_get_slack_config(user_email)
-                            if slack_cfg.get("enabled") and slack_cfg.get("notify_tasks") and (slack_cfg.get("bot_token") or slack_cfg.get("webhook_url")):
-                                slack_blocks = build_slack_report_blocks(
-                                    titulo=f"Lembrete de Compromisso: {titulo}",
-                                    conteudo=f"*Início:* {inicio_str} (em ~{mins_left} min)\n" + (f"*Local:* {local}\n" if local else "") + (f"*Notas:* {desc}\n" if desc else ""),
-                                    tipo_alerta="aviso"
-                                )
-                                send_slack_message_payload(
-                                    slack_cfg.get("bot_token", ""),
-                                    slack_cfg.get("webhook_url", ""),
-                                    {"text": text_alert, "blocks": slack_blocks},
-                                    channel=slack_cfg.get("default_channel", "")
-                                )
-                                system_logger.info(f"Lembrete de agenda enviado no Slack para {user_email}: '{titulo}'")
+                            send_ok = False
+                            if notify_tg and bot_token and chat_id:
+                                ok_tg, _ = send_telegram_message(bot_token, chat_id, text_alert, parse_mode="Markdown")
+                                if ok_tg:
+                                    send_ok = True
+                                    system_logger.info(f"Notificação de agenda enviada no Telegram para {user_email}: '{titulo}'")
+                            
+                            if notify_slack:
+                                slack_cfg = db_get_slack_config(user_email)
+                                if slack_cfg.get("bot_token") or slack_cfg.get("webhook_url"):
+                                    slack_blocks = build_slack_report_blocks(
+                                        titulo=f"Lembrete de Compromisso: {titulo}",
+                                        conteudo=f"*Início:* {inicio_str} (em ~{mins_left} min)\n" + (f"*Local:* {local}\n" if local else "") + (f"*Notas:* {desc}\n" if desc else ""),
+                                        tipo_alerta="aviso"
+                                    )
+                                    ok_slack, _ = send_slack_message_payload(
+                                        slack_cfg.get("bot_token", ""),
+                                        slack_cfg.get("webhook_url", ""),
+                                        {"text": text_alert, "blocks": slack_blocks},
+                                        channel=slack_cfg.get("default_channel", "")
+                                    )
+                                    if ok_slack:
+                                        send_ok = True
+                                        system_logger.info(f"Lembrete de agenda enviado no Slack para {user_email}: '{titulo}'")
                                 
                             if send_ok:
                                 db_mark_event_notified(auto_id, user_email, event_key)
                                 notified_count += 1
-                                system_logger.info(f"Notificação de agenda enviada no Telegram para {user_email}: '{titulo}'")
 
             result_txt = f"Verificação concluída. {notified_count} alerta(s) enviado(s)."
             db_record_automation_run(auto_id, "success", result_txt)
@@ -519,16 +530,21 @@ class AutomationEngine:
 
         sent_any = False
         resp_msgs = []
+        action_type = rule.get("action_type", "")
+        payload = rule.get("action_payload", {}) or {}
 
-        # Envio Telegram
-        if bot_token and chat_id:
+        notify_tg = (action_type == "telegram_alert" or payload.get("notify_telegram", True)) and action_type != "slack_alert"
+        notify_slack = (action_type == "slack_alert" or payload.get("notify_slack", False))
+
+        # Envio Telegram (apenas se a regra for para o Telegram)
+        if notify_tg and bot_token and chat_id:
             ok_tg, resp_tg = send_telegram_message(bot_token, chat_id, summary_text, parse_mode="Markdown")
             if ok_tg:
                 sent_any = True
                 resp_msgs.append("Telegram")
 
-        # Envio Slack
-        if slack_cfg.get("enabled") and (slack_cfg.get("bot_token") or slack_cfg.get("webhook_url")):
+        # Envio Slack (apenas se a regra for explicitamente para o Slack)
+        if notify_slack and (slack_cfg.get("bot_token") or slack_cfg.get("webhook_url")):
             slack_blocks = build_slack_report_blocks(
                 titulo="Resumo Diário da Residência & Tarefas",
                 conteudo=summary_text,
@@ -549,7 +565,8 @@ class AutomationEngine:
             db_record_automation_run(auto_id, "success", msg_success)
             return True, msg_success
         else:
-            err = "Nenhum canal de notificação (Telegram/Slack) configurado ou disponível."
+            target_name = "Telegram" if notify_tg else ("Slack" if notify_slack else "Canal de notificação")
+            err = f"Canal de notificação ({target_name}) não configurado ou disponível."
             db_record_automation_run(auto_id, "error", err)
             return False, err
 
@@ -558,16 +575,18 @@ class AutomationEngine:
         auto_id = rule["id"]
         room = payload.get("room", "todas")
         action = payload.get("action", "ON").upper()
-        notify = payload.get("notify_telegram", True)
+        action_type = rule.get("action_type", "")
+        notify_tg = (action_type == "telegram_alert" or payload.get("notify_telegram", True)) and action_type != "slack_alert"
+        notify_slack = (action_type == "slack_alert" or payload.get("notify_slack", False))
 
         res_mqtt = controlar_luzes.invoke({"room": room, "action": action})
         system_logger.info(f"Automação MQTT executada: {res_mqtt}")
 
         msg = f"💡 *Automação Residencial:* {res_mqtt}"
-        if notify and bot_token and chat_id:
+        if notify_tg and bot_token and chat_id:
             send_telegram_message(bot_token, chat_id, msg, parse_mode="Markdown")
             
-        if notify and slack_cfg.get("enabled") and (slack_cfg.get("bot_token") or slack_cfg.get("webhook_url")):
+        if notify_slack and (slack_cfg.get("bot_token") or slack_cfg.get("webhook_url")):
             send_slack_message_payload(
                 slack_cfg.get("bot_token", ""),
                 slack_cfg.get("webhook_url", ""),
@@ -626,11 +645,15 @@ class AutomationEngine:
                 action_strs = [f"• {str(a)}" for a in actions]
                 action_footer = "\n\n⚡ *Ações executadas:*\n" + "\n".join(action_strs)
 
+            action_type = rule.get("action_type", "")
+            notify_tg = (action_type == "telegram_alert" or payload.get("notify_telegram", True)) and action_type != "slack_alert"
+            notify_slack = (action_type == "slack_alert" or payload.get("notify_slack", False))
+
             final_msg = f"🤖 *Automação Agendada ('{rule.get('name')}')*\n\n{reply}{action_footer}"
-            if bot_token and chat_id:
+            if notify_tg and bot_token and chat_id:
                 send_telegram_message(bot_token, chat_id, final_msg)
                 
-            if slack_cfg.get("enabled") and (slack_cfg.get("bot_token") or slack_cfg.get("webhook_url")):
+            if notify_slack and (slack_cfg.get("bot_token") or slack_cfg.get("webhook_url")):
                 blocks = build_slack_report_blocks(
                     titulo=f"Automação Agendada: {rule.get('name')}",
                     conteudo=f"{reply}{action_footer}",

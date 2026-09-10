@@ -428,25 +428,27 @@ Responda OBRIGATORIAMENTE no formato JSON puro:
     elif notify_telegram:
         execution_reports.append("Telegram não configurado para envio de foto")
 
-    # Ação 1.1: Envio de Notificação no Slack
-    slack_cfg = db_get_slack_config(user_email)
-    if slack_cfg.get("enabled") and slack_cfg.get("notify_camera") and (slack_cfg.get("bot_token") or slack_cfg.get("webhook_url")):
-        slack_blocks = build_slack_report_blocks(
-            titulo=notification_title,
-            conteudo=f"{notification_body}\n⏱️ _{now_local.strftime('%d/%m/%Y às %H:%M:%S')}_",
-            tipo_alerta="aviso" if "intruso" in detection_mode.lower() or "desconhecido" in notification_title.lower() else "info"
-        )
-        ok_slack, resp_slack = send_slack_message_payload(
-            slack_cfg.get("bot_token", ""),
-            slack_cfg.get("webhook_url", ""),
-            {"text": caption, "blocks": slack_blocks},
-            channel=slack_cfg.get("default_channel", "")
-        )
-        if ok_slack:
-            execution_reports.append("Alerta enviado com sucesso no Slack")
-            vision_logger.info(f"[VideoAutomation] Alerta de câmera publicado no Slack")
-        else:
-            vision_logger.warning(f"[VideoAutomation] Falha ao enviar alerta no Slack: {resp_slack}")
+    # Ação 1.1: Envio de Notificação no Slack (apenas se a regra foi configurada para o Slack)
+    notify_slack = bool(payload.get("notify_slack") or rule.get("action_type") == "slack_alert")
+    if notify_slack:
+        slack_cfg = db_get_slack_config(user_email)
+        if slack_cfg.get("bot_token") or slack_cfg.get("webhook_url"):
+            slack_blocks = build_slack_report_blocks(
+                titulo=notification_title,
+                conteudo=f"{notification_body}\n⏱️ _{now_local.strftime('%d/%m/%Y às %H:%M:%S')}_",
+                tipo_alerta="aviso" if "intruso" in detection_mode.lower() or "desconhecido" in notification_title.lower() else "info"
+            )
+            ok_slack, resp_slack = send_slack_message_payload(
+                slack_cfg.get("bot_token", ""),
+                slack_cfg.get("webhook_url", ""),
+                {"text": caption, "blocks": slack_blocks},
+                channel=slack_cfg.get("default_channel", "")
+            )
+            if ok_slack:
+                execution_reports.append("Alerta enviado com sucesso no Slack")
+                vision_logger.info(f"[VideoAutomation] Alerta de câmera publicado no Slack")
+            else:
+                vision_logger.warning(f"[VideoAutomation] Falha ao enviar alerta no Slack: {resp_slack}")
 
     agent_action_prompt = str(payload.get("agent_action_prompt") or payload.get("custom_action") or "").strip()
 
