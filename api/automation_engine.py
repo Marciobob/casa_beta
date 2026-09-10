@@ -484,20 +484,22 @@ class AutomationEngine:
                 now_local = datetime.now(tz_local)
                 end_of_day = now_local.replace(hour=23, minute=59, second=59)
 
-                cal = connect_caldav(gmail_user, gmail_pwd)
-                events = cal.date_search(start=now_local, end=end_of_day, expand=True)
-
-                if events:
-                    lines.append(f"🗓️ *Compromissos para hoje ({len(events)}):*")
-                    for ev in events[:5]:
-                        data_ev = formatar_evento(ev)
-                        inicio_dt = data_ev.get("inicio_datetime")
-                        hora_str = inicio_dt.astimezone(tz_local).strftime("%H:%M") if inicio_dt else "Horário a definir"
-                        lines.append(f"  • *{hora_str}* — {data_ev.get('titulo', 'Sem título')}")
-                    if len(events) > 5:
-                        lines.append(f"  _... e mais {len(events)-5} eventos._")
+                cal, err_cal = connect_caldav()
+                if cal:
+                    events = cal.date_search(start=now_local, end=end_of_day, expand=True)
+                    if events:
+                        lines.append(f"🗓️ *Compromissos para hoje ({len(events)}):*")
+                        for ev in events[:5]:
+                            data_ev = formatar_evento(ev)
+                            inicio_dt = data_ev.get("inicio_datetime")
+                            hora_str = inicio_dt.astimezone(tz_local).strftime("%H:%M") if inicio_dt else "Horário a definir"
+                            lines.append(f"  • *{hora_str}* — {data_ev.get('titulo', 'Sem título')}")
+                        if len(events) > 5:
+                            lines.append(f"  _... e mais {len(events)-5} eventos._")
+                    else:
+                        lines.append("🗓️ *Agenda:* Nenhum compromisso agendado para hoje. Aproveite o dia!")
                 else:
-                    lines.append("🗓️ *Agenda:* Nenhum compromisso agendado para hoje. Aproveite o dia!")
+                    lines.append(f"🗓️ *Agenda:* Não foi possível conectar ao calendário ({err_cal or 'Sem acesso'}).")
             else:
                 lines.append("🗓️ *Agenda:* Integração com Google Agenda não configurada.")
         except Exception as e:
@@ -536,37 +538,55 @@ class AutomationEngine:
         notify_tg = (action_type == "telegram_alert" or payload.get("notify_telegram", True)) and action_type != "slack_alert"
         notify_slack = (action_type == "slack_alert" or payload.get("notify_slack", False))
 
+        tg_err = None
+        slack_err = None
+
         # Envio Telegram (apenas se a regra for para o Telegram)
-        if notify_tg and bot_token and chat_id:
-            ok_tg, resp_tg = send_telegram_message(bot_token, chat_id, summary_text, parse_mode="Markdown")
-            if ok_tg:
-                sent_any = True
-                resp_msgs.append("Telegram")
+        if notify_tg:
+            if bot_token and chat_id:
+                ok_tg, resp_tg = send_telegram_message(bot_token, chat_id, summary_text, parse_mode="Markdown")
+                if ok_tg:
+                    sent_any = True
+                    resp_msgs.append("Telegram")
+                else:
+                    tg_err = resp_tg
+            else:
+                tg_err = "Token do bot ou Chat ID não configurados no perfil."
 
         # Envio Slack (apenas se a regra for explicitamente para o Slack)
-        if notify_slack and (slack_cfg.get("bot_token") or slack_cfg.get("webhook_url")):
-            slack_blocks = build_slack_report_blocks(
-                titulo="Resumo Diário da Residência & Tarefas",
-                conteudo=summary_text,
-                tipo_alerta="relatorio"
-            )
-            ok_slack, resp_slack = send_slack_message_payload(
-                slack_cfg.get("bot_token", ""),
-                slack_cfg.get("webhook_url", ""),
-                {"text": summary_text, "blocks": slack_blocks},
-                channel=slack_cfg.get("default_channel", "")
-            )
-            if ok_slack:
-                sent_any = True
-                resp_msgs.append("Slack")
+        if notify_slack:
+            if slack_cfg.get("bot_token") or slack_cfg.get("webhook_url"):
+                slack_blocks = build_slack_report_blocks(
+                    titulo="Resumo Diário da Residência & Tarefas",
+                    conteudo=summary_text,
+                    tipo_alerta="relatorio"
+                )
+                ok_slack, resp_slack = send_slack_message_payload(
+                    slack_cfg.get("bot_token", ""),
+                    slack_cfg.get("webhook_url", ""),
+                    {"text": summary_text, "blocks": slack_blocks},
+                    channel=slack_cfg.get("default_channel", "")
+                )
+                if ok_slack:
+                    sent_any = True
+                    resp_msgs.append("Slack")
+                else:
+                    slack_err = resp_slack
+            else:
+                slack_err = "Bot Token ou Webhook do Slack não configurados no perfil."
 
         if sent_any:
             msg_success = f"Resumo diário enviado com sucesso ({', '.join(resp_msgs)})."
             db_record_automation_run(auto_id, "success", msg_success)
             return True, msg_success
         else:
-            target_name = "Telegram" if notify_tg else ("Slack" if notify_slack else "Canal de notificação")
-            err = f"Canal de notificação ({target_name}) não configurado ou disponível."
+            if notify_tg and tg_err:
+                err = f"Falha ao enviar no Telegram: {tg_err}"
+            elif notify_slack and slack_err:
+                err = f"Falha ao enviar no Slack: {slack_err}"
+            else:
+                target_name = "Telegram" if notify_tg else ("Slack" if notify_slack else "Canal de notificação")
+                err = f"Canal de notificação ({target_name}) não configurado ou disponível."
             db_record_automation_run(auto_id, "error", err)
             return False, err
 

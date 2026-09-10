@@ -76,6 +76,18 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str, parse_mode: O
         if resp.status_code == 200 and data.get("ok"):
             return True, "Mensagem enviada com sucesso."
         err = data.get("description", f"Falha HTTP {resp.status_code}")
+        
+        # Fallback inteligente: se o Telegram rejeitar por formatação de Markdown inválida, reenvia em texto puro
+        if parse_mode and ("can't parse entities" in err.lower() or "find end of the entity" in err.lower() or "bad request" in err.lower()):
+            try:
+                payload.pop("parse_mode", None)
+                resp_plain = requests.post(url, json=payload, timeout=10)
+                data_plain = resp_plain.json()
+                if resp_plain.status_code == 200 and data_plain.get("ok"):
+                    return True, "Mensagem enviada com sucesso (formato texto puro)."
+            except Exception:
+                pass
+                
         return False, err
     except Exception as e:
         return False, f"Erro ao enviar mensagem Telegram: {e}"
