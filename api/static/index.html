@@ -155,6 +155,12 @@
     <!-- ========================================================================= -->
     <div id="startupTechModal"
         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-2xl transition-all duration-500">
+        <script>
+            if (sessionStorage.getItem("smartHomeSystemInitialized") === "true") {
+                const _m = document.getElementById("startupTechModal");
+                if (_m) _m.style.display = "none";
+            }
+        </script>
         <div
             class="relative w-full max-w-md bg-zinc-900/95 border border-indigo-500/40 rounded-3xl p-8 text-center shadow-[0_0_80px_rgba(99,102,241,0.25)] overflow-hidden">
             <!-- Glows & Efeitos de Fundo -->
@@ -278,6 +284,13 @@
                     <span>⚡</span>
                     <span>Automações</span>
                 </button>
+
+                <!-- BOTAO AVATAR 2D -->
+                <a href="/avatar.html" title="Avatar IA 2D com Lip-Sync e Live Chat"
+                    class="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 transition px-3.5 py-3 rounded-2xl font-semibold text-xs sm:text-sm flex items-center gap-1.5 text-indigo-200">
+                    <span>🎭</span>
+                    <span class="hidden sm:inline">Avatar 2D</span>
+                </a>
 
                 <!-- BOTAO CONFIG IA / CHAVE API -->
                 <button onclick="openVoiceApiKeyModal()"
@@ -1314,6 +1327,48 @@
                 individual.
             </p>
             <div class="space-y-4">
+                
+                <!-- SEÇÃO AVATAR 2D (IMAGEM DO AGENTE) -->
+                <div class="p-3.5 bg-zinc-950/60 border border-indigo-500/30 rounded-2xl">
+                    <label class="block text-xs font-bold text-indigo-300 mb-2 flex items-center gap-1.5">
+                        <span>🎭</span> Imagem / Foto do Avatar 2D
+                    </label>
+                    <div class="flex items-center gap-3 mb-2.5">
+                        <div class="relative w-14 h-14 rounded-2xl overflow-hidden bg-zinc-800 border-2 border-indigo-500/40 flex-shrink-0 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                            <img id="modalAvatarPreviewImg" src="" alt="Avatar" class="w-full h-full object-cover hidden">
+                            <span id="modalAvatarFallbackEmoji" class="text-2xl">🤖</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <input id="modalAvatarUrlInput" type="text" placeholder="URL da imagem (https://...)"
+                                oninput="handleAvatarUrlChange(this.value)"
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-mono text-white mb-1.5">
+                            <div class="flex items-center gap-2">
+                                <label class="text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1 rounded-lg cursor-pointer transition flex items-center gap-1">
+                                    <span>📁 Upload Imagem</span>
+                                    <input type="file" id="modalAvatarFileInput" accept="image/*" class="hidden" onchange="handleAvatarFileUpload(event)">
+                                </label>
+                                <button type="button" onclick="clearAvatarImage()" class="text-[11px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 px-2.5 py-1 rounded-lg border border-zinc-700 transition">
+                                    Restaurar Padrão
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Presets Rápidos -->
+                    <div class="flex flex-wrap items-center gap-1.5 text-[10px]">
+                        <span class="text-zinc-500 font-semibold">Presets:</span>
+                        <button type="button" onclick="selectAvatarPreset('/static/avatars/cyber_hood_green.png')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-500/40">🤖 Cyber Hood (Verde)</button>
+                        <button type="button" onclick="selectAvatarPreset('/static/avatars/cyber_hood_smile.png')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-500/40">😸 Cyber Smile</button>
+                        <button type="button" onclick="selectAvatarPreset('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2 py-0.5 rounded-lg border border-zinc-700">Cyber Orb</button>
+                        <button type="button" onclick="selectAvatarPreset('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2 py-0.5 rounded-lg border border-zinc-700">Assistente IA</button>
+                        <button type="button" onclick="selectAvatarPreset('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2 py-0.5 rounded-lg border border-zinc-700">Jarvis Tech</button>
+                    </div>
+                </div>
+
                 <div>
                     <label class="block text-xs font-bold text-zinc-300 mb-1">Nome do Agente (Palavra de Ativação)</label>
                     <input id="modalAgentNameInput" type="text" placeholder="Sexta-Feira"
@@ -1882,6 +1937,10 @@
 
         function handleLogout() {
             if (confirm("Deseja realmente sair do sistema?")) {
+                try {
+                    sessionStorage.removeItem("smartHomeSystemInitialized");
+                    sessionStorage.clear();
+                } catch (e) { }
                 localStorage.removeItem("smartHomeToken");
                 localStorage.removeItem("smartHomeUser");
                 location.href = "/login.html";
@@ -2582,22 +2641,120 @@
                     chatBox.scrollTop = chatBox.scrollHeight;
                 }
 
-                // Executa ações MQTT se houver
+                function handleUiAction(action, textToSpeak) {
+                    if (!action) return false;
+                    const type = action.type || action.action_type;
+
+                    // 1. Navegação de telas e dashboards
+                    if (type === "ui_navigate" || type === "navigate") {
+                        const target = action.target || action.url || "/";
+                        const currentPath = window.location.pathname;
+                        const isCurrent = (target === currentPath) || 
+                                          (target === "/" && (currentPath === "/index.html" || currentPath === "/agent")) ||
+                                          (target === "/casa.html" && currentPath === "/casa") ||
+                                          (target === "/config/config.html" && currentPath === "/config") ||
+                                          (target === "/profile.html" && currentPath === "/profile");
+
+                        logToConsole(`Navegação de Tela: ${action.name || target}`, "action");
+
+                        if (textToSpeak) {
+                            try {
+                                sessionStorage.setItem("smartHomePendingSpeech", textToSpeak);
+                                localStorage.setItem("smartHomePendingSpeech", textToSpeak);
+                            } catch(e) {}
+                        }
+
+                        if (!isCurrent) {
+                            renderScreenToastNotification({
+                                id: "nav_" + Date.now(),
+                                title: "🧭 Navegação do Agente",
+                                message: `Redirecionando para ${action.name || target}...`
+                            });
+                            setTimeout(() => {
+                                window.location.href = target;
+                            }, 1400);
+                        } else {
+                            renderScreenToastNotification({
+                                id: "nav_" + Date.now(),
+                                title: "🧭 Navegação do Agente",
+                                message: `Você já está na tela ${action.name || target}.`
+                            });
+                        }
+                        return true;
+                    }
+
+                    // 2. Abertura e fechamento de modais
+                    if (type === "ui_modal" || type === "modal") {
+                        const actionVerb = (action.action || action.action_type || "open").toLowerCase();
+                        const modalName = (action.modal || action.name || "").toLowerCase();
+
+                        if (actionVerb.includes("open") || actionVerb.includes("abrir")) {
+                            logToConsole(`Abrindo Modal: ${modalName}`, "action");
+                            if (modalName.includes("auto")) {
+                                openAutomationsModal(action.tab || "list");
+                            } else if (modalName.includes("chave") || modalName.includes("api") || modalName.includes("ia") || modalName.includes("voz") || modalName.includes("config") || modalName.includes("ajuste") || modalName.includes("conexao") || modalName.includes("conexão")) {
+                                openVoiceApiKeyModal();
+                            } else if (modalName.includes("guia") || modalName.includes("manual") || modalName.includes("ajuda") || modalName.includes("tutorial")) {
+                                if (typeof openFeatureGuide === "function") {
+                                    openFeatureGuide(action.topic || "visao_geral");
+                                }
+                            } else if (modalName.includes("webcam") || modalName.includes("foto")) {
+                                if (typeof openWebcamModal === "function") openWebcamModal();
+                            } else {
+                                openVoiceApiKeyModal();
+                            }
+                        } else if (actionVerb.includes("close") || actionVerb.includes("fechar")) {
+                            logToConsole(`Fechando Modal: ${modalName}`, "action");
+                            if (modalName.includes("auto")) {
+                                closeAutomationsModal();
+                            } else if (modalName.includes("chave") || modalName.includes("api") || modalName.includes("ia") || modalName.includes("config") || modalName.includes("voz") || modalName.includes("ajuste") || modalName.includes("conexao") || modalName.includes("conexão")) {
+                                closeVoiceApiKeyModal();
+                            } else if (modalName.includes("guia") || modalName.includes("manual") || modalName.includes("ajuda")) {
+                                if (typeof closeFeatureGuide === "function") closeFeatureGuide();
+                            } else if (modalName.includes("webcam") || modalName.includes("foto")) {
+                                if (typeof closeWebcamModal === "function") closeWebcamModal();
+                            } else {
+                                // Fecha todos os modais abertos
+                                closeAutomationsModal();
+                                closeVoiceApiKeyModal();
+                                if (typeof closeFeatureGuide === "function") closeFeatureGuide();
+                            }
+                        }
+                        return true;
+                    }
+
+                    // 3. Alternar abas internas
+                    if (type === "ui_tab" || type === "switch_tab") {
+                        const tab = (action.tab || "list").toLowerCase();
+                        logToConsole(`Alternando Aba: ${tab}`, "action");
+                        if (typeof switchAutomationsTab === "function") {
+                            switchAutomationsTab(tab);
+                        }
+                        return true;
+                    }
+
+                    return false;
+                }
+
+                // Fala a resposta limpa (sem URLs nem poluição)
+                const textToSpeak = finalSpokenReply || cleanTextForSpeech(reply);
+
+                // Executa ações retornadas pelo agente (MQTT e Interface/Modais) passando textToSpeak
                 if (finalActions && Array.isArray(finalActions) && finalActions.length > 0) {
                     for (const action of finalActions) {
-                        logToConsole(`Ação Residencial: Cômodo '${action.topic}' -> ${action.state}`, "action");
-                        if (client) {
-                            client.publish(`pensador/casa/${action.topic}/set`, action.state);
+                        const handled = handleUiAction(action, textToSpeak);
+                        if (!handled && action.topic && action.state) {
+                            logToConsole(`Ação Residencial: Cômodo '${action.topic}' -> ${action.state}`, "action");
+                            if (client) {
+                                client.publish(`pensador/casa/${action.topic}/set`, action.state);
+                            }
+                            roomStates[action.topic] = (action.state === "ON" || action.state === "on");
                         }
-                        roomStates[action.topic] = (action.state === "ON" || action.state === "on");
                     }
                     updateLightsSummary();
                 }
 
                 logToConsole(`Resposta formulada: "${reply.substring(0, 80)}..."`, "info");
-
-                // Fala a resposta limpa (sem URLs nem poluição)
-                const textToSpeak = finalSpokenReply || cleanTextForSpeech(reply);
                 speakResponse(textToSpeak);
 
                 // Recarrega o feed de memória
@@ -2787,20 +2944,71 @@
             return false;
         }
 
-        async function initSystemFromStartupModal() {
-            try {
+        let startupModalTimer = null;
+        let systemInitializedFromModal = false;
+
+        function checkAndInitStartupModal() {
+            if (sessionStorage.getItem("smartHomeSystemInitialized") === "true") {
+                systemInitializedFromModal = true;
+                const modal = document.getElementById("startupTechModal");
+                if (modal) {
+                    modal.style.display = "none";
+                    modal.classList.add("hidden");
+                    modal.classList.remove("flex");
+                    try { modal.remove(); } catch (e) { }
+                }
                 primeAudioEngine();
                 unlockAudioContext();
-                await ensureMediaPermissions();
+                if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand) {
+                    startVoiceRecognition();
+                }
+                return;
+            }
+            scheduleStartupModalAutoClick();
+        }
+
+        function scheduleStartupModalAutoClick() {
+            if (systemInitializedFromModal) return;
+            if (startupModalTimer) clearTimeout(startupModalTimer);
+            startupModalTimer = setTimeout(() => {
+                const modal = document.getElementById("startupTechModal");
+                if (modal && !systemInitializedFromModal) {
+                    console.log("[Startup Tech Modal] Auto-iniciando sistema após 2 segundos...");
+                    initSystemFromStartupModal();
+                }
+            }, 2000);
+        }
+
+        function initSystemFromStartupModal() {
+            if (systemInitializedFromModal) return;
+            systemInitializedFromModal = true;
+            try {
+                sessionStorage.setItem("smartHomeSystemInitialized", "true");
+            } catch (e) { }
+
+            if (startupModalTimer) {
+                clearTimeout(startupModalTimer);
+                startupModalTimer = null;
+            }
+            try {
+                const modal = document.getElementById("startupTechModal");
+                if (modal) {
+                    modal.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+                    modal.style.opacity = "0";
+                    modal.style.pointerEvents = "none";
+                    setTimeout(() => {
+                        modal.style.display = "none";
+                        modal.classList.add("hidden");
+                        modal.classList.remove("flex");
+                        try { modal.remove(); } catch (e) { }
+                    }, 400);
+                }
+                primeAudioEngine();
+                unlockAudioContext();
+                ensureMediaPermissions().catch(() => {});
             } catch (e) {
                 console.warn("[Startup Init]:", e);
             } finally {
-                const modal = document.getElementById("startupTechModal");
-                if (modal) {
-                    modal.classList.add("opacity-0", "scale-105", "pointer-events-none");
-                    setTimeout(() => modal.classList.add("hidden"), 500);
-                }
-
                 if (alwaysListen) {
                     startVoiceRecognition();
                 }
@@ -3814,6 +4022,11 @@
 
         async function openVoiceApiKeyModal() {
             const modal = document.getElementById("apiKeyModal");
+            if (modal) {
+                modal.classList.remove("hidden");
+                modal.classList.add("flex");
+                modal.style.display = "flex";
+            }
             const agentNameInput = document.getElementById("modalAgentNameInput");
             const input = document.getElementById("modalApiKeyInput");
             const modelInput = document.getElementById("modalAiModelInput");
@@ -3830,6 +4043,13 @@
             const camStatusBox = document.getElementById("cameraTestStatusResult");
             const camPreview = document.getElementById("cameraPreviewContainer");
 
+            const avatarUrlInput = document.getElementById("modalAvatarUrlInput");
+            const currentAvatar = localStorage.getItem("smartHomeAvatarImage") || "";
+            if (avatarUrlInput) {
+                avatarUrlInput.value = currentAvatar;
+                handleAvatarUrlChange(currentAvatar);
+            }
+
             if (agentNameInput) agentNameInput.value = getAgentName();
             if (input) input.value = getApiKey();
             if (modelInput) modelInput.value = getAiModel();
@@ -3845,6 +4065,15 @@
                 });
                 if (aiRes.ok) {
                     const aiData = await aiRes.json();
+                    if (aiData.avatar_image !== undefined) {
+                        if (avatarUrlInput) avatarUrlInput.value = aiData.avatar_image || "";
+                        handleAvatarUrlChange(aiData.avatar_image || "");
+                        if (aiData.avatar_image) {
+                            localStorage.setItem("smartHomeAvatarImage", aiData.avatar_image);
+                        } else {
+                            localStorage.removeItem("smartHomeAvatarImage");
+                        }
+                    }
                     if (agentNameInput && aiData.agent_name) {
                         agentNameInput.value = aiData.agent_name;
                         localStorage.setItem("smartHomeAgentName", aiData.agent_name);
@@ -3984,7 +4213,11 @@
 
         function closeVoiceApiKeyModal() {
             const modal = document.getElementById("apiKeyModal");
-            if (modal) modal.classList.add("hidden");
+            if (modal) {
+                modal.classList.add("hidden");
+                modal.classList.remove("flex");
+                modal.style.display = "none";
+            }
         }
 
         async function testTelegramConnectionFromModal() {
@@ -4564,11 +4797,63 @@
             await testFormCamera();
         }
 
+        function handleAvatarUrlChange(url) {
+            const preview = document.getElementById("modalAvatarPreviewImg");
+            const fallback = document.getElementById("modalAvatarFallbackEmoji");
+            if (url && url.trim()) {
+                if (preview) {
+                    preview.src = url.trim();
+                    preview.classList.remove("hidden");
+                }
+                if (fallback) fallback.classList.add("hidden");
+            } else {
+                if (preview) {
+                    preview.src = "";
+                    preview.classList.add("hidden");
+                }
+                if (fallback) fallback.classList.remove("hidden");
+            }
+        }
+
+        function selectAvatarPreset(url) {
+            const input = document.getElementById("modalAvatarUrlInput");
+            if (input) {
+                input.value = url;
+                handleAvatarUrlChange(url);
+            }
+        }
+
+        function clearAvatarImage() {
+            const input = document.getElementById("modalAvatarUrlInput");
+            if (input) {
+                input.value = "";
+                handleAvatarUrlChange("");
+            }
+        }
+
+        function handleAvatarFileUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                alert("A imagem selecionada deve ter no máximo 2MB.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const base64 = e.target.result;
+                const input = document.getElementById("modalAvatarUrlInput");
+                if (input) input.value = base64;
+                handleAvatarUrlChange(base64);
+            };
+            reader.readAsDataURL(file);
+        }
+
         async function saveVoiceApiKeyFromModal() {
             const key = document.getElementById("modalApiKeyInput").value.trim();
             const model = document.getElementById("modalAiModelInput").value.trim() || "gemini-2.5-flash-lite";
             const voice = document.getElementById("modalVoiceSelect").value || "pt-BR-FranciscaNeural";
             const agentName = document.getElementById("modalAgentNameInput")?.value.trim() || "Sexta-Feira";
+            const avatarImg = document.getElementById("modalAvatarUrlInput")?.value.trim() || "";
             const gmailEmail = document.getElementById("modalGmailEmailInput")?.value.trim() || "";
             const gmailPwd = document.getElementById("modalGmailPasswordInput")?.value.trim() || "";
 
@@ -4587,13 +4872,18 @@
             localStorage.setItem("smartHomeAiModel", model);
             localStorage.setItem("smartHomeVoice", voice);
             localStorage.setItem("smartHomeAgentName", agentName);
+            if (avatarImg) {
+                localStorage.setItem("smartHomeAvatarImage", avatarImg);
+            } else {
+                localStorage.removeItem("smartHomeAvatarImage");
+            }
 
             const tag = document.getElementById("activeModelTag");
             if (tag) tag.innerText = `Modelo: ${model}`;
 
             const token = localStorage.getItem("smartHomeToken") || authToken || "";
 
-            // Salva preferências de IA (API Key, Modelo, Voz, Nome do Agente e Comandos de Máquina) no banco de dados SQLite do usuário
+            // Salva preferências de IA (API Key, Modelo, Voz, Nome do Agente, Avatar e Comandos de Máquina) no banco de dados SQLite do usuário
             if (token) {
                 try {
                     const sysEnabled = document.getElementById("modalSystemCommandsCheckbox")?.checked;
@@ -4601,6 +4891,7 @@
                         ai_model: model,
                         voice: voice,
                         agent_name: agentName,
+                        avatar_image: avatarImg,
                         system_commands_enabled: Boolean(sysEnabled)
                     };
                     if (key && !key.includes("...") && !key.includes("•")) {
@@ -4740,7 +5031,11 @@
 
         function openAutomationsModal(defaultTab = 'list') {
             const modal = document.getElementById("automationsModal");
-            if (modal) modal.classList.remove("hidden");
+            if (modal) {
+                modal.classList.remove("hidden");
+                modal.classList.add("flex");
+                modal.style.display = "flex";
+            }
             switchAutomationsTab(defaultTab);
             fetchUserAutomations();
             fetchAutomationTemplates();
@@ -4749,7 +5044,11 @@
 
         function closeAutomationsModal() {
             const modal = document.getElementById("automationsModal");
-            if (modal) modal.classList.add("hidden");
+            if (modal) {
+                modal.classList.add("hidden");
+                modal.classList.remove("flex");
+                modal.style.display = "none";
+            }
             fetchAgentStatus();
         }
 
@@ -5524,7 +5823,28 @@
         if (screenNotifPollerInterval) clearInterval(screenNotifPollerInterval);
         screenNotifPollerInterval = setInterval(checkUnreadScreenNotifications, 3500);
 
+        // Verifica inicialização na sessão ou agenda auto-início
+        checkAndInitStartupModal();
+
+        document.addEventListener("click", unlockAudioContext, { once: true });
+        document.addEventListener("keydown", unlockAudioContext, { once: true });
+
+        function checkAndPlayPendingSpeech() {
+            try {
+                const pending = sessionStorage.getItem("smartHomePendingSpeech") || localStorage.getItem("smartHomePendingSpeech");
+                if (pending) {
+                    sessionStorage.removeItem("smartHomePendingSpeech");
+                    localStorage.removeItem("smartHomePendingSpeech");
+                    setTimeout(() => {
+                        appendAgentMessageToChat(`🤖 ${pending}`);
+                        speakResponse(pending);
+                    }, 400);
+                }
+            } catch (e) { }
+        }
+
         document.addEventListener("DOMContentLoaded", () => {
+            checkAndInitStartupModal();
             autoUnlockAudioOnLoad();
             updateAgentNamesInUI();
             syncUserAiConfig();
@@ -5538,14 +5858,15 @@
             syncHouseConfigFromDatabase();
             connectMQTT();
             checkUnreadScreenNotifications();
+            checkAndPlayPendingSpeech();
 
             if (alwaysListen) {
-                setTimeout(startVoiceRecognition, 300);
                 startContinuousWatchdog();
             }
         });
     </script>
     <script src="/guide_modal.js"></script>
+    <script src="/voice_agent.js"></script>
 
 </body>
 

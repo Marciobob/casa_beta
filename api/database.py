@@ -74,6 +74,7 @@ def init_db():
             agent_name TEXT DEFAULT 'Sexta-Feira',
             voice TEXT DEFAULT 'pt-BR-FranciscaNeural',
             system_commands_enabled INTEGER DEFAULT 0,
+            avatar_image TEXT DEFAULT '',
             updated_at TEXT NOT NULL
         )
     """)
@@ -104,7 +105,8 @@ def init_db():
         ("ai_model", "TEXT DEFAULT 'gemini-2.5-flash-lite'"),
         ("agent_name", "TEXT DEFAULT 'Sexta-Feira'"),
         ("voice", "TEXT DEFAULT 'pt-BR-FranciscaNeural'"),
-        ("system_commands_enabled", "INTEGER DEFAULT 0")
+        ("system_commands_enabled", "INTEGER DEFAULT 0"),
+        ("avatar_image", "TEXT DEFAULT ''")
     ]:
         try:
             cursor.execute(f"ALTER TABLE user_profiles ADD COLUMN {col_name} {col_def}")
@@ -1130,23 +1132,18 @@ def db_save_ai_config(
     user_email: str,
     api_key: str = "",
     ai_model: str = "",
-    voice: str = ""
-) -> Dict[str, Any]:
-    """Salva a chave de API (Gemini/OpenAI), modelo e voz do usuário no SQLite, preservando valores anteriores quando não enviados."""
-def db_save_ai_config(
-    user_email: str,
-    api_key: str = "",
-    ai_model: str = "",
     agent_name: str = "",
     voice: str = "",
-    system_commands_enabled: Optional[bool] = None
+    system_commands_enabled: Optional[bool] = None,
+    avatar_image: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Salva a chave de API, modelo de IA, nome do agente, voz do TTS e flag de comandos do sistema no perfil SQLite do usuário."""
+    """Salva a chave de API, modelo de IA, nome do agente, voz do TTS, comandos do sistema e imagem do avatar no SQLite."""
     clean_email = (user_email or "").strip().lower()
     clean_key = (api_key or "").strip()
     clean_model = (ai_model or "").strip()
     clean_agent_name = (agent_name or "").strip()
     clean_voice = (voice or "").strip()
+    clean_avatar = (avatar_image or "").strip() if avatar_image is not None else None
     updated_at = datetime.now(timezone.utc).isoformat()
     
     conn = get_db_connection()
@@ -1157,7 +1154,7 @@ def db_save_ai_config(
 
     cursor.execute("""
         INSERT INTO user_profiles (
-            user_email, api_key, ai_model, agent_name, voice, system_commands_enabled, updated_at
+            user_email, api_key, ai_model, agent_name, voice, system_commands_enabled, avatar_image, updated_at
         )
         VALUES (
             ?, 
@@ -1166,6 +1163,7 @@ def db_save_ai_config(
             COALESCE(NULLIF(?, ''), 'Sexta-Feira'), 
             COALESCE(NULLIF(?, ''), 'pt-BR-FranciscaNeural'), 
             COALESCE(?, 0),
+            COALESCE(?, ''),
             ?
         )
         ON CONFLICT(user_email) DO UPDATE SET
@@ -1174,28 +1172,30 @@ def db_save_ai_config(
             agent_name=CASE WHEN ? != '' THEN ? ELSE agent_name END,
             voice=CASE WHEN ? != '' THEN ? ELSE voice END,
             system_commands_enabled=CASE WHEN ? IS NOT NULL THEN ? ELSE system_commands_enabled END,
+            avatar_image=CASE WHEN ? IS NOT NULL THEN ? ELSE avatar_image END,
             updated_at=excluded.updated_at
     """, (
-        clean_email, clean_key, clean_model, clean_agent_name, clean_voice, sys_val, updated_at,
+        clean_email, clean_key, clean_model, clean_agent_name, clean_voice, sys_val, (clean_avatar or ''), updated_at,
         clean_key, clean_key,
         clean_model, clean_model,
         clean_agent_name, clean_agent_name,
         clean_voice, clean_voice,
-        sys_val, sys_val
+        sys_val, sys_val,
+        clean_avatar, clean_avatar
     ))
     conn.commit()
     conn.close()
-    system_logger.info(f"Configuração de IA salva no SQLite para: {clean_email} (Modelo: {clean_model or 'mantido'}, Agente: {clean_agent_name or 'mantido'}, Voz: {clean_voice or 'mantida'}, Comandos Sistema: {system_commands_enabled})")
+    system_logger.info(f"Configuração de IA salva no SQLite para: {clean_email} (Modelo: {clean_model or 'mantido'}, Agente: {clean_agent_name or 'mantido'}, Voz: {clean_voice or 'mantida'}, Comandos: {system_commands_enabled}, Avatar: {'atualizado' if avatar_image is not None else 'mantido'})")
     return db_get_ai_config(clean_email)
 
 def db_get_ai_config(user_email: str) -> Dict[str, Any]:
-    """Retorna a configuração de IA (chave de API, modelo, nome do agente, voz e flag de comandos do sistema) do usuário."""
+    """Retorna a configuração de IA (chave de API, modelo, nome do agente, voz, comandos do sistema e imagem do avatar) do usuário."""
     clean_email = (user_email or "").strip().lower()
     if clean_email:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT api_key, ai_model, agent_name, voice, system_commands_enabled 
+            SELECT api_key, ai_model, agent_name, voice, system_commands_enabled, avatar_image 
             FROM user_profiles WHERE user_email = ?
         """, (clean_email,))
         row = cursor.fetchone()
@@ -1206,6 +1206,7 @@ def db_get_ai_config(user_email: str) -> Dict[str, Any]:
             stored_agent_name = (row["agent_name"] or "Sexta-Feira").strip() if "agent_name" in row.keys() else "Sexta-Feira"
             stored_voice = (row["voice"] or "pt-BR-FranciscaNeural").strip()
             stored_sys = bool(row["system_commands_enabled"]) if "system_commands_enabled" in row.keys() else False
+            stored_avatar = (row["avatar_image"] or "").strip() if "avatar_image" in row.keys() else ""
             masked = f"{stored_key[:6]}...{stored_key[-4:]}" if len(stored_key) > 10 else ("Configurada" if stored_key else "")
             return {
                 "api_key": stored_key,
@@ -1214,6 +1215,7 @@ def db_get_ai_config(user_email: str) -> Dict[str, Any]:
                 "agent_name": stored_agent_name or "Sexta-Feira",
                 "voice": stored_voice,
                 "system_commands_enabled": stored_sys,
+                "avatar_image": stored_avatar,
                 "configured": bool(stored_key)
             }
             
@@ -1222,6 +1224,7 @@ def db_get_ai_config(user_email: str) -> Dict[str, Any]:
     env_model = os.getenv("DEFAULT_MODEL", "gemini-2.5-flash-lite")
     env_agent_name = os.getenv("AGENT_NAME", "Sexta-Feira")
     env_voice = os.getenv("DEFAULT_VOICE", "pt-BR-FranciscaNeural")
+    env_avatar = os.getenv("DEFAULT_AVATAR_IMAGE", "")
     masked_env = f"{env_key[:6]}...{env_key[-4:]}" if len(env_key) > 10 else ("Configurada" if env_key else "")
     return {
         "api_key": env_key,
@@ -1230,6 +1233,7 @@ def db_get_ai_config(user_email: str) -> Dict[str, Any]:
         "agent_name": env_agent_name,
         "voice": env_voice,
         "system_commands_enabled": False,
+        "avatar_image": env_avatar,
         "configured": bool(env_key)
     }
 

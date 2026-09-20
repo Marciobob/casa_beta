@@ -7,6 +7,54 @@
     <title>Perfil do Usuário • Smart Home</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.95);
+                opacity: 0.8;
+            }
+            50% {
+                transform: scale(1.3);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        @keyframes wave {
+            0%, 100% {
+                height: 6px;
+            }
+            50% {
+                height: 26px;
+            }
+        }
+
+        .animate-pulse-ring {
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        .wave-bar {
+            animation: wave 1.2s ease-in-out infinite;
+        }
+
+        .wave-bar:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+
+        .wave-bar:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .wave-bar:nth-child(4) {
+            animation-delay: 0.45s;
+        }
+
+        .wave-bar:nth-child(5) {
+            animation-delay: 0.6s;
+        }
+
         .glass {
             background: rgba(24, 24, 27, 0.85);
             backdrop-filter: blur(20px);
@@ -37,6 +85,13 @@
                     <a href="/" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl transition flex items-center gap-1">
                         ← Voltar ao Painel
                     </a>
+                    <a href="/avatar.html" class="text-xs bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 text-indigo-200 px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+                        🎭 Avatar 2D
+                    </a>
+                    <button onclick="openFeatureGuide('perfil')" class="text-xs bg-indigo-600/30 hover:bg-indigo-600 border border-indigo-500/40 text-indigo-200 hover:text-white px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+                        <span>ℹ️</span>
+                        <span>Guia de Perfil</span>
+                    </button>
                 </div>
                 <h1 class="text-4xl font-black tracking-tight mt-2 flex items-center gap-3">
                     <span>👤 Perfil & Memória do Usuário</span>
@@ -46,12 +101,18 @@
                 </p>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center gap-2.5">
+                <!-- BOTAO MODO PAREDE / ESCUTA CONTINUA (WAKE WORD) -->
+                <button id="alwaysListenBtn" onclick="toggleAlwaysListen()" title="Ativar/Desativar escuta contínua"
+                    class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 transition px-3.5 py-2.5 rounded-2xl font-semibold text-xs flex items-center gap-2 shadow-sm cursor-pointer">
+                    <span id="alwaysListenDot" class="w-2.5 h-2.5 rounded-full bg-zinc-500"></span>
+                    <span id="alwaysListenText">🎙️ Ouvir Sempre: Inativo</span>
+                </button>
                 <div class="bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-2xl text-xs flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-green-400"></span>
                     <span id="userNameDisplay" class="font-bold text-zinc-200">Carregando...</span>
                 </div>
-                <button onclick="handleLogout()" class="bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-red-200 px-4 py-2.5 rounded-2xl text-xs font-bold transition">
+                <button onclick="handleLogout()" class="bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-red-200 px-4 py-2.5 rounded-2xl text-xs font-bold transition cursor-pointer">
                     Sair
                 </button>
             </div>
@@ -59,6 +120,89 @@
 
         <!-- NOTIFICAÇÃO TOAST -->
         <div id="toastAlert" class="hidden mb-6 p-4 rounded-2xl text-xs font-semibold flex items-center gap-2 transition duration-300"></div>
+
+        <!-- SEÇÃO 0: FOTO DE PERFIL & RECONHECIMENTO FACIAL DE MORADOR -->
+        <div class="bg-gradient-to-br from-indigo-950/40 via-zinc-900/90 to-zinc-900/90 border border-indigo-500/30 rounded-3xl p-6 shadow-2xl mb-6 relative overflow-hidden">
+            <div class="flex flex-col sm:flex-row items-center gap-6">
+                <!-- AVATAR CONTAINER COM PREVIEW -->
+                <div class="relative group">
+                    <div id="avatarContainer" class="w-28 h-28 rounded-3xl bg-zinc-800 border-2 border-indigo-500/40 flex items-center justify-center overflow-hidden shadow-xl shadow-indigo-950/50">
+                        <img id="avatarImage" class="w-full h-full object-cover hidden" alt="Foto do Morador">
+                        <span id="avatarPlaceholder" class="text-4xl">👤</span>
+                    </div>
+                    <div id="avatarBadge" class="absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40">
+                        Sem Foto
+                    </div>
+                </div>
+
+                <!-- INFORMAÇÕES E BOTÕES DE AÇÃO -->
+                <div class="flex-1 text-center sm:text-left">
+                    <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <span>📸</span>
+                            <span>Foto de Perfil & Reconhecimento Facial</span>
+                        </h2>
+                        <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono border border-indigo-500/30">
+                            Morador Oficial
+                        </span>
+                        <button onclick="openFeatureGuide('reconhecimento_facial')" class="text-[11px] px-2.5 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 hover:bg-cyan-900 font-bold border border-cyan-500/40 transition">
+                            ℹ️ Como Funciona o Reconhecimento
+                        </button>
+                    </div>
+                    <p class="text-xs text-zinc-300 leading-relaxed max-w-xl mb-4">
+                        Cadastre uma foto de referência do seu rosto. O agente e as câmeras de visão computacional comparam essa foto para te <b>reconhecer como morador da casa</b>, te cumprimentar pelo nome e diferenciar de <b>visitantes não cadastrados</b>.
+                    </p>
+
+                    <!-- BOTÕES DE UPLOAD / WEBCAM -->
+                    <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                        <input type="file" id="photoFileInput" accept="image/*" class="hidden" onchange="handlePhotoFileUpload(event)">
+                        <button type="button" onclick="document.getElementById('photoFileInput').click()"
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition">
+                            <span>📁</span> <span>Enviar Foto do Arquivo</span>
+                        </button>
+                        <button type="button" onclick="openWebcamModal()"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-cyan-300 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 border border-cyan-500/30 transition">
+                            <span>📸</span> <span>Tirar Foto com a Câmera</span>
+                        </button>
+                        <button type="button" id="removePhotoBtn" onclick="handleDeletePhoto()"
+                            class="hidden bg-red-950/60 hover:bg-red-900/80 text-red-300 text-xs font-bold py-2.5 px-3 rounded-xl flex items-center gap-1.5 border border-red-800/40 transition">
+                            <span>🗑️</span> <span>Remover</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DE CAPTURA DE FOTO PELA WEBCAM -->
+        <div id="webcamModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+            <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-md w-full shadow-2xl">
+                <div class="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
+                    <h3 class="font-bold text-base text-white flex items-center gap-2">
+                        <span>📸</span> <span>Capturar Foto para Reconhecimento</span>
+                    </h3>
+                    <button type="button" onclick="closeWebcamModal()" class="text-zinc-400 hover:text-white text-lg">✕</button>
+                </div>
+                <div class="rounded-2xl overflow-hidden bg-black aspect-video relative mb-4 border border-zinc-800 flex items-center justify-center">
+                    <video id="webcamVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+                    <div class="absolute inset-0 border-2 border-indigo-500/40 rounded-2xl pointer-events-none flex items-center justify-center">
+                        <div class="w-36 h-36 rounded-full border border-dashed border-indigo-400/60"></div>
+                    </div>
+                </div>
+                <p class="text-[11px] text-zinc-400 text-center mb-4">
+                    Posicione seu rosto dentro da área demarcada e clique em capturar.
+                </p>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeWebcamModal()"
+                        class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-2.5 rounded-xl text-xs font-semibold transition text-zinc-300">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="captureWebcamPhoto()"
+                        class="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-xl text-xs font-bold transition text-white flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/30">
+                        <span>📸</span> <span>Capturar Selfie</span>
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <form id="profileForm" onsubmit="handleSaveProfile(event)" class="space-y-6">
 
@@ -176,10 +320,60 @@
 
         function handleLogout() {
             if (confirm("Deseja realmente sair?")) {
+                try {
+                    sessionStorage.removeItem("smartHomeSystemInitialized");
+                    sessionStorage.clear();
+                } catch(e) {}
                 localStorage.removeItem("smartHomeToken");
                 localStorage.removeItem("smartHomeUser");
                 location.href = "/login.html";
             }
+        }
+
+        async function speakProfileFeedback(text) {
+            if (!text) return;
+            const clean = text.replace(/[*#_~`]/g, "").trim();
+            const voice = localStorage.getItem("smartHomeVoice") || "pt-BR-FranciscaNeural";
+            
+            if (voice === "browser-native" || !navigator.onLine) {
+                speakNative(clean);
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/tts", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ text: clean, voice: voice })
+                });
+
+                if (!res.ok) throw new Error("Falha no TTS neural");
+                const blob = await res.blob();
+                const audioUrl = URL.createObjectURL(blob);
+                const audio = new Audio(audioUrl);
+                audio.onended = () => URL.revokeObjectURL(audioUrl);
+                audio.onerror = () => URL.revokeObjectURL(audioUrl);
+                audio.play().catch(() => speakNative(clean));
+            } catch (err) {
+                speakNative(clean);
+            }
+        }
+
+        function speakNative(text) {
+            if (!("speechSynthesis" in window)) return;
+            try {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = "pt-BR";
+                utterance.rate = 1.15;
+                const voices = window.speechSynthesis.getVoices();
+                const ptVoice = voices.find(v => v.lang === "pt-BR" || v.lang.startsWith("pt")) || null;
+                if (ptVoice) utterance.voice = ptVoice;
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {}
         }
 
         function showToast(msg, isSuccess = true) {
@@ -190,6 +384,40 @@
             toast.innerHTML = `<span>${isSuccess ? '✅' : '⚠️'}</span><span>${msg}</span>`;
             toast.classList.remove("hidden");
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            speakProfileFeedback(msg);
+        }
+
+        let webcamStream = null;
+
+        function updateAvatarDisplay(photoBase64) {
+            const img = document.getElementById("avatarImage");
+            const placeholder = document.getElementById("avatarPlaceholder");
+            const badge = document.getElementById("avatarBadge");
+            const removeBtn = document.getElementById("removePhotoBtn");
+
+            if (photoBase64 && photoBase64.length > 50) {
+                if (img) {
+                    img.src = photoBase64;
+                    img.classList.remove("hidden");
+                }
+                if (placeholder) placeholder.classList.add("hidden");
+                if (badge) {
+                    badge.className = "absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-lg flex items-center gap-1";
+                    badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Morador com Foto`;
+                }
+                if (removeBtn) removeBtn.classList.remove("hidden");
+            } else {
+                if (img) {
+                    img.src = "";
+                    img.classList.add("hidden");
+                }
+                if (placeholder) placeholder.classList.remove("hidden");
+                if (badge) {
+                    badge.className = "absolute -bottom-2 -right-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40";
+                    badge.innerText = "Sem Foto";
+                }
+                if (removeBtn) removeBtn.classList.add("hidden");
+            }
         }
 
         async function loadProfile() {
@@ -214,10 +442,134 @@
                         document.getElementById("favorite_foods").value = data.favorite_foods || "";
                         document.getElementById("car_info").value = data.car_info || "";
                         document.getElementById("personal_notes").value = data.personal_notes || "";
+                        updateAvatarDisplay(data.photo_base64 || "");
                     }
                 }
             } catch (err) {
                 console.error("Erro ao carregar perfil:", err);
+            }
+        }
+
+        async function sendPhotoToBackend(dataUrl) {
+            try {
+                const res = await fetch("/api/user/photo", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ photo_base64: dataUrl })
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.detail || "Falha ao salvar foto de perfil.");
+                }
+
+                const result = await res.json();
+                updateAvatarDisplay(result.photo_base64);
+                showToast("Foto de perfil atualizada com sucesso! O agente agora reconhece você como morador.", true);
+            } catch (err) {
+                showToast(err.message, false);
+            }
+        }
+
+        function handlePhotoFileUpload(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    const maxDim = 400;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > maxDim) {
+                            height *= maxDim / width;
+                            width = maxDim;
+                        }
+                    } else {
+                        if (height > maxDim) {
+                            width *= maxDim / height;
+                            height = maxDim;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext("2d");
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const resizedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+                    sendPhotoToBackend(resizedDataUrl);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = "";
+        }
+
+        async function openWebcamModal() {
+            const modal = document.getElementById("webcamModal");
+            const video = document.getElementById("webcamVideo");
+            if (!modal || !video) return;
+
+            try {
+                webcamStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: "user" },
+                    audio: false
+                });
+                video.srcObject = webcamStream;
+                modal.classList.remove("hidden");
+            } catch (err) {
+                alert("Não foi possível acessar a webcam do dispositivo: " + err.message);
+            }
+        }
+
+        function closeWebcamModal() {
+            const modal = document.getElementById("webcamModal");
+            if (modal) modal.classList.add("hidden");
+            if (webcamStream) {
+                webcamStream.getTracks().forEach(track => track.stop());
+                webcamStream = null;
+            }
+        }
+
+        function captureWebcamPhoto() {
+            const video = document.getElementById("webcamVideo");
+            if (!video) return;
+
+            const canvas = document.createElement("canvas");
+            canvas.width = 400;
+            canvas.height = 400;
+            const ctx = canvas.getContext("2d");
+
+            // Crop quadrado central da imagem da webcam
+            const minDim = Math.min(video.videoWidth, video.videoHeight);
+            const sx = (video.videoWidth - minDim) / 2;
+            const sy = (video.videoHeight - minDim) / 2;
+            ctx.drawImage(video, sx, sy, minDim, minDim, 0, 0, 400, 400);
+
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+            closeWebcamModal();
+            sendPhotoToBackend(dataUrl);
+        }
+
+        async function handleDeletePhoto() {
+            if (!confirm("Deseja realmente remover sua foto de referência de morador?")) return;
+            try {
+                const res = await fetch("/api/user/photo", {
+                    method: "DELETE",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    updateAvatarDisplay("");
+                    showToast("Foto de perfil removida com sucesso.", true);
+                }
+            } catch (err) {
+                showToast("Erro ao remover foto: " + err.message, false);
             }
         }
 
@@ -265,6 +617,77 @@
         loadProfile();
     </script>
 
+    <!-- ========================================================================= -->
+    <!-- BOTAO FLUTUANTE DE VOZ (MICROFONE) -->
+    <!-- ========================================================================= -->
+    <div class="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+        <div id="micPulseEffect"
+            class="hidden absolute -inset-3 bg-indigo-500 rounded-full animate-pulse-ring opacity-75 pointer-events-none"></div>
+        <button id="floatingVoiceBtn" onclick="toggleVoiceAssistant()" title="Ativar Microfone / Falar com o Agente"
+            class="relative w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 border-2 border-indigo-300/40 cursor-pointer">
+            <svg id="micIcon" class="w-8 h-8 transition-transform duration-300" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z">
+                </path>
+            </svg>
+            <svg id="stopIcon" class="w-7 h-7 hidden text-red-200" fill="currentColor" viewBox="0 0 20 20">
+                <rect x="5" y="5" width="10" height="10" rx="2" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- HUD / PAINEL INFORMATIVO DO AGENTE -->
+    <!-- ========================================================================= -->
+    <div id="voiceHud"
+        class="fixed bottom-24 right-6 left-6 md:left-auto md:w-96 max-h-[82vh] flex flex-col glass rounded-3xl border border-indigo-500/30 p-5 shadow-2xl transition-all duration-300 z-40 hidden">
+        <div class="flex items-center justify-between pb-3 border-b border-zinc-800 shrink-0">
+            <div class="flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></div>
+                <span id="hudAgentTitle" class="font-bold text-sm text-indigo-300">Assistente Sexta-Feira</span>
+            </div>
+            <button onclick="closeVoiceHud()"
+                class="text-zinc-400 hover:text-white text-xs px-2 py-1 bg-zinc-800/80 rounded-lg cursor-pointer">✕</button>
+        </div>
+
+        <div class="my-4 flex items-center gap-3 shrink-0">
+            <div id="voiceWaveAnimation" class="flex items-end gap-1 h-7">
+                <div class="w-1.5 bg-indigo-500 rounded-full wave-bar"></div>
+                <div class="w-1.5 bg-indigo-400 rounded-full wave-bar"></div>
+                <div class="w-1.5 bg-purple-500 rounded-full wave-bar"></div>
+                <div class="w-1.5 bg-indigo-400 rounded-full wave-bar"></div>
+                <div class="w-1.5 bg-indigo-500 rounded-full wave-bar"></div>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p id="voiceStatusText" class="text-xs text-zinc-400 font-medium">Ouvindo...</p>
+                <p id="voiceTranscriptText" class="text-sm font-semibold text-zinc-100 italic truncate mt-0.5">"..."</p>
+            </div>
+        </div>
+
+        <div id="geminiResponseBox"
+            class="hidden my-2 p-3 bg-zinc-900/90 rounded-2xl border border-indigo-500/20 text-xs text-zinc-200 flex-1 overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between font-bold text-indigo-400 mb-1.5 shrink-0">
+                <span>🤖 Resposta do Agente:</span>
+            </div>
+            <div class="overflow-y-auto max-h-48 md:max-h-56 pr-1.5 space-y-1">
+                <div id="geminiResponseText" class="leading-relaxed break-words text-zinc-300 text-xs"></div>
+            </div>
+        </div>
+
+        <form id="voiceManualForm" onsubmit="handleManualVoiceCommand(event)" class="mt-2 flex gap-2 shrink-0">
+            <input id="voiceTextInput" type="text" placeholder="Falar ou digitar comando..."
+                class="w-full bg-zinc-800/90 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-white placeholder-zinc-500">
+            <button type="submit"
+                class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition shadow-md shadow-indigo-600/30 cursor-pointer">Enviar</button>
+        </form>
+    </div>
+
+    <!-- Container de Notificações Toast -->
+    <div id="screenToastContainer" class="fixed top-5 right-5 z-[99999] flex flex-col gap-3 max-w-sm w-full pointer-events-none transition-all"></div>
+
+    <script src="/guide_modal.js"></script>
+    <script src="/voice_agent.js"></script>
 </body>
 
 </html>

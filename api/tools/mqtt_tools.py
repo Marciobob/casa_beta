@@ -19,6 +19,11 @@ def set_execution_context(rooms_state: dict, broker_config: dict):
     _current_rooms_state = rooms_state or {}
     _current_broker_config = broker_config or {"broker": "test.mosquitto.org", "port": 1883}
 
+def register_executed_action(action: dict):
+    """Registra uma ação executada pelo agente (luzes MQTT, navegação de interface, controle de modais)."""
+    global _current_actions_executed
+    _current_actions_executed.append(action)
+
 def get_executed_actions() -> list:
     """Retorna as ações que o agente decidiu executar durante o processamento."""
     return list(_current_actions_executed)

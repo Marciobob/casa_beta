@@ -155,6 +155,12 @@
     <!-- ========================================================================= -->
     <div id="startupTechModal"
         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-2xl transition-all duration-500">
+        <script>
+            if (sessionStorage.getItem("smartHomeSystemInitialized") === "true") {
+                const _m = document.getElementById("startupTechModal");
+                if (_m) _m.style.display = "none";
+            }
+        </script>
         <div
             class="relative w-full max-w-md bg-zinc-900/95 border border-indigo-500/40 rounded-3xl p-8 text-center shadow-[0_0_80px_rgba(99,102,241,0.25)] overflow-hidden">
             <!-- Glows & Efeitos de Fundo -->
@@ -235,7 +241,7 @@
                     <div class="flex items-center gap-3">
                         <h1
                             class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                            <span>Sexta-Feira AI</span>
+                            <span id="headerAgentTitle">Sexta-Feira AI</span>
                         </h1>
                         <span
                             class="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 px-3 py-1 rounded-full font-mono font-bold flex items-center gap-1.5">
@@ -278,6 +284,13 @@
                     <span>⚡</span>
                     <span>Automações</span>
                 </button>
+
+                <!-- BOTAO AVATAR 2D -->
+                <a href="/avatar.html" title="Avatar IA 2D com Lip-Sync e Live Chat"
+                    class="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 transition px-3.5 py-3 rounded-2xl font-semibold text-xs sm:text-sm flex items-center gap-1.5 text-indigo-200">
+                    <span>🎭</span>
+                    <span class="hidden sm:inline">Avatar 2D</span>
+                </a>
 
                 <!-- BOTAO CONFIG IA / CHAVE API -->
                 <button onclick="openVoiceApiKeyModal()"
@@ -362,11 +375,11 @@
                     <span class="text-lg">🛠️</span>
                 </div>
                 <div class="mt-3 flex items-baseline gap-2">
-                    <span class="text-3xl font-black text-emerald-400">9</span>
+                    <span class="text-3xl font-black text-emerald-400">13</span>
                     <span class="text-xs text-zinc-500 font-medium">integrações ativas</span>
                 </div>
                 <div class="text-[11px] text-zinc-400 mt-1">
-                    Gmail, Agenda, Contatos, Tarefas, Keep, Câmera, MQTT, Web & Memória
+                    Gmail, Agenda, Contatos, Tarefas, Keep, Câmera, Telegram, Automações, Música, Memória & Sistema
                 </div>
             </div>
 
@@ -444,7 +457,7 @@
                         </div>
                         <div
                             class="bg-zinc-800/80 border border-zinc-700/60 rounded-2xl rounded-tl-none p-3.5 text-xs text-zinc-200 max-w-[85%] leading-relaxed">
-                            Olá! Sou a <b>Sexta-Feira</b>, sua assistente inteligente. Posso controlar suas luzes,
+                            Olá! Sou a <b id="chatGreetingAgentName">Sexta-Feira</b>, sua assistente inteligente. Posso controlar suas luzes,
                             verificar e enviar seus e-mails do Gmail, consultar e agendar compromissos na sua agenda do
                             Google, pesquisar notícias ou responder sobre suas preferências. Como posso te ajudar agora?
                         </div>
@@ -858,7 +871,49 @@
                     </div>
                 </div>
 
-                <!-- CARD 9: VISÃO COMPUTACIONAL & CÂMERA -->
+                <!-- CARD 9: MEMÓRIA & APRENDIZADO CONTÍNUO -->
+                <div
+                    class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-fuchsia-950/30 via-zinc-900/60 to-zinc-900/60 border-fuchsia-500/20">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-fuchsia-500/20 border border-fuchsia-500/40 flex items-center justify-center text-xl text-fuchsia-300">
+                                    🧠
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-base text-white">Memória & Aprendizado</h3>
+                                    <p class="text-[11px] text-fuchsia-300 font-mono">SQLite Long-Term Memory</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('memoria_longo_prazo')" title="Guia de Memória do Agente"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-fuchsia-950/80 hover:bg-fuchsia-900 text-fuchsia-300 transition flex items-center gap-1 border border-fuchsia-500/40">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span
+                                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-fuchsia-400"></span> Aprendendo
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
+                            Gravação autônoma de preferências, gostos, rotinas e instruções para um atendimento 100% personalizado e contínuo.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-800/80">
+                        <button onclick="sendQuickCommand('O que você lembra e sabe sobre mim nas suas memórias?')"
+                            class="bg-zinc-800/80 hover:bg-fuchsia-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>🧠</span> <span>Ver Memórias</span>
+                        </button>
+                        <button onclick="sendQuickCommand('Lembre-se de que meu time de futebol do coração é o Flamengo')"
+                            class="bg-zinc-800/80 hover:bg-fuchsia-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>💡</span> <span>Ensinar Fato</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CARD 10: VISÃO COMPUTACIONAL & CÂMERA -->
                 <div
                     class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-cyan-950/30 via-zinc-900/60 to-zinc-900/60 border-cyan-500/20">
                     <div>
@@ -904,7 +959,7 @@
                     </div>
                 </div>
 
-                <!-- CARD 10: TELEGRAM BOT & CONTROLE REMOTO -->
+                <!-- CARD 11: TELEGRAM BOT & CONTROLE REMOTO -->
                 <div
                     class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-sky-950/30 via-zinc-900/60 to-zinc-900/60 border-sky-500/20">
                     <div>
@@ -949,7 +1004,51 @@
                     </div>
                 </div>
 
-                <!-- CARD 11: MOTOR DE AUTOMAÇÕES & 2º PLANO -->
+                <!-- CARD 12: SLACK WORKSPACE & RELATÓRIOS -->
+                <div
+                    class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-emerald-950/30 via-zinc-900/60 to-zinc-900/60 border-emerald-500/20">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl text-emerald-300">
+                                    💬
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-base text-white">Slack Workspace</h3>
+                                    <p id="slackIntegrationStatus" class="text-[11px] text-emerald-300 font-mono">
+                                        Relatórios & Alertas</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('slack')" title="Guia de Configuração do Slack"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 transition flex items-center gap-1 border border-emerald-500/40">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span id="slackStatusBadge"
+                                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                    Não Configurado
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
+                            Receba relatórios executivos em Block Kit, notificações de alterações no sistema e consulte canais de equipes.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-800/80">
+                        <button onclick="openVoiceApiKeyModal()"
+                            class="bg-zinc-800/80 hover:bg-emerald-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>⚙️</span> <span>Configurar</span>
+                        </button>
+                        <button
+                            onclick="sendQuickCommand('Sexta-Feira, envie um relatório executivo com o resumo da casa no Slack')"
+                            class="bg-zinc-800/80 hover:bg-emerald-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>📊</span> <span>Enviar Relatório</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CARD 12: MOTOR DE AUTOMAÇÕES & 2º PLANO -->
                 <div
                     class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-amber-950/30 via-zinc-900/60 to-zinc-900/60 border-amber-500/20">
                     <div>
@@ -994,7 +1093,133 @@
                     </div>
                 </div>
 
-                <!-- CARD 9: ATALHOS RÁPIDOS INTELIGENTES -->
+                <!-- CARD 13: MÚSICA & ALTO-FALANTE -->
+                <div
+                    class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-rose-950/30 via-zinc-900/60 to-zinc-900/60 border-rose-500/20">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-xl text-rose-300">
+                                    🎵
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-base text-white">Música & Som</h3>
+                                    <p class="text-[11px] text-rose-300 font-mono">YouTube Streaming & Player</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('musica')" title="Guia de Música e Som"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 transition flex items-center gap-1 border border-rose-500/40">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span
+                                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Conectado
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
+                            Busca músicas, álbuns e playlists no YouTube com reprodução de áudio em segundo plano e controle por voz.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-800/80">
+                        <button onclick="sendQuickCommand('Toque um samba animado para animar o ambiente')"
+                            class="bg-zinc-800/80 hover:bg-rose-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>▶️</span> <span>Tocar Música</span>
+                        </button>
+                        <button onclick="sendQuickCommand('Pare a música que está tocando agora')"
+                            class="bg-zinc-800/80 hover:bg-rose-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>⏹️</span> <span>Parar Música</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CARD 13: CONTROLE DO SISTEMA & HARDWARE -->
+                <div
+                    class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-violet-950/30 via-zinc-900/60 to-zinc-900/60 border-violet-500/20">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-500/40 flex items-center justify-center text-xl text-violet-300">
+                                    💻
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-base text-white">Controle do Sistema</h3>
+                                    <p class="text-[11px] text-violet-300 font-mono">Volume, Brilho & Browser</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('comandos_sistema')" title="Guia de Comandos do Sistema"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-violet-950/80 hover:bg-violet-900 text-violet-300 transition flex items-center gap-1 border border-violet-500/40">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span
+                                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span> Conectado
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
+                            Ajuste de volume do alto-falante, controle de brilho do monitor e abertura inteligente de sites e navegadores.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-800/80">
+                        <button onclick="sendQuickCommand('Ajuste o volume do sistema para 50%')"
+                            class="bg-zinc-800/80 hover:bg-violet-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>🔊</span> <span>Ajustar Volume</span>
+                        </button>
+                        <button onclick="sendQuickCommand('Abra o navegador no site do G1 notícias')"
+                            class="bg-zinc-800/80 hover:bg-violet-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>🌐</span> <span>Abrir Navegador</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CARD 14: YOUTUBE & TUTORIAIS EM VÍDEO -->
+                <div
+                    class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-red-950/30 via-zinc-900/60 to-zinc-900/60 border-red-500/20">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-xl text-red-300">
+                                    📺
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-base text-white">YouTube & Vídeos</h3>
+                                    <p class="text-[11px] text-red-300 font-mono">Busca & Transcrição</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFeatureGuide('youtube_tutoriais')" title="Guia de Tutoriais do YouTube"
+                                    class="text-[11px] px-2 py-0.5 rounded-lg bg-red-950/80 hover:bg-red-900 text-red-300 transition flex items-center gap-1 border border-red-500/40">
+                                    <span>ℹ️</span> <span>Guia</span>
+                                </button>
+                                <span
+                                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> Conectado
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
+                            Busca vídeos e tutoriais no YouTube com transcrição do áudio e resumo estruturado passo a passo.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-800/80">
+                        <button onclick="sendQuickCommand('Procure um vídeo ensinando como fazer bolo de cenoura')"
+                            class="bg-zinc-800/80 hover:bg-red-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>🎬</span> <span>Buscar Vídeo</span>
+                        </button>
+                        <button onclick="sendQuickCommand('Procure um tutorial sobre inteligência artificial no YouTube')"
+                            class="bg-zinc-800/80 hover:bg-red-600/80 hover:text-white text-zinc-300 transition text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 border border-zinc-700/60">
+                            <span>📝</span> <span>Ver Tutorial</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CARD 15: ATALHOS RÁPIDOS INTELIGENTES -->
                 <div
                     class="glass-card rounded-3xl p-5 flex flex-col justify-between shadow-xl bg-gradient-to-br from-indigo-950/40 via-zinc-900/60 to-purple-950/40 border-indigo-500/20">
                     <div>
@@ -1009,7 +1234,7 @@
                                     <p class="text-[11px] text-indigo-300 font-mono">Sugestões de Voz</p>
                                 </div>
                             </div>
-                            <span class="text-[11px] text-indigo-300 font-mono">Diga "Sexta-Feira"</span>
+                            <span id="quickCommandWakeTag" class="text-[11px] text-indigo-300 font-mono">Diga "Sexta-Feira"</span>
                         </div>
                         <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
                             Experimente falar comandos completos combinando serviços para ver a IA em ação!
@@ -1102,6 +1327,56 @@
                 individual.
             </p>
             <div class="space-y-4">
+                
+                <!-- SEÇÃO AVATAR 2D (IMAGEM DO AGENTE) -->
+                <div class="p-3.5 bg-zinc-950/60 border border-indigo-500/30 rounded-2xl">
+                    <label class="block text-xs font-bold text-indigo-300 mb-2 flex items-center gap-1.5">
+                        <span>🎭</span> Imagem / Foto do Avatar 2D
+                    </label>
+                    <div class="flex items-center gap-3 mb-2.5">
+                        <div class="relative w-14 h-14 rounded-2xl overflow-hidden bg-zinc-800 border-2 border-indigo-500/40 flex-shrink-0 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                            <img id="modalAvatarPreviewImg" src="" alt="Avatar" class="w-full h-full object-cover hidden">
+                            <span id="modalAvatarFallbackEmoji" class="text-2xl">🤖</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <input id="modalAvatarUrlInput" type="text" placeholder="URL da imagem (https://...)"
+                                oninput="handleAvatarUrlChange(this.value)"
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-mono text-white mb-1.5">
+                            <div class="flex items-center gap-2">
+                                <label class="text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1 rounded-lg cursor-pointer transition flex items-center gap-1">
+                                    <span>📁 Upload Imagem</span>
+                                    <input type="file" id="modalAvatarFileInput" accept="image/*" class="hidden" onchange="handleAvatarFileUpload(event)">
+                                </label>
+                                <button type="button" onclick="clearAvatarImage()" class="text-[11px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 px-2.5 py-1 rounded-lg border border-zinc-700 transition">
+                                    Restaurar Padrão
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Presets Rápidos -->
+                    <div class="flex flex-wrap items-center gap-1.5 text-[10px]">
+                        <span class="text-zinc-500 font-semibold">Presets:</span>
+                        <button type="button" onclick="selectAvatarPreset('/static/avatars/cyber_hood_green.png')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-500/40">🤖 Cyber Hood (Verde)</button>
+                        <button type="button" onclick="selectAvatarPreset('/static/avatars/cyber_hood_smile.png')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-500/40">😸 Cyber Smile</button>
+                        <button type="button" onclick="selectAvatarPreset('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2 py-0.5 rounded-lg border border-zinc-700">Cyber Orb</button>
+                        <button type="button" onclick="selectAvatarPreset('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2 py-0.5 rounded-lg border border-zinc-700">Assistente IA</button>
+                        <button type="button" onclick="selectAvatarPreset('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2 py-0.5 rounded-lg border border-zinc-700">Jarvis Tech</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-zinc-300 mb-1">Nome do Agente (Palavra de Ativação)</label>
+                    <input id="modalAgentNameInput" type="text" placeholder="Sexta-Feira"
+                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-semibold text-white">
+                    <p class="text-[11px] text-zinc-500 mt-1">
+                        Palavra de ativação por voz (ex: <i>Sexta-Feira</i>, <i>Jarvis</i>, <i>Athena</i>, <i>Computador</i>).
+                    </p>
+                </div>
                 <div>
                     <label class="block text-xs font-bold text-zinc-300 mb-1">Modelo de IA</label>
                     <input id="modalAiModelInput" list="modalAiSuggestions" type="text"
@@ -1191,78 +1466,114 @@
                     </div>
                 </div>
 
-                <!-- SEÇÃO CÂMERA DO SISTEMA & CÂMERA IP -->
+                <!-- SEÇÃO CÂMERA DO SISTEMA & MÚLTIPLAS CÂMERAS IP -->
                 <div class="pt-3 border-t border-zinc-800">
                     <div class="flex items-center justify-between mb-2">
-                        <label class="block text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                            <span>📷</span> Câmera (Local / IP) & Visão Computacional
-                        </label>
-                        <button type="button" id="testCameraBtn" onclick="testCameraConnectionFromModal()"
-                            class="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1 bg-cyan-950/60 px-2.5 py-1 rounded-lg border border-cyan-500/30">
-                            🧪 Testar Câmera
+                        <div>
+                            <label class="block text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                                <span>📷</span> Câmeras & Visão Computacional
+                            </label>
+                            <div class="text-[10px] text-zinc-400">Configure sua câmera local e múltiplas câmeras IP (ESP32-CAM, RTSP, HTTP)</div>
+                        </div>
+                        <button type="button" id="addNewCameraBtn" onclick="toggleAddCameraForm(true)"
+                            class="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1 bg-cyan-950/60 px-2.5 py-1 rounded-lg border border-cyan-500/30 hover:border-cyan-500/60">
+                            ➕ Adicionar Câmera
                         </button>
                     </div>
-                    <div class="space-y-3">
+
+                    <!-- Lista de Câmeras Cadastradas -->
+                    <div id="modalCamerasList" class="space-y-2 mb-3">
+                        <div class="text-xs text-zinc-500 text-center py-2">Carregando câmeras...</div>
+                    </div>
+
+                    <!-- Formulário de Adicionar / Editar Câmera -->
+                    <div id="cameraFormContainer" class="hidden bg-zinc-950/80 p-3.5 rounded-2xl border border-cyan-500/30 space-y-3 mb-3">
+                        <div class="flex items-center justify-between">
+                            <span id="cameraFormTitle" class="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                                📹 Adicionar Nova Câmera
+                            </span>
+                            <button type="button" onclick="toggleAddCameraForm(false)" class="text-zinc-400 hover:text-white text-xs">✕ Fechar</button>
+                        </div>
+                        <input type="hidden" id="modalCameraEditId" value="">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Nome / Local da Câmera</label>
+                            <input id="modalCameraNameInput" type="text" placeholder="ex: Câmera da Sala, Garagem, Entrada"
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500 font-medium text-white">
+                        </div>
                         <div>
                             <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Tipo de Câmera</label>
                             <select id="modalCameraTypeSelect" onchange="handleCameraTypeChange()"
-                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-medium text-white">
-                                <option value="device">💻 Câmera do Dispositivo (Webcam Local)</option>
-                                <option value="ip">🌐 Câmera IP (RTSP / HTTP MJPEG)</option>
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500 font-medium text-white">
+                                <option value="ip">🌐 Câmera IP (ESP32-CAM / RTSP / HTTP MJPEG / Snapshot)</option>
+                                <option value="device">💻 Câmera do Dispositivo (Webcam Local / USB)</option>
                             </select>
                         </div>
 
-                        <!-- Campos específicos para Câmera IP -->
-                        <div id="ipCameraFields"
-                            class="hidden space-y-2.5 bg-zinc-950/50 p-3 rounded-2xl border border-zinc-800">
+                        <!-- Campos para Câmera IP -->
+                        <div id="ipCameraFields" class="space-y-2 bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-800">
                             <div>
-                                <label class="block text-[11px] font-semibold text-zinc-400 mb-1">URL da Câmera IP (RTSP
-                                    ou HTTP)</label>
+                                <label class="block text-[10px] font-semibold text-zinc-400 mb-1">URL da Câmera IP (Snapshot / Stream / RTSP)</label>
                                 <input id="modalCameraIpUrlInput" type="text"
-                                    placeholder="ex: rtsp://192.168.1.100:554/stream1 ou http://192.168.1.50/snapshot.jpg"
-                                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-indigo-500 font-mono text-white">
+                                    placeholder="ex: http://192.168.1.14/snapshot ou rtsp://192.168.1.50:554/stream"
+                                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500 font-mono text-white">
                             </div>
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label class="block text-[10px] font-semibold text-zinc-400 mb-1">Usuário
-                                        (Opcional)</label>
+                                    <label class="block text-[10px] font-semibold text-zinc-400 mb-1">Usuário (Opcional)</label>
                                     <input id="modalCameraUserInput" type="text" placeholder="admin"
-                                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500 font-mono text-white">
+                                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500 font-mono text-white">
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] font-semibold text-zinc-400 mb-1">Senha
-                                        (Opcional)</label>
+                                    <label class="block text-[10px] font-semibold text-zinc-400 mb-1">Senha (Opcional)</label>
                                     <input id="modalCameraPwdInput" type="password" placeholder="senha"
-                                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500 font-mono text-white">
+                                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500 font-mono text-white">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Opção de Cumprimento Automático de Pessoas -->
-                        <div class="flex items-center justify-between pt-1">
+                        <!-- Campos para Câmera Local -->
+                        <div id="deviceCameraFields" class="hidden space-y-2 bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-800">
                             <div>
-                                <div class="text-xs font-semibold text-zinc-300">👋 Cumprimentar Pessoas Automaticamente
-                                </div>
-                                <div class="text-[10px] text-zinc-500">O agente avisa e cumprimenta ao identificar
-                                    alguém no ambiente</div>
+                                <label class="block text-[10px] font-semibold text-zinc-400 mb-1">Índice do Dispositivo (/dev/video)</label>
+                                <input id="modalCameraDeviceIndexInput" type="number" min="0" max="10" value="0"
+                                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500 font-mono text-white">
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="modalCameraAutoGreetCheckbox" checked class="sr-only peer">
-                                <div
-                                    class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600">
-                                </div>
-                            </label>
                         </div>
 
-                        <!-- Preview de Teste de Câmera -->
-                        <div id="cameraTestStatusResult" class="text-xs hidden p-3 rounded-xl border"></div>
-                        <div id="cameraPreviewContainer"
-                            class="hidden rounded-2xl overflow-hidden border border-zinc-700 relative bg-black aspect-video max-h-48 flex items-center justify-center">
-                            <img id="cameraPreviewImg" class="w-full h-full object-contain" alt="Preview da Câmera">
-                            <div
-                                class="absolute bottom-2 left-2 bg-black/70 px-2 py-0.5 rounded text-[10px] font-mono text-emerald-400">
-                                🟢 Snapshot Capturado
-                            </div>
+                        <div class="flex items-center gap-2 pt-1">
+                            <input type="checkbox" id="modalCameraIsDefaultCheckbox" class="rounded bg-zinc-800 border-zinc-700 text-cyan-600 focus:ring-cyan-500">
+                            <label for="modalCameraIsDefaultCheckbox" class="text-xs text-zinc-300 select-none">Definir esta câmera como Câmera Principal (Padrão ⭐)</label>
+                        </div>
+
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="button" onclick="testFormCamera()" class="flex-1 bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/40 font-bold py-1.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1">
+                                🧪 Testar Conexão
+                            </button>
+                            <button type="button" onclick="saveCameraFromModal()" class="flex-1 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold py-1.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1 shadow-lg shadow-cyan-950/50">
+                                💾 Salvar Câmera
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Opção de Cumprimento Automático de Pessoas -->
+                    <div class="flex items-center justify-between pt-1">
+                        <div>
+                            <div class="text-xs font-semibold text-zinc-300">👋 Cumprimentar Pessoas Automaticamente</div>
+                            <div class="text-[10px] text-zinc-500">O agente avisa e cumprimenta ao identificar alguém no ambiente</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="modalCameraAutoGreetCheckbox" checked class="sr-only peer">
+                            <div class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- Preview de Teste de Câmera -->
+                    <div id="cameraTestStatusResult" class="text-xs hidden p-3 rounded-xl border mt-2"></div>
+                    <div id="cameraPreviewContainer"
+                        class="hidden rounded-2xl overflow-hidden border border-zinc-700 relative bg-black aspect-video max-h-48 flex items-center justify-center mt-2">
+                        <img id="cameraPreviewImg" class="w-full h-full object-contain" alt="Preview da Câmera">
+                        <div class="absolute bottom-2 left-2 bg-black/70 px-2 py-0.5 rounded text-[10px] font-mono text-emerald-400">
+                            🟢 Snapshot Capturado
                         </div>
                     </div>
                 </div>
@@ -1338,6 +1649,96 @@
 
                         <!-- Status do Teste do Telegram -->
                         <div id="telegramTestStatusResult" class="text-xs hidden p-3 rounded-xl border"></div>
+                    </div>
+                </div>
+
+                <!-- SEÇÃO SLACK WORKSPACE & RELATÓRIOS -->
+                <div class="pt-3 border-t border-zinc-800">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                            <span>💬</span> Slack Workspace (Webhook & Bot)
+                        </label>
+                        <button type="button" id="testSlackBtn" onclick="testSlackConnectionFromModal()"
+                            class="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+                            🧪 Testar Slack
+                        </button>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-[11px] font-semibold text-zinc-400">Webhook URL do Slack (Recomendado)</label>
+                                <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer"
+                                    class="text-[10px] text-emerald-400 hover:underline flex items-center gap-0.5">
+                                    🔗 Criar no Slack API ↗
+                                </a>
+                            </div>
+                            <input id="modalSlackWebhookInput" type="password"
+                                placeholder="ex: https://hooks.slack.com/services/T000/B000/XXXX"
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 font-mono text-white">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Bot Token (Opcional)</label>
+                                <input id="modalSlackTokenInput" type="password"
+                                    placeholder="ex: xoxb-1234567890-..."
+                                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Canal Padrão</label>
+                                <input id="modalSlackChannelInput" type="text"
+                                    placeholder="ex: #geral ou #alertas"
+                                    class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono text-white">
+                            </div>
+                        </div>
+
+                        <!-- Toggles do Slack -->
+                        <div class="space-y-2 pt-1">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-semibold text-zinc-300">🟢 Ativar Integração com Slack</div>
+                                    <div class="text-[10px] text-zinc-500">Permite ao agente publicar relatórios e enviar avisos</div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="modalSlackEnabledCheckbox" checked
+                                        class="sr-only peer">
+                                    <div
+                                        class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600">
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-semibold text-zinc-300">🔔 Alertas de Mudança & Câmera no Slack</div>
+                                    <div class="text-[10px] text-zinc-500">Envia alertas quando dispositivos mudarem ou intrusos forem vistos</div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="modalSlackNotifyCameraCheckbox" checked
+                                        class="sr-only peer">
+                                    <div
+                                        class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600">
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Status do Teste do Slack -->
+                        <div id="slackTestStatusResult" class="text-xs hidden p-3 rounded-xl border"></div>
+                    </div>
+                </div>
+
+                <!-- SEÇÃO COMANDOS DA MÁQUINA FÍSICA -->
+                <div class="pt-3 border-t border-zinc-800">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="block text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                                <span>🖥️</span> Controle da Máquina Física
+                            </label>
+                            <div class="text-[11px] text-zinc-400 mt-0.5">Permite ao agente ajustar volume do áudio, brilho da tela e abrir o navegador no computador.</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer ml-3 flex-shrink-0">
+                            <input type="checkbox" id="modalSystemCommandsCheckbox" class="sr-only peer">
+                            <div class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -1446,6 +1847,7 @@
                                     <label class="block text-xs text-zinc-400 mb-1">Tipo de Tarefa</label>
                                     <select id="autoFormType" onchange="handleAutoTypeChange()"
                                         class="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500 transition">
+                                        <option value="slack_message_monitor">💬 Monitor de Mensagens no Slack (Câmera + Voz + Telegram)</option>
                                         <option value="video_face_recognition">📹 Reconhecer Morador na Câmera (Reconhecimento Facial)</option>
                                         <option value="video_unknown_alert">🚨 Alerta de Visitante / Pessoa Não Cadastrada</option>
                                         <option value="video_presence_detection">👥 Detecção de Qualquer Pessoa na Câmera</option>
@@ -1495,6 +1897,9 @@
         </div>
     </div>
 
+    <!-- REAL-TIME SCREEN TOAST NOTIFICATION CONTAINER -->
+    <div id="screenToastContainer" class="fixed top-5 right-5 z-[99999] flex flex-col gap-3 max-w-sm w-full pointer-events-none transition-all"></div>
+
     <!-- ========================================================================= -->
     <!-- LOGICA E JAVASCRIPT DO AGENTE -->
     <!-- ========================================================================= -->
@@ -1509,12 +1914,16 @@
         let isWaitingCommandAfterWakeWord = false;
         let watchdogInterval = null;
         let lastActivityTimestamp = Date.now();
-        let alwaysListen = localStorage.getItem("alwaysListenSmartHome") === "true";
+        let alwaysListen = localStorage.getItem("alwaysListenSmartHome") !== "false";
 
         // Guardião de Autenticação JWT
         const authToken = localStorage.getItem("smartHomeToken");
         if (!authToken) {
             location.href = "/login.html";
+        }
+
+        function getAuthToken() {
+            return localStorage.getItem("smartHomeToken") || authToken || "";
         }
 
         const userObjStr = localStorage.getItem("smartHomeUser");
@@ -1528,16 +1937,73 @@
 
         function handleLogout() {
             if (confirm("Deseja realmente sair do sistema?")) {
+                try {
+                    sessionStorage.removeItem("smartHomeSystemInitialized");
+                    sessionStorage.clear();
+                } catch (e) { }
                 localStorage.removeItem("smartHomeToken");
                 localStorage.removeItem("smartHomeUser");
                 location.href = "/login.html";
             }
         }
 
-        const config = JSON.parse(localStorage.getItem("smartHomeConfig") || "{}");
+        const DEFAULT_CONFIG = {
+            broker: "test.mosquitto.org",
+            port: "8081",
+            topic_prefix: "pensador/casa",
+            rooms: [
+                { id: 1, name: "Sala", topic: "sala" },
+                { id: 2, name: "Quarto", topic: "quarto" },
+                { id: 3, name: "Cozinha", topic: "cozinha" },
+                { id: 4, name: "Escritório", topic: "escritorio" }
+            ]
+        };
+
+        let config = JSON.parse(localStorage.getItem("smartHomeConfig") || "null");
+        if (!config || !config.rooms || !config.rooms.length) {
+            config = DEFAULT_CONFIG;
+            localStorage.setItem("smartHomeConfig", JSON.stringify(config));
+        }
+
+        async function syncHouseConfigFromDatabase() {
+            try {
+                const currentToken = getAuthToken();
+                if (!currentToken) return;
+                const res = await fetch("/api/user/house-config", {
+                    headers: { "Authorization": `Bearer ${currentToken}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.rooms && data.rooms.length) {
+                        config.broker = data.broker || config.broker || "test.mosquitto.org";
+                        config.port = data.port || config.port || "8081";
+                        config.topic_prefix = data.topic_prefix || config.topic_prefix;
+                        config.rooms = data.rooms;
+                        localStorage.setItem("smartHomeConfig", JSON.stringify(config));
+                    }
+                }
+            } catch (err) {
+                console.warn("Falha ao sincronizar configuração da casa do banco:", err);
+            }
+        }
 
         function getAgentName() {
-            return (config && config.agentName) || localStorage.getItem("smartHomeAgentName") || "Sexta-Feira";
+            const custom = localStorage.getItem("smartHomeAgentName");
+            if (custom && custom.trim()) return custom.trim();
+            if (config && config.agentName && config.agentName !== "Sexta-Feira") return config.agentName.trim();
+            return "Sexta-Feira";
+        }
+
+        function updateAgentNamesInUI() {
+            const agentName = getAgentName();
+            const headerTitle = document.getElementById("headerAgentTitle");
+            if (headerTitle) headerTitle.innerText = `${agentName} AI`;
+            const chatGreeting = document.getElementById("chatGreetingAgentName");
+            if (chatGreeting) chatGreeting.innerText = agentName;
+            const terminalInput = document.getElementById("terminalInput");
+            if (terminalInput) terminalInput.placeholder = `Digite uma pergunta, comando ou instrução para ${agentName}...`;
+            const quickTag = document.getElementById("quickCommandWakeTag");
+            if (quickTag) quickTag.innerText = `Diga "${agentName}"`;
         }
 
         function getApiKey() {
@@ -1659,6 +2125,19 @@
                             tgBadge.innerText = (tg.connected && tg.enabled) ? "Conectado" : "Desconectado";
                         }
 
+                        const slk = data.integrations.slack;
+                        const slkStatus = document.getElementById("slackIntegrationStatus");
+                        const slkBadge = document.getElementById("slackStatusBadge");
+                        if (slk && slkStatus) {
+                            slkStatus.innerText = slk.connected ? `Conectado (${slk.channel || "#general"})` : "Não Configurado";
+                        }
+                        if (slk && slkBadge) {
+                            slkBadge.className = (slk.connected && slk.enabled)
+                                ? "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-400 border border-zinc-700";
+                            slkBadge.innerText = (slk.connected && slk.enabled) ? "Conectado" : "Desconectado";
+                        }
+
                         const m = data.integrations.memory;
                         const memEl = document.getElementById("memoryCountDisplay");
                         if (memEl && m) {
@@ -1718,7 +2197,7 @@
                         </div>
                         <div class="flex items-start gap-2 pt-1 border-t border-zinc-900">
                             <span class="text-indigo-400 font-bold shrink-0">🤖 Sexta-Feira:</span>
-                            <span class="text-zinc-300 leading-relaxed">${escapeHtml(item.agent_response)}</span>
+                            <div class="text-zinc-300 leading-relaxed">${renderFormattedChatHtml(item.agent_response)}</div>
                         </div>
                     </div>
                 `).join("");
@@ -1754,12 +2233,246 @@
                 .replace(/'/g, "&#039;");
         }
 
+        function renderFormattedChatHtml(rawText) {
+            if (!rawText) return "";
+
+            // 1. Escapa HTML perigoso mantendo texto base seguro
+            let safe = rawText
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+            // 2. Blocos de código com tokenização segura
+            const codeBlocks = [];
+            safe = safe.replace(/```(?:[a-zA-Z0-9_\-\.]+)?\n?([\s\S]*?)```/g, (match, code) => {
+                const idx = codeBlocks.length;
+                codeBlocks.push(`<pre class="my-2 p-2.5 bg-zinc-950/90 rounded-xl border border-zinc-800 text-emerald-400 font-mono text-[11px] overflow-x-auto select-all"><code>${code.trim()}</code></pre>`);
+                return `@@CODEBLOCK${idx}@@`;
+            });
+
+            // 3. Links markdown [Texto](URL) e URLs soltas com tokenização
+            const links = [];
+            safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, (match, label, url) => {
+                const idx = links.length;
+                links.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 py-0.5 my-0.5 rounded-lg bg-indigo-950/70 border border-indigo-500/40 text-indigo-300 hover:text-indigo-100 hover:bg-indigo-900 transition font-medium text-xs break-all" title="Abrir link: ${url}"><span>${label}</span><svg class="w-3 h-3 shrink-0 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`);
+                return `@@LINKTOKEN${idx}@@`;
+            });
+
+            safe = safe.replace(/(https?:\/\/[^\s<)]+)/g, (match, url) => {
+                const idx = links.length;
+                links.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-200 underline font-medium text-xs break-all my-0.5" title="Abrir link"><span>${url}</span><svg class="w-3 h-3 shrink-0 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`);
+                return `@@LINKTOKEN${idx}@@`;
+            });
+
+            // 4. Código inline `código`
+            safe = safe.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-zinc-900 rounded text-indigo-300 font-mono text-[11px] border border-zinc-800">$1</code>');
+
+            // 5. Cabeçalhos markdown
+            safe = safe.replace(/^### (.*$)/gim, '<h4 class="text-xs font-bold text-indigo-300 mt-2.5 mb-1 flex items-center gap-1.5">$1</h4>');
+            safe = safe.replace(/^## (.*$)/gim, '<h3 class="text-sm font-bold text-white mt-3 mb-1.5 pb-1 border-b border-zinc-800 flex items-center gap-1.5">$1</h3>');
+            safe = safe.replace(/^# (.*$)/gim, '<h2 class="text-sm font-extrabold text-white mt-3 mb-1.5 pb-1 border-b border-indigo-500/40">$1</h2>');
+
+            // 6. Negrito (**texto** ou __texto__)
+            safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-white">$1</strong>');
+            safe = safe.replace(/__([^_]+)__/g, '<strong class="font-semibold text-white">$1</strong>');
+
+            // 7. Itálico (*texto* ou _texto_)
+            safe = safe.replace(/(^|[^\*])\*([^\*]+)\*([^\*]|$)/g, '$1<em class="italic text-zinc-300">$2</em>$3');
+            safe = safe.replace(/(^|[^_])_([^_]+)_([^_]|$)/g, '$1<em class="italic text-zinc-300">$2</em>$3');
+
+            // 8. Listas com marcadores (- item ou * item)
+            safe = safe.replace(/^[\s]*[-*•]\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1 pl-1"><span class="text-indigo-400 font-bold shrink-0">•</span><div class="flex-1">$1</div></div>');
+
+            // 9. Listas numeradas (1. item)
+            safe = safe.replace(/^[\s]*(\d+)\.\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1 pl-1"><span class="text-indigo-400 font-bold shrink-0 font-mono text-[11px]">$1.</span><div class="flex-1">$2</div></div>');
+
+            // 10. Quebras de linha (preservando espaçamento entre parágrafos)
+            safe = safe.replace(/\n\n+/g, '<div class="h-2"></div>');
+            safe = safe.replace(/\n/g, '<br>');
+
+            // 11. Restaura links e blocos de código
+            safe = safe.replace(/@@LINKTOKEN(\d+)@@/g, (match, idx) => links[parseInt(idx, 10)] || "");
+            safe = safe.replace(/@@CODEBLOCK(\d+)@@/g, (match, idx) => codeBlocks[parseInt(idx, 10)] || "");
+
+            return safe;
+        }
+
+        function cleanTextForSpeech(text) {
+            if (!text) return "";
+            let t = text.replace(/```[\s\S]*?```/g, "");
+            t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+            t = t.replace(/^#{1,6}\s+/gm, "");
+            t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
+            t = t.replace(/\*([^*]+)\*/g, "$1");
+            t = t.replace(/__([^_]+)__/g, "$1");
+            t = t.replace(/_([^_]+)_/g, "$1");
+            t = t.replace(/`([^`]+)`/g, "$1");
+            t = t.replace(/~~([^~]+)~~/g, "$1");
+            t = t.replace(/^[\s]*[-*+•]\s+/gm, "");
+            t = t.replace(/^[\s]*\d+\.\s+/gm, "");
+            t = t.replace(/^[\s]*>\s+/gm, "");
+            t = t.replace(/^[\s]*[-*_]{3,}\s*$/gm, "");
+            t = t.replace(/(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?https?:\/\/\S+/gi, "");
+            t = t.replace(/(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?www\.\S+/gi, "");
+            t = t.replace(/\b(?:links?|urls?|fontes?|no link|pelo link)\s*:\s*$/gmi, "");
+            t = t.replace(/\b(?:links?|urls?|fontes?|no link|pelo link)\s*:\s*/gi, "");
+            t = t.replace(/\b(?:com mais detalhes em|mais detalhes em|acesse em|disponível em|veja em|no link|pelo link|no endereço|no site|no perfil)\s*(?=[.,;!?]|$)/gi, "");
+            t = t.replace(/\[\d+\]/g, "");
+            t = t.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "");
+
+            const linhas = t.split("\n").map(l => l.trim()).filter(Boolean);
+            const reconstruido = linhas.map(l => /[.!?:]$/.test(l) ? l : l + ".").join(" ");
+
+            t = reconstruido
+                .replace(/\s*([,.:;?!])\s*/g, "$1 ")
+                .replace(/:\s*\./g, ".")
+                .replace(/\.\s*\./g, ".")
+                .replace(/,\s*\./g, ".")
+                .replace(/\s+/g, " ")
+                .trim();
+
+            if (t.length > 420) {
+                const frases = t.split(/(?<=[.!?])\s+/);
+                const resumo = [];
+                let acc = 0;
+                for (const f of frases) {
+                    if (acc + f.length <= 420) {
+                        resumo.push(f);
+                        acc += f.length;
+                    } else {
+                        break;
+                    }
+                }
+                if (resumo.length === 0 && frases.length > 0) {
+                    resumo.push(frases[0].substring(0, 420).replace(/\s+\S*$/, "") + "...");
+                }
+                let finalT = resumo.join(" ").trim();
+                if (!finalT.endsWith(".")) finalT += ".";
+                finalT += " Os detalhes completos e links estão disponíveis na tela do chat.";
+                return finalT;
+            }
+            return t;
+        }
+
         // =========================================================================
-        // PROCESSAMENTO DE COMANDOS E CHAT COM O AGENTE
+        // FEEDBACK IMEDIATO DO AGENTE (RESPOSTA INSTANTÂNEA PARA EVITAR SILÊNCIO)
         // =========================================================================
-        // PROCESSAMENTO DE COMANDOS E CHAT COM O AGENTE
-        // =========================================================================
+        function getAgentFeedbackPhrase(commandText) {
+            const raw = (commandText || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+            
+            // Música / Sons / Podcasts / Reprodução de Áudio
+            const isMusic = /\b(tocar|toca|toque|escutar|escute|ouvir|ouca|musica|musicas|samba|pagode|rock|sertanejo|podcast|som|parar musica|pare a musica|desliga o som|para o audio|silencio)\b/.test(raw);
+
+            // YouTube / Tutoriais em Vídeo / Consertos / Manutenção / Passo a Passo
+            const isYouTube = /\b(youtube|video|videos|tutorial|tutoriais|consertar|conserto|arrumar|arruma|panela|chuveiro|reparar|reparo|trocar|como fazer|receita|passo a passo|transcricao|legenda)\b/.test(raw);
+
+            // Pesquisas / Dúvidas / Web / Fatos / Notícias / Clima / Quem é / Como / O que
+            const isSearch = /\b(pesquis|procur|busc|quem|onde|quando|quanto|qual|noticia|noticias|clima|tempo|previsao|cotacao|dolar|euro|fale sobre|explique|como funciona|o que e|defina|resuma|conte sobre|descubra|informe|sabe me dizer)\b/.test(raw);
+            
+            // Ações na casa / Dispositivos / Luzes / Câmera / Automação
+            const isHome = /\b(luz|luzes|lampada|lampadas|ligar|ligue|desligar|desligue|apagar|apague|acender|acenda|camera|quarto|sala|cozinha|banheiro|garagem|automac|porta|portao|dispositivo|dispositivos|ambiente|comodo)\b/.test(raw);
+            
+            // Produtividade / Google / E-mail / Calendário / Tarefas / Keep / Contatos / Moradores / Perfil
+            const isProductivity = /\b(email|emails|e-mail|mensagem|agenda|compromisso|evento|lembrete|tarefa|tarefas|nota|notas|lista|compras|contato|contatos|morador|moradores|perfil|preferencia|alergia)\b/.test(raw);
+
+            if (isMusic) {
+                const musicPhrases = [
+                    "Buscando e preparando a música...",
+                    "Já estou colocando o som...",
+                    "Deixa comigo, soltando o áudio...",
+                    "Só um instante, preparando a reprodução..."
+                ];
+                return musicPhrases[Math.floor(Math.random() * musicPhrases.length)];
+            }
+
+            if (isYouTube) {
+                const ytPhrases = [
+                    "Tô pesquisando o tutorial no YouTube...",
+                    "Tô buscando o vídeo e a transcrição...",
+                    "Deixa comigo, estou vendo esse tutorial...",
+                    "Tô pesquisando no YouTube para você..."
+                ];
+                return ytPhrases[Math.floor(Math.random() * ytPhrases.length)];
+            }
+
+            if (isSearch) {
+                const searchPhrases = [
+                    "Tô pesquisando...",
+                    "Tô pesquisando isso para você...",
+                    "Estou pesquisando, só um momento...",
+                    "Só um instante, estou pesquisando..."
+                ];
+                return searchPhrases[Math.floor(Math.random() * searchPhrases.length)];
+            }
+            
+            if (isHome) {
+                const homePhrases = [
+                    "Tô vendo isso agora...",
+                    "Deixa comigo, estou verificando...",
+                    "Tô verificando os dispositivos...",
+                    "Só um instante, verificando a casa..."
+                ];
+                return homePhrases[Math.floor(Math.random() * homePhrases.length)];
+            }
+
+            if (isProductivity) {
+                const prodPhrases = [
+                    "Tô verificando suas informações...",
+                    "Só um momento, estou acessando...",
+                    "Tô consultando seus dados...",
+                    "Deixa comigo, estou verificando..."
+                ];
+                return prodPhrases[Math.floor(Math.random() * prodPhrases.length)];
+            }
+
+            // Geral / Conversação / Perguntas em geral
+            const generalPhrases = [
+                "Tô vendo isso para você...",
+                "Tô respondendo a sua pergunta, só um instante...",
+                "Só um momento, estou verificando...",
+                "Estou processando sua solicitação..."
+            ];
+            return generalPhrases[Math.floor(Math.random() * generalPhrases.length)];
+        }
+
+        function isStopTalkingCommand(rawText) {
+            if (!rawText) return false;
+            const norm = normalizeText(rawText).trim();
+            if (!norm) return false;
+
+            // Se o comando menciona ações ou dispositivos (música, luz, pesquisa, etc.), NÃO É para calar o assistente
+            const isActionOrContent = /\b(musica|som|cancao|faixa|playlist|tocar|luz|lampada|ventilador|quarto|sala|cozinha|escritorio|garagem|entrada|alarme|timer|cronometro|tarefa|nota|compromisso|agenda|email|contato|camera|video|youtube|pesquisa|busca|janela|navegador|volume|brilho|investig|osint|computador|status|clima|tempo)\b/i.test(norm);
+            if (isActionOrContent) {
+                return false;
+            }
+
+            // Expressões puras e dedicadas para interromper a fala do assistente
+            const stopKeywords = [
+                "para", "pare", "parar", "parou", "pare por favor", "para por favor",
+                "silencio", "silenciar", "silencie", "silencia",
+                "cala a boca", "calada", "calado", "fica quieta", "fica quieto", "quieta", "quieto",
+                "chega", "basta", "ja deu", "para de falar", "parar de falar", "para a fala", "parar a fala",
+                "cancela", "cancelar", "cancela fala", "cancelar fala", "cancela resposta",
+                "stop", "shh", "psiu", "mudo", "mutar", "desliga a fala"
+            ];
+
+            const words = norm.split(/\s+/);
+            if (words.length <= 4) {
+                return stopKeywords.some(sw => norm === sw || norm.startsWith(sw + " ") || norm.endsWith(" " + sw) || norm.includes(sw));
+            }
+            return false;
+        }
+
         async function processCommand(userText) {
+            if (!userText || !userText.trim()) return;
+            const cleanText = userText.trim();
+
+            if (isStopTalkingCommand(cleanText)) {
+                silenciarAudio(true);
+                isProcessingCommand = false;
+                return;
+            }
+
             if (isProcessingCommand) return;
             isProcessingCommand = true;
 
@@ -1787,6 +2500,9 @@
             // Reseta a fila de áudio anterior para iniciar novo ciclo
             clearSpeechQueue();
 
+            // Determina a frase de feedback imediato para o agente falar e exibir
+            const feedbackPhrase = getAgentFeedbackPhrase(userText);
+
             // Indicador de digitação / processamento dinâmico
             const typingEl = document.createElement("div");
             typingEl.className = "flex items-start gap-3 temp-typing";
@@ -1797,13 +2513,16 @@
                 </div>
                 <div class="bg-zinc-800/90 border border-indigo-500/40 rounded-2xl rounded-tl-none p-3 text-xs text-indigo-200 flex items-center gap-2.5 shadow-lg shadow-indigo-950/20">
                     <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping shrink-0"></span>
-                    <span id="agentThinkingStatus" class="font-medium text-zinc-100">Analisando sua solicitação...</span>
+                    <span id="agentThinkingStatus" class="font-medium text-zinc-100">${escapeHtml(feedbackPhrase)}</span>
                 </div>
             `;
             if (chatBox) {
                 chatBox.appendChild(typingEl);
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
+
+            // Fala imediatamente o feedback sonoro para que o usuário não fique esperando em silêncio
+            speakIntermediateStatus(feedbackPhrase);
 
             logToConsole(`Comando enviado ao agente: "${userText}"`, "info");
 
@@ -1853,6 +2572,7 @@
                 }
 
                 let finalReply = "";
+                let finalSpokenReply = "";
                 let finalActions = [];
 
                 if (res.body && res.body.getReader) {
@@ -1880,6 +2600,7 @@
                                             logToConsole(`[Agente]: ${ev.message}`, "info");
                                         } else if (ev.type === "final") {
                                             finalReply = ev.reply || "";
+                                            finalSpokenReply = ev.spoken_reply || "";
                                             finalActions = ev.actions || [];
                                         } else if (ev.type === "error") {
                                             throw new Error(ev.message || "Erro no processamento do agente");
@@ -1894,6 +2615,7 @@
                 } else {
                     const data = await res.json();
                     finalReply = data.reply || "";
+                    finalSpokenReply = data.spoken_reply || "";
                     finalActions = data.actions || [];
                 }
 
@@ -1903,7 +2625,7 @@
 
                 const reply = finalReply || "Comando processado com sucesso.";
 
-                // Exibe resposta no chat
+                // Exibe resposta formatada no chat
                 if (chatBox) {
                     const agentMsgEl = document.createElement("div");
                     agentMsgEl.className = "flex items-start gap-3";
@@ -1911,30 +2633,129 @@
                         <div class="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-sm shrink-0 shadow-md">
                             🤖
                         </div>
-                        <div class="bg-zinc-800/80 border border-zinc-700/60 rounded-2xl rounded-tl-none p-3.5 text-xs text-zinc-200 max-w-[85%] leading-relaxed">
-                            ${escapeHtml(reply)}
+                        <div class="bg-zinc-800/80 border border-zinc-700/60 rounded-2xl rounded-tl-none p-3.5 text-xs text-zinc-200 max-w-[85%] leading-relaxed break-words">
+                            ${renderFormattedChatHtml(reply)}
                         </div>
                     `;
                     chatBox.appendChild(agentMsgEl);
                     chatBox.scrollTop = chatBox.scrollHeight;
                 }
 
-                // Executa ações MQTT se houver
+                function handleUiAction(action, textToSpeak) {
+                    if (!action) return false;
+                    const type = action.type || action.action_type;
+
+                    // 1. Navegação de telas e dashboards
+                    if (type === "ui_navigate" || type === "navigate") {
+                        const target = action.target || action.url || "/";
+                        const currentPath = window.location.pathname;
+                        const isCurrent = (target === currentPath) || 
+                                          (target === "/" && (currentPath === "/index.html" || currentPath === "/agent")) ||
+                                          (target === "/casa.html" && currentPath === "/casa") ||
+                                          (target === "/config/config.html" && currentPath === "/config") ||
+                                          (target === "/profile.html" && currentPath === "/profile");
+
+                        logToConsole(`Navegação de Tela: ${action.name || target}`, "action");
+
+                        if (textToSpeak) {
+                            try {
+                                sessionStorage.setItem("smartHomePendingSpeech", textToSpeak);
+                                localStorage.setItem("smartHomePendingSpeech", textToSpeak);
+                            } catch(e) {}
+                        }
+
+                        if (!isCurrent) {
+                            renderScreenToastNotification({
+                                id: "nav_" + Date.now(),
+                                title: "🧭 Navegação do Agente",
+                                message: `Redirecionando para ${action.name || target}...`
+                            });
+                            setTimeout(() => {
+                                window.location.href = target;
+                            }, 1400);
+                        } else {
+                            renderScreenToastNotification({
+                                id: "nav_" + Date.now(),
+                                title: "🧭 Navegação do Agente",
+                                message: `Você já está na tela ${action.name || target}.`
+                            });
+                        }
+                        return true;
+                    }
+
+                    // 2. Abertura e fechamento de modais
+                    if (type === "ui_modal" || type === "modal") {
+                        const actionVerb = (action.action || action.action_type || "open").toLowerCase();
+                        const modalName = (action.modal || action.name || "").toLowerCase();
+
+                        if (actionVerb.includes("open") || actionVerb.includes("abrir")) {
+                            logToConsole(`Abrindo Modal: ${modalName}`, "action");
+                            if (modalName.includes("auto")) {
+                                openAutomationsModal(action.tab || "list");
+                            } else if (modalName.includes("chave") || modalName.includes("api") || modalName.includes("ia") || modalName.includes("voz") || modalName.includes("config") || modalName.includes("ajuste") || modalName.includes("conexao") || modalName.includes("conexão")) {
+                                openVoiceApiKeyModal();
+                            } else if (modalName.includes("guia") || modalName.includes("manual") || modalName.includes("ajuda") || modalName.includes("tutorial")) {
+                                if (typeof openFeatureGuide === "function") {
+                                    openFeatureGuide(action.topic || "visao_geral");
+                                }
+                            } else if (modalName.includes("webcam") || modalName.includes("foto")) {
+                                if (typeof openWebcamModal === "function") openWebcamModal();
+                            } else {
+                                openVoiceApiKeyModal();
+                            }
+                        } else if (actionVerb.includes("close") || actionVerb.includes("fechar")) {
+                            logToConsole(`Fechando Modal: ${modalName}`, "action");
+                            if (modalName.includes("auto")) {
+                                closeAutomationsModal();
+                            } else if (modalName.includes("chave") || modalName.includes("api") || modalName.includes("ia") || modalName.includes("config") || modalName.includes("voz") || modalName.includes("ajuste") || modalName.includes("conexao") || modalName.includes("conexão")) {
+                                closeVoiceApiKeyModal();
+                            } else if (modalName.includes("guia") || modalName.includes("manual") || modalName.includes("ajuda")) {
+                                if (typeof closeFeatureGuide === "function") closeFeatureGuide();
+                            } else if (modalName.includes("webcam") || modalName.includes("foto")) {
+                                if (typeof closeWebcamModal === "function") closeWebcamModal();
+                            } else {
+                                // Fecha todos os modais abertos
+                                closeAutomationsModal();
+                                closeVoiceApiKeyModal();
+                                if (typeof closeFeatureGuide === "function") closeFeatureGuide();
+                            }
+                        }
+                        return true;
+                    }
+
+                    // 3. Alternar abas internas
+                    if (type === "ui_tab" || type === "switch_tab") {
+                        const tab = (action.tab || "list").toLowerCase();
+                        logToConsole(`Alternando Aba: ${tab}`, "action");
+                        if (typeof switchAutomationsTab === "function") {
+                            switchAutomationsTab(tab);
+                        }
+                        return true;
+                    }
+
+                    return false;
+                }
+
+                // Fala a resposta limpa (sem URLs nem poluição)
+                const textToSpeak = finalSpokenReply || cleanTextForSpeech(reply);
+
+                // Executa ações retornadas pelo agente (MQTT e Interface/Modais) passando textToSpeak
                 if (finalActions && Array.isArray(finalActions) && finalActions.length > 0) {
                     for (const action of finalActions) {
-                        logToConsole(`Ação Residencial: Cômodo '${action.topic}' -> ${action.state}`, "action");
-                        if (client) {
-                            client.publish(`pensador/casa/${action.topic}/set`, action.state);
+                        const handled = handleUiAction(action, textToSpeak);
+                        if (!handled && action.topic && action.state) {
+                            logToConsole(`Ação Residencial: Cômodo '${action.topic}' -> ${action.state}`, "action");
+                            if (client) {
+                                client.publish(`pensador/casa/${action.topic}/set`, action.state);
+                            }
+                            roomStates[action.topic] = (action.state === "ON" || action.state === "on");
                         }
-                        roomStates[action.topic] = (action.state === "ON" || action.state === "on");
                     }
                     updateLightsSummary();
                 }
 
                 logToConsole(`Resposta formulada: "${reply.substring(0, 80)}..."`, "info");
-
-                // Fala a resposta
-                speakResponse(reply);
+                speakResponse(textToSpeak);
 
                 // Recarrega o feed de memória
                 setTimeout(loadChatHistoryFeed, 1000);
@@ -2054,6 +2875,14 @@
                             body: JSON.stringify({ voice: localVoice })
                         }).catch(() => { });
                     }
+                    if (aiData.agent_name && aiData.agent_name.trim()) {
+                        localStorage.setItem("smartHomeAgentName", aiData.agent_name);
+                        const nameInput = document.getElementById("modalAgentNameInput");
+                        if (nameInput) nameInput.value = aiData.agent_name;
+                        updateAgentNamesInUI();
+                    } else {
+                        updateAgentNamesInUI();
+                    }
                     if (aiData.ai_model) {
                         localStorage.setItem("smartHomeAiModel", aiData.ai_model);
                         const tag = document.getElementById("activeModelTag");
@@ -2066,9 +2895,14 @@
                         const keyInput = document.getElementById("modalApiKeyInput");
                         if (keyInput) keyInput.value = aiData.api_key;
                     }
+                    const sysCheckbox = document.getElementById("modalSystemCommandsCheckbox");
+                    if (sysCheckbox && aiData.system_commands_enabled !== undefined) {
+                        sysCheckbox.checked = Boolean(aiData.system_commands_enabled);
+                    }
                 }
             } catch (e) {
                 console.warn("Erro na sincronização de IA na inicialização:", e);
+                updateAgentNamesInUI();
             }
         }
 
@@ -2086,18 +2920,98 @@
         let currentAudioSourceNode = null;
         let ttsSafetyTimeout = null;
 
-        function initSystemFromStartupModal() {
-            primeAudioEngine();
-            unlockAudioContext();
-
-            const modal = document.getElementById("startupTechModal");
-            if (modal) {
-                modal.classList.add("opacity-0", "scale-105", "pointer-events-none");
-                setTimeout(() => modal.classList.add("hidden"), 500);
+        async function ensureMediaPermissions() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                return false;
             }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: { facingMode: "user" }
+                }).catch(async () => {
+                    return await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null);
+                });
 
-            if (alwaysListen) {
-                startVoiceRecognition();
+                if (stream) {
+                    stream.getTracks().forEach(track => {
+                        try { track.stop(); } catch (e) { }
+                    });
+                    return true;
+                }
+            } catch (err) {
+                console.warn("[Media Permissions]:", err);
+            }
+            return false;
+        }
+
+        let startupModalTimer = null;
+        let systemInitializedFromModal = false;
+
+        function checkAndInitStartupModal() {
+            if (sessionStorage.getItem("smartHomeSystemInitialized") === "true") {
+                systemInitializedFromModal = true;
+                const modal = document.getElementById("startupTechModal");
+                if (modal) {
+                    modal.style.display = "none";
+                    modal.classList.add("hidden");
+                    modal.classList.remove("flex");
+                    try { modal.remove(); } catch (e) { }
+                }
+                primeAudioEngine();
+                unlockAudioContext();
+                if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand) {
+                    startVoiceRecognition();
+                }
+                return;
+            }
+            scheduleStartupModalAutoClick();
+        }
+
+        function scheduleStartupModalAutoClick() {
+            if (systemInitializedFromModal) return;
+            if (startupModalTimer) clearTimeout(startupModalTimer);
+            startupModalTimer = setTimeout(() => {
+                const modal = document.getElementById("startupTechModal");
+                if (modal && !systemInitializedFromModal) {
+                    console.log("[Startup Tech Modal] Auto-iniciando sistema após 2 segundos...");
+                    initSystemFromStartupModal();
+                }
+            }, 2000);
+        }
+
+        function initSystemFromStartupModal() {
+            if (systemInitializedFromModal) return;
+            systemInitializedFromModal = true;
+            try {
+                sessionStorage.setItem("smartHomeSystemInitialized", "true");
+            } catch (e) { }
+
+            if (startupModalTimer) {
+                clearTimeout(startupModalTimer);
+                startupModalTimer = null;
+            }
+            try {
+                const modal = document.getElementById("startupTechModal");
+                if (modal) {
+                    modal.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+                    modal.style.opacity = "0";
+                    modal.style.pointerEvents = "none";
+                    setTimeout(() => {
+                        modal.style.display = "none";
+                        modal.classList.add("hidden");
+                        modal.classList.remove("flex");
+                        try { modal.remove(); } catch (e) { }
+                    }, 400);
+                }
+                primeAudioEngine();
+                unlockAudioContext();
+                ensureMediaPermissions().catch(() => {});
+            } catch (e) {
+                console.warn("[Startup Init]:", e);
+            } finally {
+                if (alwaysListen) {
+                    startVoiceRecognition();
+                }
             }
         }
 
@@ -2166,19 +3080,31 @@
             } catch (e) { }
         }
 
-        // Desbloqueia e prepara o motor de áudio em interações reais do usuário
+        // Desbloqueia e prepara o motor de áudio e escuta contínua em interações reais do usuário
         if (typeof window !== "undefined") {
+            const handleUserInteraction = () => {
+                primeAudioEngine();
+                if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                    startVoiceRecognition();
+                }
+            };
             ['click', 'touchstart', 'touchend', 'keydown'].forEach(evt => {
-                window.addEventListener(evt, primeAudioEngine, { passive: true });
-                document.addEventListener(evt, primeAudioEngine, { passive: true });
+                window.addEventListener(evt, handleUserInteraction, { passive: true });
+                document.addEventListener(evt, handleUserInteraction, { passive: true });
             });
             document.addEventListener("visibilitychange", () => {
                 if (document.visibilityState === "visible") {
                     unlockAudioContext();
+                    if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                        startVoiceRecognition();
+                    }
                 }
             });
             window.addEventListener("focus", () => {
                 unlockAudioContext();
+                if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                    startVoiceRecognition();
+                }
             });
         }
 
@@ -2330,6 +3256,7 @@
         }
 
         let voiceRestartTimeout = null;
+        let speechSessionId = 0;
 
         async function processSpeechQueue() {
             if (speechQueue.length === 0) {
@@ -2344,11 +3271,12 @@
                         if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                             startVoiceRecognition();
                         }
-                    }, 800);
+                    }, 120);
                 }
                 return;
             }
 
+            const thisSession = speechSessionId;
             isProcessingQueue = true;
             isSpeakingTTS = true;
             isAudioPlayingActive = true;
@@ -2368,6 +3296,12 @@
                     await speakWithBrowserNativeAsync(item.text);
                 } else {
                     const audioData = await item.itemPromise;
+
+                    // Se a fala foi cancelada ou interrompida enquanto baixava o áudio, encerra imediatamente!
+                    if (thisSession !== speechSessionId || !isSpeakingTTS || !isProcessingQueue) {
+                        return;
+                    }
+
                     let played = false;
 
                     // Camada 1: HTML5 Audio Global no DOM (Blob) - Resiliente e imune a resets de Web Audio
@@ -2375,10 +3309,18 @@
                         played = await playAudioBlob(audioData.blob);
                     }
 
+                    if (thisSession !== speechSessionId || !isSpeakingTTS || !isProcessingQueue) {
+                        return;
+                    }
+
                     // Camada 2: Web Audio API
                     const ctx = getSharedAudioContext();
                     if (!played && audioData && audioData.audioBuffer && ctx && ctx.state === 'running') {
                         played = await playAudioBufferAsync(audioData.audioBuffer);
+                    }
+
+                    if (thisSession !== speechSessionId || !isSpeakingTTS || !isProcessingQueue) {
+                        return;
                     }
 
                     // Camada 3: Síntese Nativa do Navegador com watchdog anti-congelamento
@@ -2388,9 +3330,15 @@
                 }
             } catch (err) {
                 console.warn("[TTS Queue Play Error]:", err);
-                try {
-                    await speakWithBrowserNativeAsync(item.text);
-                } catch (e) { }
+                if (thisSession === speechSessionId && isSpeakingTTS && isProcessingQueue) {
+                    try {
+                        await speakWithBrowserNativeAsync(item.text);
+                    } catch (e) { }
+                }
+            }
+
+            if (thisSession !== speechSessionId || !isSpeakingTTS || !isProcessingQueue) {
+                return;
             }
 
             // Processa próximo áudio da fila sequencial
@@ -2518,7 +3466,44 @@
             });
         }
 
+        function silenciarAudio(notify = true) {
+            speechSessionId++; // Invalida imediatamente qualquer promise ou fallback de reprodução pendente
+            clearSpeechQueue();
+            if (currentPlayingAudio) {
+                try {
+                    currentPlayingAudio.pause();
+                    currentPlayingAudio.currentTime = 0;
+                    currentPlayingAudio.src = "";
+                } catch (e) { }
+                currentPlayingAudio = null;
+            }
+            if (currentAudioSourceNode) {
+                try { currentAudioSourceNode.stop(); } catch (e) { }
+                currentAudioSourceNode = null;
+            }
+            if ("speechSynthesis" in window) {
+                try { window.speechSynthesis.cancel(); } catch (e) { }
+            }
+            isSpeakingTTS = false;
+            isAudioPlayingActive = false;
+            isProcessingQueue = false;
+
+            if (notify) {
+                logToConsole("⏹️ Áudio e fala do agente foram interrompidos.", "action");
+            }
+
+            if (alwaysListen && !isProcessingCommand) {
+                clearTimeout(voiceRestartTimeout);
+                voiceRestartTimeout = setTimeout(() => {
+                    if (alwaysListen && !isListening) {
+                        startVoiceRecognition();
+                    }
+                }, 50);
+            }
+        }
+
         function clearSpeechQueue() {
+            speechSessionId++;
             speechQueue = [];
             isProcessingQueue = false;
             isSpeakingTTS = false;
@@ -2637,13 +3622,11 @@
                     latestHeardText = "";
                     return;
                 }
-                let interim = "";
-                let finalStr = "";
+                let fullTranscript = "";
                 for (let i = 0; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) finalStr += event.results[i][0].transcript + " ";
-                    else interim += event.results[i][0].transcript + " ";
+                    fullTranscript += event.results[i][0].transcript + " ";
                 }
-                const currentText = (finalStr || interim).trim();
+                const currentText = fullTranscript.trim();
                 if (currentText) {
                     latestHeardText = currentText;
                     const wText = document.getElementById("voiceWaveText");
@@ -2652,7 +3635,9 @@
             };
 
             rec.onerror = (event) => {
-                console.warn("[Speech onerror]:", event.error);
+                if (event.error !== "no-speech") {
+                    console.warn("[Speech onerror]:", event.error);
+                }
                 if (event.error === "not-allowed") {
                     alwaysListen = false;
                     updateAlwaysListenUI();
@@ -2688,7 +3673,6 @@
 
                 if (alwaysListen && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                     clearTimeout(voiceRestartTimeout);
-                    // Reinício rápido e contínuo (80ms) para não ter lacunas e não cortar o áudio do morador
                     voiceRestartTimeout = setTimeout(() => {
                         if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
                             startVoiceRecognition();
@@ -2708,30 +3692,127 @@
                 .trim();
         }
 
+        function getWakeWordPatterns(agentName) {
+            const raw = (agentName || "Sexta-Feira").trim();
+            const normalized = normalizeText(raw);
+            const patterns = new Set();
+
+            // 1. O próprio nome normalizado e variações com traço/espaço
+            patterns.add(normalized);
+            patterns.add(normalized.replace(/[-\s_]+/g, " "));
+            patterns.add(normalized.replace(/[-\s_]+/g, "-"));
+            patterns.add(normalized.replace(/[-\s_]+/g, ""));
+
+            // 2. Variações fonéticas em Português Brasileiro
+            if (normalized.includes("sexta") || normalized.includes("cesta") || normalized.includes("sesta")) {
+                patterns.add("sexta-feira");
+                patterns.add("sexta feira");
+                patterns.add("sextafeira");
+                patterns.add("sexta");
+                patterns.add("cesta-feira");
+                patterns.add("cesta feira");
+                patterns.add("cesta");
+                patterns.add("sesta feira");
+                patterns.add("sesta");
+                patterns.add("6a feira");
+                patterns.add("6 feira");
+                patterns.add("sexta f");
+                patterns.add("seta feira");
+            } else if (normalized === "atena" || normalized === "athena" || normalized === "antena") {
+                patterns.add("atena");
+                patterns.add("athena");
+                patterns.add("antena"); // Muito comum na Web Speech API reconhecer 'Atena' como 'Antena'
+                patterns.add("atenas");
+                patterns.add("athenas");
+                patterns.add("a tena");
+                patterns.add("ah tena");
+                patterns.add("oh tena");
+                patterns.add("artena");
+            } else if (normalized === "jarvis") {
+                patterns.add("jarvis");
+                patterns.add("jarves");
+                patterns.add("jarviz");
+                patterns.add("jarbis");
+                patterns.add("iárvis");
+            } else if (normalized === "computador") {
+                patterns.add("computador");
+                patterns.add("computadora");
+            }
+
+            // Variação no plural/singular
+            if (normalized.endsWith("s")) {
+                patterns.add(normalized.slice(0, -1));
+            } else {
+                patterns.add(normalized + "s");
+            }
+
+            if (normalized.includes("th")) {
+                patterns.add(normalized.replace(/th/g, "t"));
+            } else if (normalized.includes("t")) {
+                patterns.add(normalized.replace(/t/g, "th"));
+            }
+
+            // 3. Prefixos naturais de invocação ("ei [nome]", "olá [nome]", "oi [nome]", etc.)
+            const baseList = Array.from(patterns);
+            const prefixes = ["ei ", "hey ", "ok ", "ola ", "olá ", "oi ", "e ai ", "e aí ", "ou ", "o ", "ô ", "a ", "fala ", "fala aí ", "por favor "];
+            baseList.forEach(nameVariant => {
+                prefixes.forEach(p => {
+                    patterns.add(p + nameVariant);
+                });
+            });
+
+            return Array.from(patterns).filter(Boolean);
+        }
+
+        function extractWakeWordAndCommand(text, agentName) {
+            if (!text || !text.trim()) return { isWake: false, command: "" };
+            const norm = normalizeText(text);
+            const patterns = getWakeWordPatterns(agentName);
+            patterns.sort((a, b) => b.length - a.length);
+
+            const escapedNames = patterns.map(n => normalizeText(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
+            const wakeRegex = new RegExp(`(?:^|\\b)(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
+            const match = norm.match(wakeRegex);
+
+            if (!match) {
+                return { isWake: false, command: "" };
+            }
+
+            const cmdNorm = match[1].trim();
+            if (!cmdNorm) {
+                return { isWake: true, command: "" };
+            }
+
+            // Preserva caixa, acentos e pontuação original da pergunta feita pelo morador
+            const wakePartLength = text.length - match[1].length;
+            let originalCmd = text.substring(wakePartLength).replace(/^[\s,.:;!?-]+/, "").trim();
+            originalCmd = originalCmd.replace(/^(?:por favor|por gentileza|faz favor)[,\s]*/i, "").trim();
+            originalCmd = originalCmd.replace(/^[\s,.:;!?-]+/, "").trim();
+
+            return { isWake: true, command: originalCmd || cmdNorm };
+        }
+
         function handleWakeWordDetection(text) {
+            if (!text || !text.trim()) return;
             if (isProcessingCommand || isSpeakingTTS || isAudioPlayingActive) return;
+            const norm = normalizeText(text);
             const agentName = getAgentName();
-            const normalizedText = normalizeText(text);
-            const normalizedAgentName = normalizeText(agentName);
 
-            const rawPatterns = new Set([
-                normalizedAgentName,
-                normalizedAgentName.replace(/[-\s_]+/g, " "),
-                "sexta-feira", "sexta feira", "sextafeira", "sexta",
-                "agente", "jarvis", "casa"
-            ]);
+            const { isWake, command } = extractWakeWordAndCommand(text, agentName);
 
-            const patternList = Array.from(rawPatterns).filter(Boolean);
-            const escapedNames = patternList.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join("|");
-            const regex = new RegExp(`(?:${escapedNames})[\\s,:\\.-]*(.*)`, "i");
-            const wakeMatch = normalizedText.match(regex);
-
-            if (wakeMatch) {
-                const commandAfterWakeWord = wakeMatch[1].trim();
-                if (commandAfterWakeWord.length > 1) {
-                    processCommand(commandAfterWakeWord);
+            if (isWake) {
+                if (isStopTalkingCommand(command) || isStopTalkingCommand(norm)) {
+                    silenciarAudio(true);
                     return;
                 }
+
+                if (command.length > 1) {
+                    clearTimeout(wakeWordTimer);
+                    isWaitingCommandAfterWakeWord = false;
+                    processCommand(command);
+                    return;
+                }
+
                 if (!isWaitingCommandAfterWakeWord) {
                     isWaitingCommandAfterWakeWord = true;
                     speakResponse("Sim, estou ouvindo!");
@@ -2746,6 +3827,10 @@
             if (isWaitingCommandAfterWakeWord && text.trim()) {
                 clearTimeout(wakeWordTimer);
                 isWaitingCommandAfterWakeWord = false;
+                if (isStopTalkingCommand(norm)) {
+                    silenciarAudio(true);
+                    return;
+                }
                 processCommand(text.trim());
             }
         }
@@ -2798,6 +3883,8 @@
             const btn = document.getElementById("alwaysListenBtn");
             const wave = document.getElementById("voiceWaveBar");
             const wText = document.getElementById("voiceWaveText");
+            const terminalVoiceLabel = document.getElementById("terminalVoiceLabel");
+            const terminalVoiceBtn = document.getElementById("terminalVoiceBtn");
 
             if (alwaysListen) {
                 if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping";
@@ -2810,6 +3897,8 @@
                 if (wText && (!wText.innerText || wText.innerText.trim() === '""')) {
                     wText.innerText = `Ouvindo... Diga "${agentName}"`;
                 }
+                if (terminalVoiceLabel) terminalVoiceLabel.innerText = isListening ? "Ouvindo..." : "Ouvindo Sempre";
+                if (terminalVoiceBtn) terminalVoiceBtn.className = "bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition";
             } else {
                 if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-zinc-500";
                 if (text) text.innerHTML = `🎙️ Ouvir Sempre`;
@@ -2818,6 +3907,8 @@
                     wave.classList.add("hidden");
                     wave.classList.remove("flex");
                 }
+                if (terminalVoiceLabel) terminalVoiceLabel.innerText = "Falar por Voz";
+                if (terminalVoiceBtn) terminalVoiceBtn.className = "bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition";
             }
         }
 
@@ -2840,11 +3931,32 @@
         }
 
         function connectMQTT() {
+            if (typeof mqtt === "undefined") {
+                console.warn("[MQTT]: Biblioteca mqtt.min.js ainda não carregada.");
+                return;
+            }
+
             const broker = (config && config.broker) || "test.mosquitto.org";
-            const port = (config && config.port) || 1883;
+            let port = (config && config.port) || "8081";
+            let protocol = (location.protocol === "https:") ? "wss" : (String(port) === "8080" ? "ws" : "wss");
+            if (location.protocol !== "https:" && (String(port) === "8080" || String(port) === "1883")) {
+                protocol = "ws";
+                port = "8080";
+            }
 
             try {
-                client = mqtt.connect(`wss://${broker}:${port}`);
+                if (client) {
+                    try { client.end(true); } catch (e) { }
+                    client = null;
+                }
+
+                client = mqtt.connect(`${protocol}://${broker}:${port}`, {
+                    connectTimeout: 5000,
+                    reconnectPeriod: 4000,
+                    clientId: "smarthome_web_" + Math.random().toString(16).substring(2, 10),
+                    clean: true
+                });
+
                 client.on("connect", () => {
                     const badge = document.getElementById("mqttBadgeStatus");
                     if (badge) {
@@ -2855,8 +3967,9 @@
                 });
 
                 client.on("message", (topic, payload) => {
-                    const state = payload.toString();
-                    const room = topic.split("/")[2];
+                    const state = payload.toString().trim();
+                    const parts = topic.split("/");
+                    const room = parts[parts.length - 2] || parts[parts.length - 1];
                     roomStates[room] = (state === "ON");
                     updateLightsSummary();
                 });
@@ -2866,6 +3979,14 @@
                     if (badge) {
                         badge.className = "text-[11px] px-2.5 py-1 rounded-full font-bold bg-red-500/10 text-red-400 border border-red-500/30 flex items-center gap-1";
                         badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> Offline`;
+                    }
+                });
+
+                client.on("close", () => {
+                    const badge = document.getElementById("mqttBadgeStatus");
+                    if (badge) {
+                        badge.className = "text-[11px] px-2.5 py-1 rounded-full font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1";
+                        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Conectando...`;
                     }
                 });
             } catch (e) {
@@ -2901,6 +4022,12 @@
 
         async function openVoiceApiKeyModal() {
             const modal = document.getElementById("apiKeyModal");
+            if (modal) {
+                modal.classList.remove("hidden");
+                modal.classList.add("flex");
+                modal.style.display = "flex";
+            }
+            const agentNameInput = document.getElementById("modalAgentNameInput");
             const input = document.getElementById("modalApiKeyInput");
             const modelInput = document.getElementById("modalAiModelInput");
             const voiceSelect = document.getElementById("modalVoiceSelect");
@@ -2916,6 +4043,14 @@
             const camStatusBox = document.getElementById("cameraTestStatusResult");
             const camPreview = document.getElementById("cameraPreviewContainer");
 
+            const avatarUrlInput = document.getElementById("modalAvatarUrlInput");
+            const currentAvatar = localStorage.getItem("smartHomeAvatarImage") || "";
+            if (avatarUrlInput) {
+                avatarUrlInput.value = currentAvatar;
+                handleAvatarUrlChange(currentAvatar);
+            }
+
+            if (agentNameInput) agentNameInput.value = getAgentName();
             if (input) input.value = getApiKey();
             if (modelInput) modelInput.value = getAiModel();
             if (voiceSelect) voiceSelect.value = getSelectedVoice();
@@ -2923,13 +4058,26 @@
             if (camStatusBox) camStatusBox.classList.add("hidden");
             if (camPreview) camPreview.classList.add("hidden");
 
-            // Carrega configurações de IA (API Key, Modelo, Voz) do banco de dados SQLite do usuário
+            // Carrega configurações de IA (API Key, Modelo, Voz, Nome) do banco de dados SQLite do usuário
             try {
                 const aiRes = await fetch("/api/user/ai-config", {
                     headers: { "Authorization": `Bearer ${authToken}` }
                 });
                 if (aiRes.ok) {
                     const aiData = await aiRes.json();
+                    if (aiData.avatar_image !== undefined) {
+                        if (avatarUrlInput) avatarUrlInput.value = aiData.avatar_image || "";
+                        handleAvatarUrlChange(aiData.avatar_image || "");
+                        if (aiData.avatar_image) {
+                            localStorage.setItem("smartHomeAvatarImage", aiData.avatar_image);
+                        } else {
+                            localStorage.removeItem("smartHomeAvatarImage");
+                        }
+                    }
+                    if (agentNameInput && aiData.agent_name) {
+                        agentNameInput.value = aiData.agent_name;
+                        localStorage.setItem("smartHomeAgentName", aiData.agent_name);
+                    }
                     if (input && aiData.api_key) {
                         input.value = aiData.api_key;
                     } else if (input && aiData.configured) {
@@ -2942,6 +4090,10 @@
                     if (voiceSelect && aiData.voice) {
                         voiceSelect.value = aiData.voice;
                         localStorage.setItem("smartHomeVoice", aiData.voice);
+                    }
+                    const sysCheckbox = document.getElementById("modalSystemCommandsCheckbox");
+                    if (sysCheckbox && aiData.system_commands_enabled !== undefined) {
+                        sysCheckbox.checked = Boolean(aiData.system_commands_enabled);
                     }
                     if (aiData.api_key) {
                         localStorage.setItem("geminiApiKey", aiData.api_key);
@@ -2982,21 +4134,18 @@
                 console.warn("Erro ao buscar credenciais Google do usuário:", err);
             }
 
-            // Carrega configurações de Câmera do banco de dados
+            // Carrega configurações de Câmera e Lista Multi-Câmeras do banco de dados
             try {
-                const camRes = await fetch("/api/user/camera-config", {
-                    headers: { "Authorization": `Bearer ${authToken}` }
-                });
-                if (camRes.ok) {
-                    const camData = await camRes.json();
-                    if (camTypeSelect) camTypeSelect.value = camData.camera_type || "device";
-                    if (camIpInput) camIpInput.value = camData.camera_ip_url || "";
-                    if (camUserInput) camUserInput.value = camData.camera_username || "";
-                    if (camPwdInput && !camPwdInput.value && camData.masked_password) {
-                        camPwdInput.placeholder = "Senha salva (preencha para alterar)";
+                const token = localStorage.getItem("smartHomeToken") || authToken || "";
+                if (token) {
+                    await loadUserCamerasToModal();
+                    const camRes = await fetch("/api/user/camera-config", {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    if (camRes.ok) {
+                        const camData = await camRes.json();
+                        if (camAutoGreet) camAutoGreet.checked = (camData.camera_auto_greeting !== false);
                     }
-                    if (camAutoGreet) camAutoGreet.checked = (camData.camera_auto_greeting !== false);
-                    handleCameraTypeChange();
                 }
             } catch (err) {
                 console.warn("Erro ao buscar configurações de câmera:", err);
@@ -3028,12 +4177,47 @@
                 console.warn("Erro ao buscar configurações do Telegram:", err);
             }
 
+            // Carrega configurações do Slack do banco de dados
+            const slkWebhookInput = document.getElementById("modalSlackWebhookInput");
+            const slkTokenInput = document.getElementById("modalSlackTokenInput");
+            const slkChannelInput = document.getElementById("modalSlackChannelInput");
+            const slkEnabled = document.getElementById("modalSlackEnabledCheckbox");
+            const slkNotifCam = document.getElementById("modalSlackNotifyCameraCheckbox");
+            const slkStatusBox = document.getElementById("slackTestStatusResult");
+            if (slkStatusBox) slkStatusBox.classList.add("hidden");
+
+            try {
+                const slkRes = await fetch("/api/user/slack-config", {
+                    headers: { "Authorization": `Bearer ${authToken}` }
+                });
+                if (slkRes.ok) {
+                    const slkData = await slkRes.json();
+                    if (slkWebhookInput) {
+                        slkWebhookInput.value = slkData.webhook_url || "";
+                        if (slkData.configured && !slkWebhookInput.value) slkWebhookInput.placeholder = "Webhook configurado no banco";
+                    }
+                    if (slkTokenInput) {
+                        slkTokenInput.value = slkData.bot_token || "";
+                        if (slkData.bot_token && !slkTokenInput.value) slkTokenInput.placeholder = "Bot Token configurado";
+                    }
+                    if (slkChannelInput) slkChannelInput.value = slkData.default_channel || "";
+                    if (slkEnabled) slkEnabled.checked = (slkData.enabled !== false);
+                    if (slkNotifCam) slkNotifCam.checked = (slkData.notify_camera !== false);
+                }
+            } catch (err) {
+                console.warn("Erro ao buscar configurações do Slack:", err);
+            }
+
             if (modal) modal.classList.remove("hidden");
         }
 
         function closeVoiceApiKeyModal() {
             const modal = document.getElementById("apiKeyModal");
-            if (modal) modal.classList.add("hidden");
+            if (modal) {
+                modal.classList.add("hidden");
+                modal.classList.remove("flex");
+                modal.style.display = "none";
+            }
         }
 
         async function testTelegramConnectionFromModal() {
@@ -3085,6 +4269,63 @@
                 statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
                 statusBox.innerHTML = `<span>Erro ao testar Telegram: ${err.message}</span>`;
                 speakResponse("Erro ao testar o Telegram.");
+            } finally {
+                if (testBtn) testBtn.disabled = false;
+            }
+        }
+
+        async function testSlackConnectionFromModal() {
+            const webhookInput = document.getElementById("modalSlackWebhookInput");
+            const tokenInput = document.getElementById("modalSlackTokenInput");
+            const channelInput = document.getElementById("modalSlackChannelInput");
+            const testBtn = document.getElementById("testSlackBtn");
+            const statusBox = document.getElementById("slackTestStatusResult");
+
+            const webhook = webhookInput ? webhookInput.value.trim() : "";
+            const token = tokenInput ? tokenInput.value.trim() : "";
+            const channel = channelInput ? channelInput.value.trim() : "";
+
+            if (!statusBox) return;
+            statusBox.classList.remove("hidden");
+            statusBox.className = "text-xs p-3 rounded-xl border bg-zinc-800/80 border-zinc-700 text-zinc-300 flex items-center gap-2";
+            statusBox.innerHTML = `<span class="animate-spin">⏳</span> <span>Validando conexão e enviando relatório de teste ao Slack...</span>`;
+            if (testBtn) testBtn.disabled = true;
+
+            try {
+                const res = await fetch("/api/user/slack-config/test", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ webhook_url: webhook, bot_token: token, default_channel: channel })
+                });
+
+                const data = await res.json();
+                if (res.ok && data.status === "success") {
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-emerald-950/40 border-emerald-500/50 text-emerald-300";
+                    statusBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-emerald-400">
+                            <span>✅</span> <span>Slack Conectado com Sucesso!</span>
+                        </div>
+                        <div class="text-[11px] text-zinc-300">${data.message} (${data.channel})</div>
+                    `;
+                    speakResponse("Slack conectado com sucesso.");
+                } else {
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
+                    const errData = data || {};
+                    statusBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-red-400">
+                            <span>❌</span> <span>Falha no Teste do Slack</span>
+                        </div>
+                        <div class="text-[11px] text-zinc-300">${errData.detail || "Verifique se o Webhook URL ou Bot Token estão corretos."}</div>
+                    `;
+                    speakResponse("Falha ao testar conexão com o Slack.");
+                }
+            } catch (err) {
+                statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
+                statusBox.innerHTML = `<span>⚠️ Erro de conexão com o Slack: ${err.message}</span>`;
+                speakResponse("Erro ao testar o Slack.");
             } finally {
                 if (testBtn) testBtn.disabled = false;
             }
@@ -3201,48 +4442,328 @@
             }
         }
 
-        async function testCameraConnectionFromModal() {
+        let _userCamerasCache = [];
+
+        function handleCameraTypeChange() {
+            const select = document.getElementById("modalCameraTypeSelect");
+            const ipFields = document.getElementById("ipCameraFields");
+            const devFields = document.getElementById("deviceCameraFields");
+            if (!select) return;
+            const isIp = select.value === "ip";
+            if (ipFields) ipFields.classList.toggle("hidden", !isIp);
+            if (devFields) devFields.classList.toggle("hidden", isIp);
+        }
+
+        function toggleAddCameraForm(show, clearForm = true) {
+            const container = document.getElementById("cameraFormContainer");
+            const title = document.getElementById("cameraFormTitle");
+            if (!container) return;
+            if (show) {
+                container.classList.remove("hidden");
+                if (clearForm) {
+                    if (title) title.innerHTML = "📹 Adicionar Nova Câmera";
+                    document.getElementById("modalCameraEditId").value = "";
+                    document.getElementById("modalCameraNameInput").value = "";
+                    document.getElementById("modalCameraTypeSelect").value = "ip";
+                    document.getElementById("modalCameraIpUrlInput").value = "";
+                    document.getElementById("modalCameraUserInput").value = "";
+                    document.getElementById("modalCameraPwdInput").value = "";
+                    document.getElementById("modalCameraPwdInput").placeholder = "senha";
+                    if (document.getElementById("modalCameraDeviceIndexInput")) {
+                        document.getElementById("modalCameraDeviceIndexInput").value = "0";
+                    }
+                    document.getElementById("modalCameraIsDefaultCheckbox").checked = false;
+                    handleCameraTypeChange();
+                }
+            } else {
+                container.classList.add("hidden");
+            }
+        }
+
+        async function loadUserCamerasToModal() {
+            const listEl = document.getElementById("modalCamerasList");
+            if (!listEl) return;
+            const token = localStorage.getItem("smartHomeToken") || authToken || "";
+            if (!token) return;
+
+            try {
+                const res = await fetch("/api/user/cameras", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    _userCamerasCache = data.cameras || [];
+                    renderCamerasList(_userCamerasCache);
+                }
+            } catch (err) {
+                console.warn("Erro ao carregar lista de câmeras:", err);
+                listEl.innerHTML = `<div class="text-xs text-red-400 py-1">Erro ao listar câmeras: ${err.message}</div>`;
+            }
+        }
+
+        function renderCamerasList(cameras) {
+            const listEl = document.getElementById("modalCamerasList");
+            if (!listEl) return;
+            if (!cameras || cameras.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-xs text-zinc-400 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800 text-center">
+                        Nenhuma câmera cadastrada ainda. Clique em <strong>➕ Adicionar Câmera</strong> acima.
+                    </div>
+                `;
+                return;
+            }
+
+            let html = "";
+            cameras.forEach(cam => {
+                const isDef = cam.is_default;
+                const isIp = cam.camera_type === "ip";
+                const typeBadge = isIp 
+                    ? `<span class="bg-cyan-950/80 text-cyan-300 border border-cyan-500/30 text-[10px] px-2 py-0.5 rounded-full font-mono">🌐 IP</span>`
+                    : `<span class="bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px] px-2 py-0.5 rounded-full font-mono">💻 Local</span>`;
+                const defBadge = isDef
+                    ? `<span class="bg-amber-950/80 text-amber-300 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-0.5">⭐ Padrão</span>`
+                    : "";
+                const detailText = isIp 
+                    ? (cam.camera_ip_url || "Sem URL configurada")
+                    : `Dispositivo índice: ${cam.camera_device_index || 0}`;
+
+                html += `
+                    <div class="bg-zinc-900/80 border ${isDef ? 'border-cyan-500/50 shadow-sm shadow-cyan-500/10' : 'border-zinc-800'} p-2.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition hover:border-zinc-700">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                <span class="font-bold text-xs text-white truncate">${escapeHtml(cam.name)}</span>
+                                ${defBadge}
+                                ${typeBadge}
+                            </div>
+                            <div class="text-[10px] text-zinc-400 font-mono truncate" title="${escapeHtml(detailText)}">
+                                ${escapeHtml(detailText)}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                            <button type="button" onclick="testSpecificCamera(${cam.id})"
+                                class="bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/30 px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1"
+                                title="Testar captura ao vivo">
+                                🧪 Testar
+                            </button>
+                            ${!isDef ? `
+                            <button type="button" onclick="setDefaultCamera(${cam.id})"
+                                class="bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-zinc-700 px-2 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1"
+                                title="Tornar esta câmera a principal">
+                                ⭐ Padrão
+                            </button>
+                            ` : ''}
+                            <button type="button" onclick="editCameraInModal(${cam.id})"
+                                class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 p-1.5 rounded-lg text-xs transition"
+                                title="Editar configurações">
+                                ✏️
+                            </button>
+                            ${cameras.length > 1 ? `
+                            <button type="button" onclick="deleteCameraFromModal(${cam.id})"
+                                class="bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/30 p-1.5 rounded-lg text-xs transition"
+                                title="Excluir câmera">
+                                🗑️
+                            </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            listEl.innerHTML = html;
+        }
+
+        function editCameraInModal(camId) {
+            const cam = _userCamerasCache.find(c => c.id === camId);
+            if (!cam) return;
+            toggleAddCameraForm(true, false);
+            const title = document.getElementById("cameraFormTitle");
+            if (title) title.innerHTML = `✏️ Editar: ${escapeHtml(cam.name)}`;
+            document.getElementById("modalCameraEditId").value = cam.id;
+            document.getElementById("modalCameraNameInput").value = cam.name || "";
+            document.getElementById("modalCameraTypeSelect").value = cam.camera_type || "device";
+            document.getElementById("modalCameraIpUrlInput").value = cam.camera_ip_url || "";
+            document.getElementById("modalCameraUserInput").value = cam.camera_username || "";
+            document.getElementById("modalCameraPwdInput").value = "";
+            document.getElementById("modalCameraPwdInput").placeholder = cam.has_password ? "Senha salva (preencha para alterar)" : "senha";
+            if (document.getElementById("modalCameraDeviceIndexInput")) {
+                document.getElementById("modalCameraDeviceIndexInput").value = cam.camera_device_index || 0;
+            }
+            document.getElementById("modalCameraIsDefaultCheckbox").checked = Boolean(cam.is_default);
+            handleCameraTypeChange();
+        }
+
+        async function saveCameraFromModal() {
+            const token = localStorage.getItem("smartHomeToken") || authToken || "";
+            if (!token) return;
+
+            const camId = document.getElementById("modalCameraEditId")?.value;
+            const name = document.getElementById("modalCameraNameInput")?.value.trim() || "Câmera";
             const camType = document.getElementById("modalCameraTypeSelect")?.value || "device";
             const camIpUrl = document.getElementById("modalCameraIpUrlInput")?.value.trim() || "";
             const camUser = document.getElementById("modalCameraUserInput")?.value.trim() || "";
             const camPwd = document.getElementById("modalCameraPwdInput")?.value.trim() || "";
-            const autoGreet = document.getElementById("modalCameraAutoGreetCheckbox")?.checked;
+            const devIdx = parseInt(document.getElementById("modalCameraDeviceIndexInput")?.value || "0", 10);
+            const isDef = document.getElementById("modalCameraIsDefaultCheckbox")?.checked;
 
-            const testBtn = document.getElementById("testCameraBtn");
+            const payload = {
+                name: name,
+                camera_type: camType,
+                camera_ip_url: camIpUrl,
+                camera_username: camUser,
+                camera_password: camPwd,
+                camera_device_index: devIdx,
+                is_default: isDef,
+                enabled: true
+            };
+
+            try {
+                const url = camId ? `/api/user/cameras/${camId}` : `/api/user/cameras`;
+                const method = camId ? "PUT" : "POST";
+                const res = await fetch(url, {
+                    method: method,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok && data.status === "success") {
+                    showToast(data.message || "Câmera salva com sucesso!", "success");
+                    toggleAddCameraForm(false);
+                    await loadUserCamerasToModal();
+                } else {
+                    showToast(data.detail || data.message || "Erro ao salvar câmera.", "error");
+                }
+            } catch (err) {
+                showToast(`Erro ao salvar câmera: ${err.message}`, "error");
+            }
+        }
+
+        async function setDefaultCamera(camId) {
+            const token = localStorage.getItem("smartHomeToken") || authToken || "";
+            if (!token) return;
+            try {
+                const res = await fetch(`/api/user/cameras/${camId}/set-default`, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    showToast("Câmera definida como principal!", "success");
+                    await loadUserCamerasToModal();
+                }
+            } catch (err) {
+                showToast(`Erro ao definir câmera padrão: ${err.message}`, "error");
+            }
+        }
+
+        async function deleteCameraFromModal(camId, camName) {
+            const targetName = camName || (_userCamerasCache && _userCamerasCache.find(c => c.id === camId)?.name) || "esta câmera";
+            if (!confirm(`Deseja realmente excluir a câmera '${targetName}'?`)) return;
+            const token = localStorage.getItem("smartHomeToken") || authToken || "";
+            if (!token) return;
+            try {
+                const res = await fetch(`/api/user/cameras/${camId}`, {
+                    method: "DELETE",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    showToast("Câmera excluída com sucesso!", "success");
+                    await loadUserCamerasToModal();
+                }
+            } catch (err) {
+                showToast(`Erro ao excluir câmera: ${err.message}`, "error");
+            }
+        }
+
+        async function testSpecificCamera(camId) {
             const statusBox = document.getElementById("cameraTestStatusResult");
             const previewContainer = document.getElementById("cameraPreviewContainer");
             const previewImg = document.getElementById("cameraPreviewImg");
 
             if (!statusBox) return;
             statusBox.classList.remove("hidden");
-            statusBox.className = "text-xs p-3 rounded-xl border bg-zinc-800/80 border-zinc-700 text-zinc-300 flex items-center gap-2";
-            statusBox.innerHTML = `<span class="animate-spin">⏳</span> <span>Testando captura da ${camType === 'ip' ? 'Câmera IP' : 'Câmera Local'}...</span>`;
-            if (testBtn) testBtn.disabled = true;
+            statusBox.className = "text-xs p-3 rounded-xl border bg-zinc-800/80 border-zinc-700 text-zinc-300 flex items-center gap-2 mt-2";
+            statusBox.innerHTML = `<span class="animate-spin">⏳</span> <span>Conectando e capturando imagem da câmera...</span>`;
 
-            // Se for câmera local e estiver no navegador, tenta capturar webcam do dispositivo
+            try {
+                const token = localStorage.getItem("smartHomeToken") || authToken || "";
+                const res = await fetch("/api/user/cameras/test", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ id: camId })
+                });
+                const data = await res.json();
+                if (data.success && data.snapshot_base64) {
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-emerald-950/40 border-emerald-500/50 text-emerald-300 mt-2";
+                    statusBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-emerald-400">
+                            <span>✅</span> <span>Câmera Conectada e Operacional!</span>
+                        </div>
+                        <div class="text-[11px] text-zinc-300">${data.message}</div>
+                    `;
+                    if (previewContainer && previewImg) {
+                        previewImg.src = data.snapshot_base64;
+                        previewContainer.classList.remove("hidden");
+                    }
+                } else {
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300 mt-2";
+                    statusBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 mb-1 text-red-400">
+                            <span>❌</span> <span>Erro ao Conectar à Câmera</span>
+                        </div>
+                        <div class="text-[11px] text-zinc-300">${data.message || "Não foi possível obter imagem da câmera."}</div>
+                    `;
+                    if (previewContainer) previewContainer.classList.add("hidden");
+                }
+            } catch (err) {
+                statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300 mt-2";
+                statusBox.innerHTML = `<span>Erro ao testar câmera: ${err.message}</span>`;
+            }
+        }
+
+        async function testFormCamera() {
+            const camType = document.getElementById("modalCameraTypeSelect")?.value || "device";
+            const camIpUrl = document.getElementById("modalCameraIpUrlInput")?.value.trim() || "";
+            const camUser = document.getElementById("modalCameraUserInput")?.value.trim() || "";
+            const camPwd = document.getElementById("modalCameraPwdInput")?.value.trim() || "";
+            const devIdx = parseInt(document.getElementById("modalCameraDeviceIndexInput")?.value || "0", 10);
+
+            const statusBox = document.getElementById("cameraTestStatusResult");
+            const previewContainer = document.getElementById("cameraPreviewContainer");
+            const previewImg = document.getElementById("cameraPreviewImg");
+
+            if (!statusBox) return;
+            statusBox.classList.remove("hidden");
+            statusBox.className = "text-xs p-3 rounded-xl border bg-zinc-800/80 border-zinc-700 text-zinc-300 flex items-center gap-2 mt-2";
+            statusBox.innerHTML = `<span class="animate-spin">⏳</span> <span>Testando captura da ${camType === 'ip' ? 'Câmera IP' : 'Câmera Local'}...</span>`;
+
             if (camType === "device") {
                 await captureBrowserWebcamSnapshot();
             }
 
             try {
-                const res = await fetch("/api/user/camera-config/test", {
+                const token = localStorage.getItem("smartHomeToken") || authToken || "";
+                const res = await fetch("/api/user/cameras/test", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Authorization": `Bearer ${authToken}`
+                        "Authorization": `Bearer ${token}`
                     },
                     body: JSON.stringify({
                         camera_type: camType,
                         camera_ip_url: camIpUrl,
                         camera_username: camUser,
                         camera_password: camPwd,
-                        camera_auto_greeting: autoGreet
+                        camera_device_index: devIdx
                     })
                 });
 
                 const data = await res.json();
                 if (data.success && data.snapshot_base64) {
-                    statusBox.className = "text-xs p-3 rounded-xl border bg-emerald-950/40 border-emerald-500/50 text-emerald-300";
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-emerald-950/40 border-emerald-500/50 text-emerald-300 mt-2";
                     statusBox.innerHTML = `
                         <div class="font-bold flex items-center gap-1.5 mb-1 text-emerald-400">
                             <span>✅</span> <span>Câmera Conectada e Operacional!</span>
@@ -3255,7 +4776,7 @@
                     }
                     speakResponse("Câmera conectada e operacional.");
                 } else {
-                    statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
+                    statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300 mt-2";
                     statusBox.innerHTML = `
                         <div class="font-bold flex items-center gap-1.5 mb-1 text-red-400">
                             <span>❌</span> <span>Erro ao Conectar à Câmera</span>
@@ -3266,18 +4787,73 @@
                     speakResponse("Erro ao conectar à câmera.");
                 }
             } catch (err) {
-                statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300";
+                statusBox.className = "text-xs p-3 rounded-xl border bg-red-950/40 border-red-500/50 text-red-300 mt-2";
                 statusBox.innerHTML = `<span>Erro ao testar câmera: ${err.message}</span>`;
                 speakResponse("Erro ao testar a câmera.");
-            } finally {
-                if (testBtn) testBtn.disabled = false;
             }
+        }
+
+        async function testCameraConnectionFromModal() {
+            await testFormCamera();
+        }
+
+        function handleAvatarUrlChange(url) {
+            const preview = document.getElementById("modalAvatarPreviewImg");
+            const fallback = document.getElementById("modalAvatarFallbackEmoji");
+            if (url && url.trim()) {
+                if (preview) {
+                    preview.src = url.trim();
+                    preview.classList.remove("hidden");
+                }
+                if (fallback) fallback.classList.add("hidden");
+            } else {
+                if (preview) {
+                    preview.src = "";
+                    preview.classList.add("hidden");
+                }
+                if (fallback) fallback.classList.remove("hidden");
+            }
+        }
+
+        function selectAvatarPreset(url) {
+            const input = document.getElementById("modalAvatarUrlInput");
+            if (input) {
+                input.value = url;
+                handleAvatarUrlChange(url);
+            }
+        }
+
+        function clearAvatarImage() {
+            const input = document.getElementById("modalAvatarUrlInput");
+            if (input) {
+                input.value = "";
+                handleAvatarUrlChange("");
+            }
+        }
+
+        function handleAvatarFileUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                alert("A imagem selecionada deve ter no máximo 2MB.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const base64 = e.target.result;
+                const input = document.getElementById("modalAvatarUrlInput");
+                if (input) input.value = base64;
+                handleAvatarUrlChange(base64);
+            };
+            reader.readAsDataURL(file);
         }
 
         async function saveVoiceApiKeyFromModal() {
             const key = document.getElementById("modalApiKeyInput").value.trim();
             const model = document.getElementById("modalAiModelInput").value.trim() || "gemini-2.5-flash-lite";
             const voice = document.getElementById("modalVoiceSelect").value || "pt-BR-FranciscaNeural";
+            const agentName = document.getElementById("modalAgentNameInput")?.value.trim() || "Sexta-Feira";
+            const avatarImg = document.getElementById("modalAvatarUrlInput")?.value.trim() || "";
             const gmailEmail = document.getElementById("modalGmailEmailInput")?.value.trim() || "";
             const gmailPwd = document.getElementById("modalGmailPasswordInput")?.value.trim() || "";
 
@@ -3295,18 +4871,28 @@
             if (key) localStorage.setItem("geminiApiKey", key);
             localStorage.setItem("smartHomeAiModel", model);
             localStorage.setItem("smartHomeVoice", voice);
+            localStorage.setItem("smartHomeAgentName", agentName);
+            if (avatarImg) {
+                localStorage.setItem("smartHomeAvatarImage", avatarImg);
+            } else {
+                localStorage.removeItem("smartHomeAvatarImage");
+            }
 
             const tag = document.getElementById("activeModelTag");
             if (tag) tag.innerText = `Modelo: ${model}`;
 
             const token = localStorage.getItem("smartHomeToken") || authToken || "";
 
-            // Salva preferências de IA (API Key, Modelo e Voz) no banco de dados SQLite do usuário
+            // Salva preferências de IA (API Key, Modelo, Voz, Nome do Agente, Avatar e Comandos de Máquina) no banco de dados SQLite do usuário
             if (token) {
                 try {
+                    const sysEnabled = document.getElementById("modalSystemCommandsCheckbox")?.checked;
                     const aiPayload = {
                         ai_model: model,
-                        voice: voice
+                        voice: voice,
+                        agent_name: agentName,
+                        avatar_image: avatarImg,
+                        system_commands_enabled: Boolean(sysEnabled)
                     };
                     if (key && !key.includes("...") && !key.includes("•")) {
                         aiPayload.api_key = key;
@@ -3383,11 +4969,39 @@
                 } catch (err) {
                     console.warn("Aviso ao salvar configurações do Telegram:", err);
                 }
+
+                // Salva configurações do Slack no backend
+                try {
+                    const slkWebhook = document.getElementById("modalSlackWebhookInput") ? document.getElementById("modalSlackWebhookInput").value.trim() : "";
+                    const slkToken = document.getElementById("modalSlackTokenInput") ? document.getElementById("modalSlackTokenInput").value.trim() : "";
+                    const slkChannel = document.getElementById("modalSlackChannelInput") ? document.getElementById("modalSlackChannelInput").value.trim() : "";
+                    const slkEnabled = document.getElementById("modalSlackEnabledCheckbox") ? document.getElementById("modalSlackEnabledCheckbox").checked : true;
+                    const slkNotifCam = document.getElementById("modalSlackNotifyCameraCheckbox") ? document.getElementById("modalSlackNotifyCameraCheckbox").checked : true;
+
+                    await fetch("/api/user/slack-config", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            webhook_url: slkWebhook,
+                            bot_token: slkToken,
+                            default_channel: slkChannel,
+                            enabled: slkEnabled,
+                            notify_camera: slkNotifCam,
+                            notify_tasks: true
+                        })
+                    });
+                } catch (err) {
+                    console.warn("Aviso ao salvar configurações do Slack:", err);
+                }
             }
 
+            updateAgentNamesInUI();
             closeVoiceApiKeyModal();
             fetchAgentStatus();
-            logToConsole(`Configurações salvas: Modelo '${model}', Câmera '${camType}', Telegram '${tgEnabled ? "Ativo" : "Inativo"}'.`, "info");
+            logToConsole(`Configurações salvas: Modelo '${model}', Câmera '${camType}', Telegram '${tgEnabled ? "Ativo" : "Inativo"}', Slack configurado.`, "info");
             speakResponse("Configurações salvas com sucesso!");
         }
 
@@ -3417,7 +5031,11 @@
 
         function openAutomationsModal(defaultTab = 'list') {
             const modal = document.getElementById("automationsModal");
-            if (modal) modal.classList.remove("hidden");
+            if (modal) {
+                modal.classList.remove("hidden");
+                modal.classList.add("flex");
+                modal.style.display = "flex";
+            }
             switchAutomationsTab(defaultTab);
             fetchUserAutomations();
             fetchAutomationTemplates();
@@ -3426,7 +5044,11 @@
 
         function closeAutomationsModal() {
             const modal = document.getElementById("automationsModal");
-            if (modal) modal.classList.add("hidden");
+            if (modal) {
+                modal.classList.add("hidden");
+                modal.classList.remove("flex");
+                modal.style.display = "none";
+            }
             fetchAgentStatus();
         }
 
@@ -3638,7 +5260,7 @@
 
             handleAutoTypeChange();
 
-            // Preenche campos de payload se for automação de vídeo
+            // Preenche campos de payload se for automação de vídeo ou monitor do Slack
             if (t.action_payload) {
                 if (t.action_payload.target_person && document.getElementById("autoVideoTarget")) {
                     document.getElementById("autoVideoTarget").value = t.action_payload.target_person;
@@ -3649,6 +5271,12 @@
                 if (t.action_payload.agent_action_prompt && document.getElementById("autoVideoAgentAction")) {
                     document.getElementById("autoVideoAgentAction").value = t.action_payload.agent_action_prompt;
                 }
+                if (t.action_payload.channel && document.getElementById("autoSlackChannel")) {
+                    document.getElementById("autoSlackChannel").value = t.action_payload.channel;
+                }
+                if (t.action_payload.agent_action_prompt && document.getElementById("autoSlackAgentAction")) {
+                    document.getElementById("autoSlackAgentAction").value = t.action_payload.agent_action_prompt;
+                }
             }
 
             // Rola suavemente até o formulário
@@ -3657,12 +5285,71 @@
         }
 
         function handleAutoTypeChange() {
-            const type = document.getElementById("autoFormType")?.value || "video_face_recognition";
+            const type = document.getElementById("autoFormType")?.value || "slack_message_monitor";
             const triggerLabel = document.getElementById("autoFormTriggerLabel");
             const triggerInput = document.getElementById("autoFormTriggerValue");
             const dynamicFields = document.getElementById("autoDynamicFields");
 
-            if (type === "video_face_recognition") {
+            if (type === "slack_message_monitor") {
+                if (triggerLabel) triggerLabel.innerText = "Intervalo de Verificação (Segundos)";
+                if (triggerInput && (!triggerInput.value || triggerInput.value.includes(":"))) triggerInput.value = "30";
+                if (dynamicFields) dynamicFields.innerHTML = `
+                    <div class="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 space-y-3">
+                        <div class="flex items-center gap-2 text-xs font-bold text-emerald-300">
+                            <span>💬</span> <span>Monitoramento de Canal do Slack (Câmera + Voz + Telegram)</span>
+                        </div>
+                        <p class="text-[11px] text-zinc-300 leading-relaxed">
+                            Monitora mensagens novas no canal do Slack em tempo real. Quando chegar mensagem, a IA <strong>verifica se você está na frente do computador pela câmera</strong> e <strong>fala em voz alta com você</strong>, além de exibir um banner toast instantâneo e enviar notificação no Telegram.
+                        </p>
+                        
+                        <div class="grid sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] text-zinc-400 mb-1">Canal do Slack</label>
+                                <input id="autoSlackChannel" type="text" placeholder="#importações" value="#importações"
+                                    class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500 font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-zinc-400 mb-1">Intervalo de Repouso (Cooldown)</label>
+                                <select id="autoSlackCooldown" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500">
+                                    <option value="30">30 Segundos</option>
+                                    <option value="60" selected>1 Minuto (Padrão)</option>
+                                    <option value="120">2 Minutos</option>
+                                    <option value="300">5 Minutos</option>
+                                    <option value="0">Sem Cooldown</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pt-1 border-t border-emerald-900/40">
+                            <label class="block text-[11px] text-zinc-300 mb-1 flex items-center justify-between">
+                                <span>⚡ Ação Residencial Opcional ao Receber Mensagem (Texto Livre)</span>
+                                <span class="text-[10px] text-emerald-400 font-mono">Opcional</span>
+                            </label>
+                            <input id="autoSlackAgentAction" type="text" placeholder="Ex: Acender a luz do quarto, acender a luz da mesa"
+                                class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500 transition">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-900/40">
+                            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                                <input type="checkbox" id="autoSlackCheckCamera" checked class="rounded border-zinc-700 bg-zinc-900 text-emerald-500">
+                                <span>📷 Checar Presença na Câmera</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                                <input type="checkbox" id="autoSlackSpeakVoice" checked class="rounded border-zinc-700 bg-zinc-900 text-emerald-500">
+                                <span>🗣️ Falar por Voz se Presente</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                                <input type="checkbox" id="autoSlackNotifyScreen" checked class="rounded border-zinc-700 bg-zinc-900 text-emerald-500">
+                                <span>🖥️ Banner Toast na Tela</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+                                <input type="checkbox" id="autoSlackNotifyTelegram" checked class="rounded border-zinc-700 bg-zinc-900 text-emerald-500">
+                                <span>📱 Notificar no Telegram</span>
+                            </label>
+                        </div>
+                    </div>
+                `;
+            } else if (type === "video_face_recognition") {
                 if (triggerLabel) triggerLabel.innerText = "Intervalo de Varredura da Câmera (Segundos)";
                 if (triggerInput && (!triggerInput.value || triggerInput.value.includes(":"))) triggerInput.value = "30";
                 
@@ -3845,7 +5532,27 @@
             let actionType = "telegram_alert";
             let payload = {};
 
-            if (autoType.startsWith("video_")) {
+            if (autoType === "slack_message_monitor") {
+                triggerType = "slack_new_message";
+                actionType = "slack_message_monitor";
+                const channel = document.getElementById("autoSlackChannel")?.value.trim() || "#importações";
+                const checkCam = document.getElementById("autoSlackCheckCamera") ? document.getElementById("autoSlackCheckCamera").checked : true;
+                const speakVoice = document.getElementById("autoSlackSpeakVoice") ? document.getElementById("autoSlackSpeakVoice").checked : true;
+                const notifyScreen = document.getElementById("autoSlackNotifyScreen") ? document.getElementById("autoSlackNotifyScreen").checked : true;
+                const notifyTelegram = document.getElementById("autoSlackNotifyTelegram") ? document.getElementById("autoSlackNotifyTelegram").checked : true;
+                const agentAction = document.getElementById("autoSlackAgentAction")?.value.trim() || "";
+                const cooldownVal = parseInt(document.getElementById("autoSlackCooldown")?.value ?? "60");
+
+                payload = {
+                    channel,
+                    check_camera_presence: checkCam,
+                    speak_voice: speakVoice,
+                    notify_screen: notifyScreen,
+                    notify_telegram: notifyTelegram,
+                    agent_action_prompt: agentAction,
+                    cooldown_seconds: isNaN(cooldownVal) ? 60 : cooldownVal
+                };
+            } else if (autoType.startsWith("video_")) {
                 triggerType = "interval_seconds";
                 actionType = "video_alert";
                 
@@ -3990,11 +5697,156 @@
             }
         }
 
+        function toggleAllLights(turnOn) {
+            const targetState = turnOn ? "ON" : "OFF";
+            const topics = ["saladeestar", "quartoprincipal", "cozinha", "escritorio", "garagem", "entrada"];
+            topics.forEach(t => {
+                if (client && client.connected) {
+                    client.publish(`pensador/casa/${t}/set`, targetState);
+                }
+                roomStates[t] = turnOn;
+            });
+            updateLightsSummary();
+        }
+
+        function startContinuousWatchdog() {
+            if (watchdogInterval) clearInterval(watchdogInterval);
+            watchdogInterval = setInterval(() => {
+                if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                    startVoiceRecognition();
+                }
+            }, 1200);
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                if (isSpeakingTTS || isAudioPlayingActive || speechQueue.length > 0) {
+                    silenciarAudio(true);
+                }
+            }
+        });
+
         // =========================================================================
-        // INICIALIZAÇÃO
+        // SISTEMA DE NOTIFICAÇÕES TOAST EM TEMPO REAL & SÍNTESE DE VOZ
         // =========================================================================
+        const activeToastIds = new Set();
+        let screenNotifPollerInterval = null;
+
+        async function checkUnreadScreenNotifications() {
+            const token = authToken || localStorage.getItem("smartHomeToken") || "";
+            if (!token) return;
+
+            try {
+                const res = await fetch("/api/user/notifications/unread", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (!res.ok) return;
+
+                const data = await res.json();
+                const unread = data.notifications || [];
+                if (unread.length === 0) return;
+
+                unread.forEach(notif => {
+                    renderScreenToastNotification(notif);
+                    
+                    // Se houver instrução de fala por voz (quando usuário está na frente do computador)
+                    if (notif.metadata && (notif.metadata.speak || notif.metadata.spoken_phrase)) {
+                        const phrase = notif.metadata.spoken_phrase || notif.message;
+                        if (phrase && typeof speakResponse === "function") {
+                            speakResponse(phrase);
+                        }
+                    }
+                });
+            } catch (err) {
+                // Silencioso em caso de instabilidade de rede temporária
+            }
+        }
+
+        function renderScreenToastNotification(notif) {
+            const container = document.getElementById("screenToastContainer");
+            if (!container) return;
+
+            const toastId = "toast_" + (notif.id || Math.random().toString(36).substring(2, 9));
+            if (activeToastIds.has(toastId)) return;
+            activeToastIds.add(toastId);
+
+            const toast = document.createElement("div");
+            toast.id = toastId;
+            toast.className = "pointer-events-auto bg-zinc-900/95 border border-amber-500/50 backdrop-blur-xl shadow-2xl shadow-amber-500/10 rounded-2xl p-4 text-zinc-100 flex gap-3.5 items-start transform transition-all duration-300 translate-x-full opacity-0";
+            
+            const icon = notif.icon || "💬";
+            const title = notif.title || "Nova Notificação";
+            const message = notif.message || "";
+            const source = notif.source ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-medium">${notif.source.toUpperCase()}</span>` : "";
+
+            toast.innerHTML = `
+                <div class="text-2xl p-2 rounded-xl bg-amber-500/15 border border-amber-500/30 flex-shrink-0 flex items-center justify-center">
+                    ${icon}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <h4 class="text-xs font-bold text-zinc-100 truncate">${title}</h4>
+                        ${source}
+                    </div>
+                    <p class="text-xs text-zinc-300 leading-relaxed break-words">${message}</p>
+                </div>
+                <button onclick="dismissScreenToast('${toastId}')" class="text-zinc-500 hover:text-zinc-200 transition text-sm flex-shrink-0 p-1">
+                    ✕
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            // Animação suave de entrada
+            requestAnimationFrame(() => {
+                toast.classList.remove("translate-x-full", "opacity-0");
+                toast.classList.add("translate-x-0", "opacity-100");
+            });
+
+            // Auto-dismiss após 8 segundos
+            setTimeout(() => {
+                dismissScreenToast(toastId);
+            }, 8000);
+        }
+
+        function dismissScreenToast(toastId) {
+            const toast = document.getElementById(toastId);
+            if (!toast) return;
+            toast.classList.add("translate-x-full", "opacity-0");
+            setTimeout(() => {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+                activeToastIds.delete(toastId);
+            }, 300);
+        }
+
+        // Inicia o poller a cada 3.5 segundos
+        if (screenNotifPollerInterval) clearInterval(screenNotifPollerInterval);
+        screenNotifPollerInterval = setInterval(checkUnreadScreenNotifications, 3500);
+
+        // Verifica inicialização na sessão ou agenda auto-início
+        checkAndInitStartupModal();
+
+        document.addEventListener("click", unlockAudioContext, { once: true });
+        document.addEventListener("keydown", unlockAudioContext, { once: true });
+
+        function checkAndPlayPendingSpeech() {
+            try {
+                const pending = sessionStorage.getItem("smartHomePendingSpeech") || localStorage.getItem("smartHomePendingSpeech");
+                if (pending) {
+                    sessionStorage.removeItem("smartHomePendingSpeech");
+                    localStorage.removeItem("smartHomePendingSpeech");
+                    setTimeout(() => {
+                        appendAgentMessageToChat(`🤖 ${pending}`);
+                        speakResponse(pending);
+                    }, 400);
+                }
+            } catch (e) { }
+        }
+
         document.addEventListener("DOMContentLoaded", () => {
+            checkAndInitStartupModal();
             autoUnlockAudioOnLoad();
+            updateAgentNamesInUI();
             syncUserAiConfig();
 
             const tag = document.getElementById("activeModelTag");
@@ -4003,14 +5855,18 @@
             updateAlwaysListenUI();
             fetchAgentStatus();
             loadChatHistoryFeed();
+            syncHouseConfigFromDatabase();
             connectMQTT();
+            checkUnreadScreenNotifications();
+            checkAndPlayPendingSpeech();
 
             if (alwaysListen) {
-                setTimeout(startVoiceRecognition, 1000);
+                startContinuousWatchdog();
             }
         });
     </script>
     <script src="/guide_modal.js"></script>
+    <script src="/voice_agent.js"></script>
 
 </body>
 

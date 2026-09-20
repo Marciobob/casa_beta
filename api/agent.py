@@ -81,6 +81,12 @@ try:
         set_memory_context,
         trigger_background_continuous_learning
     )
+    from api.tools.interface_tools import (
+        navegar_para_tela,
+        abrir_modal,
+        fechar_modal,
+        alternar_aba_interface
+    )
     from api.database import db_get_google_credentials, db_get_camera_config, db_get_recent_important_memories_summary, db_get_ai_config
 except ImportError:
     from logger import agent_logger
@@ -137,6 +143,12 @@ except ImportError:
         esquecer_memoria,
         set_memory_context,
         trigger_background_continuous_learning
+    )
+    from tools.interface_tools import (
+        navegar_para_tela,
+        abrir_modal,
+        fechar_modal,
+        alternar_aba_interface
     )
     from database import db_get_google_credentials, db_get_camera_config, db_get_recent_important_memories_summary, db_get_ai_config
 
@@ -335,7 +347,11 @@ def get_tool_friendly_status(tool_name: str) -> str:
         "perguntar_e_executar_antigravity": "Delegando análise e execução ao Antigravity...",
         "investigar_pessoa_osint": "Realizando investigação OSINT completa e sintetizando dossiê com o Antigravity...",
         "buscar_usuario_redes_sociais_sherlock": "Rastreando perfis nas redes sociais com Sherlock...",
-        "verificar_email_osint_holehe": "Verificando contas vinculadas ao e-mail com Holehe..."
+        "verificar_email_osint_holehe": "Verificando contas vinculadas ao e-mail com Holehe...",
+        "navegar_para_tela": "Navegando para a tela solicitada...",
+        "abrir_modal": "Abrindo janela na interface do usuário...",
+        "fechar_modal": "Fechando janela/modal da interface...",
+        "alternar_aba_interface": "Alternando aba na interface..."
     }
     return status_map.get(tool_name, "Processando solicitação com ferramentas...")
 
@@ -475,7 +491,11 @@ def processar_comando_agente(
         controlar_volume_sistema,
         controlar_brilho_tela,
         abrir_navegador_sistema,
-        fechar_navegador_sistema
+        fechar_navegador_sistema,
+        navegar_para_tela,
+        abrir_modal,
+        fechar_modal,
+        alternar_aba_interface
     ]
     tool_map = {t.name: t for t in tools}
     
@@ -572,6 +592,26 @@ Suas capacidades e ferramentas disponíveis:
    - 'investigar_pessoa_osint': Use SEMPRE que o usuário pedir para investigar uma pessoa, buscar dados de alguém, levantar informações sobre um perfil ou @ do Instagram (ex: 'investiga o @fulano', 'pesquise sobre o Marcio Silva no Instagram @marciobob', 'faça um levantamento OSINT sobre tal pessoa', 'veja tudo o que tem na internet sobre fulano'). Ela aciona ferramentas como Sherlock, Holehe, busca web direcionada e sintetiza um dossiê analítico completo através do Antigravity.
    - 'buscar_usuario_redes_sociais_sherlock': Use quando o objetivo for especificamente rastrear e listar em quais redes sociais ou plataformas um username/@ possui perfil ativo usando o Sherlock do Kali Linux.
    - 'verificar_email_osint_holehe': Use quando o objetivo for especificamente verificar em quais serviços e plataformas da internet um e-mail possui conta cadastrada usando o Holehe.
+21. CONTROLE TOTAL & NAVEGAÇÃO AUTÔNOMA DA INTERFACE VISUAL (TELAS, ABAS & MODAIS):
+    - 'navegar_para_tela': Use SEMPRE que o usuário pedir para mudar de tela, ir para outro dashboard ou abrir uma página do sistema:
+      * 'dashboard_principal' (ou '/', 'agente', 'chat', 'inicio', 'painel principal') -> Direciona para o Painel Principal do Agente
+      * 'dashboard_casa' (ou '/casa.html', 'casa', 'smart home', 'cômodos', 'luzes') -> Direciona para o Dashboard da Casa Inteligente
+      * 'avatar' (ou '/avatar.html', 'assistente visual', 'tela do avatar', 'avatar 2d', 'live avatar') -> Direciona para a Tela do Avatar 2D em Tempo Real
+      * 'configuracoes' (ou '/config/config.html', 'config', 'ajustes', 'broker') -> Direciona para a tela de Configurações da Casa
+      * 'perfil' (ou '/profile.html', 'meu perfil', 'morador', 'dados') -> Direciona para a tela de Perfil do Usuário
+      Exemplos: "Vá para o avatar", "Abra a tela do avatar", "Vá para o dashboard da casa", "Mude para a tela da casa", "Vá para o dashboard principal", "Volte para o início", "Abra as configurações", "Vá para o meu perfil".
+    - 'abrir_modal': Use SEMPRE que o usuário pedir para abrir um modal ou janela suspensa na tela:
+      * 'automacoes' (opcional: aba_ou_topico='list' para listar ou 'new' para cadastrar nova regra) -> Abre o Gerenciador de Automações
+      * 'chave_api' (ou 'configuracoes_ia', 'modelo', 'voz') -> Abre o modal de Configuração de IA & Chave API
+      * 'guia' (opcional: aba_ou_topico com tópico como 'visao_geral', 'cameras', 'reconhecimento_facial', 'automacoes', 'slack', 'telegram', 'google', 'sistema', 'musica', 'osint', 'antigravity', 'perfil') -> Abre o Guia Interativo
+      * 'webcam' -> Abre a captura de selfie/foto da webcam
+      * 'adicionar_comodo' -> Abre o modal de novo cômodo
+      * 'camera_fullscreen' -> Abre a câmera em tela cheia
+      Exemplos: "Abra o modal de automações", "Abra a tela de criar nova automação", "Abra as configurações de chave API", "Abra o guia do sistema", "Abra a câmera".
+    - 'fechar_modal': Use SEMPRE que o usuário pedir para fechar uma janela modal aberta na tela:
+      * Aceita 'todos', 'automacoes', 'chave_api', 'guia', 'webcam', 'adicionar_comodo'
+      Exemplos: "Feche o modal", "Feche as automações", "Feche a janela", "Feche as configurações".
+    - 'alternar_aba_interface': Use quando o usuário pedir para mudar de aba dentro de um modal (ex: 'list' para lista de automações, 'new' para criar nova regra).
 
 REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO VISUAL:
 - Formate sua resposta de maneira elegante e organizada para visualização na tela do chat utilizando Markdown bem estruturado:

@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎭 Avatar 2D em Tempo Real • Sexta-Feira AI</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81'
+                        }
+                    },
+                    animation: {
+                        'spin-slow': 'spin 12s linear infinite',
+                        'spin-reverse': 'spinReverse 16s linear infinite',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 4s ease-in-out infinite',
+                        'stream-in': 'streamSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+                    },
+                    keyframes: {
+                        spinReverse: {
+                            '0%': { transform: 'rotate(360deg)' },
+                            '100%': { transform: 'rotate(0deg)' }
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-10px)' }
+                        },
+                        streamSlideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(24px) scale(0.96)' },
+                            '100%': { opacity: '1', transform: 'translateY(0) scale(1)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Outfit', sans-serif;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.6);
+        }
+
+        /* Avatar 2D Animation Classes */
+        .avatar-breathing {
+            animation: avatarBreath 3.6s ease-in-out infinite;
+        }
+        @keyframes avatarBreath {
+            0%, 100% {
+                transform: scale(1) translateY(0);
+            }
+            50% {
+                transform: scale(1.025) translateY(-6px);
+            }
+        }
+
+        .avatar-speaking {
+            animation: avatarSpeakHead 0.28s ease-in-out infinite alternate;
+        }
+        @keyframes avatarSpeakHead {
+            0% {
+                transform: translateY(0) scale(1.02) rotate(0deg);
+            }
+            100% {
+                transform: translateY(-4px) scale(1.035) rotate(0.6deg);
+            }
+        }
+
+        .avatar-listening {
+            animation: avatarListenGlow 1.8s ease-in-out infinite alternate;
+        }
+        @keyframes avatarListenGlow {
+            0% {
+                transform: scale(1.01) translateY(-2px);
+                filter: drop-shadow(0 0 15px rgba(52, 211, 153, 0.5));
+            }
+            100% {
+                transform: scale(1.03) translateY(-4px);
+                filter: drop-shadow(0 0 35px rgba(52, 211, 153, 0.85));
+            }
+        }
+
+        .avatar-thinking {
+            animation: avatarThinkGlow 1.4s ease-in-out infinite alternate;
+        }
+        @keyframes avatarThinkGlow {
+            0% {
+                transform: scale(1) rotate(-0.5deg);
+                filter: drop-shadow(0 0 15px rgba(245, 158, 11, 0.5));
+            }
+            100% {
+                transform: scale(1.02) rotate(0.5deg);
+                filter: drop-shadow(0 0 35px rgba(168, 85, 247, 0.85));
+            }
+        }
+
+        /* Dynamic Mouth Morphing for 2D Avatar */
+        .avatar-mouth {
+            transition: transform 0.08s ease-out, height 0.08s ease-out, opacity 0.1s ease;
+        }
+
+        /* Live Stream Chat Glass */
+        .glass-stream-panel {
+            background: linear-gradient(135deg, rgba(18, 18, 24, 0.82) 0%, rgba(10, 10, 15, 0.92) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-message-user {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.25) 0%, rgba(99, 102, 241, 0.15) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.35);
+        }
+
+        .glass-message-agent {
+            background: linear-gradient(135deg, rgba(24, 24, 32, 0.85) 0%, rgba(15, 15, 22, 0.9) 100%);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+
+        /* Soundwave Equalizer Bars */
+        .eq-bar {
+            transition: height 0.06s ease;
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white min-h-screen overflow-x-hidden relative selection:bg-indigo-500 selection:text-white">
+
+    <!-- ========================================================================= -->
+    <!-- BACKGROUND EFFECTS: Cyberpunk Glows & Ambient Particles -->
+    <!-- ========================================================================= -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] bg-indigo-600/15 rounded-full blur-[140px]"></div>
+        <div class="absolute bottom-10 left-10 w-[450px] h-[450px] bg-purple-600/10 rounded-full blur-[120px]"></div>
+        <div class="absolute top-20 right-10 w-[350px] h-[350px] bg-cyan-600/10 rounded-full blur-[100px]"></div>
+        <!-- Grid Holográfico Sutil -->
+        <div class="absolute inset-0 bg-[linear-gradient(to_right,#1f293710_1px,transparent_1px),linear-gradient(to_bottom,#1f293710_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TOP HEADER: Navegação & Status do Agente -->
+    <!-- ========================================================================= -->
+    <header class="relative z-30 max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800/60 backdrop-blur-md">
+        <div class="flex items-center gap-3">
+            <div class="relative w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                <span class="text-xl">🎭</span>
+                <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-zinc-950 animate-pulse"></span>
+            </div>
+            <div>
+                <h1 class="text-lg font-black tracking-tight flex items-center gap-2">
+                    <span id="headerAgentName">Sexta-Feira AI</span>
+                    <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-indigo-950/80 border border-indigo-500/40 text-indigo-300 font-bold">Avatar 2D Live</span>
+                </h1>
+                <p class="text-xs text-zinc-400 flex items-center gap-1.5">
+                    <span id="avatarStateBadge" class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span id="avatarStateText" class="font-mono text-[11px] text-zinc-300">IDLE • Aguardando comando</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Botões de Navegação & Acesso Rápido -->
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+            <!-- Retornar ao Dashboard do Agente -->
+            <a href="/" class="bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 hover:border-indigo-500/50 text-zinc-300 hover:text-white px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                <span>💬</span>
+                <span>Dashboard Principal</span>
+            </a>
+
+            <!-- Ir para a Casa -->
+            <a href="/casa.html" class="bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 hover:border-indigo-500/50 text-zinc-300 hover:text-white px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                <span>🏠</span>
+                <span>Smart Home</span>
+            </a>
+
+            <!-- Ir para Perfil -->
+            <a href="/profile.html" class="bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 hover:border-indigo-500/50 text-zinc-300 hover:text-white px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                <span>👤</span>
+                <span>Perfil</span>
+            </a>
+
+            <!-- Modal Configurações do Agente & Avatar -->
+            <button onclick="openVoiceApiKeyModal()" title="Configurações da IA e Avatar" class="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 text-indigo-200 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-indigo-900/20 cursor-pointer">
+                <span>⚙️</span>
+                <span>Configurar IA & Imagem</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ========================================================================= -->
+    <!-- PALCO CENTRAL DO AVATAR 2D -->
+    <!-- ========================================================================= -->
+    <main class="relative z-20 flex-1 flex flex-col items-center justify-center p-4 min-h-[calc(100vh-140px)]">
+
+        <!-- Stage Container -->
+        <div class="relative w-full max-w-xl flex flex-col items-center justify-center py-6">
+
+            <!-- Anéis Holográficos de Energia -->
+            <div id="hologramRing1" class="absolute w-[360px] sm:w-[460px] h-[360px] sm:h-[460px] rounded-full border border-indigo-500/20 animate-spin-slow pointer-events-none"></div>
+            <div id="hologramRing2" class="absolute w-[400px] sm:w-[500px] h-[400px] sm:h-[500px] rounded-full border border-purple-500/20 animate-spin-reverse pointer-events-none"></div>
+            <div id="hologramRing3" class="absolute w-[320px] sm:w-[420px] h-[320px] sm:h-[420px] rounded-full border-2 border-dashed border-cyan-500/20 animate-spin-slow pointer-events-none" style="animation-duration: 24s;"></div>
+
+            <!-- Avatar 2D Frame & Image Canvas -->
+            <div id="avatarStageFrame" class="relative z-10 w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 rounded-full p-2.5 bg-gradient-to-b from-indigo-500/30 via-purple-500/20 to-transparent shadow-[0_0_60px_rgba(99,102,241,0.3)] transition-all duration-500">
+                
+                <!-- Borda Neon Dinâmica -->
+                <div id="avatarHalo" class="absolute inset-0 rounded-full border-2 border-indigo-500/50 shadow-[0_0_30px_rgba(99,102,241,0.4)] transition-all duration-300"></div>
+
+                <!-- Avatar Core Image Container (com transformações 2D) -->
+                <div id="avatarImageContainer" class="relative w-full h-full rounded-full overflow-hidden bg-zinc-950/90 border border-indigo-500/30 flex items-center justify-center avatar-breathing">
+                    
+                    <!-- Imagem 2D do Avatar -->
+                    <img id="avatarImage" src="/static/avatars/cyber_hood_green.png"
+                        alt="Avatar 2D" class="w-full h-full object-cover object-center select-none transition-transform duration-150">
+                    
+                    <!-- Fallback Emoji (se não houver imagem) -->
+                    <div id="avatarEmojiFallback" class="hidden absolute inset-0 flex items-center justify-center text-7xl select-none bg-gradient-to-tr from-indigo-950 via-purple-950 to-zinc-950">
+                        🤖
+                    </div>
+
+                    <!-- Overlay de Boca Animada 2D (Lip-sync por Envelope de Áudio) -->
+                    <div id="avatarMouthOverlay" class="absolute bottom-[28%] left-1/2 -translate-x-1/2 w-8 h-2 rounded-full bg-pink-500/60 blur-[1px] avatar-mouth opacity-0 pointer-events-none transform origin-center shadow-[0_0_10px_rgba(244,114,182,0.8)]"></div>
+
+                    <!-- Overlay de Olhos / Piscada 2D -->
+                    <div id="avatarEyelidOverlay" class="absolute inset-0 bg-zinc-950/80 pointer-events-none opacity-0 transition-opacity duration-75"></div>
+
+                    <!-- Holographic Scanline Overlay -->
+                    <div class="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.35)_51%)] bg-[size:100%_4px] pointer-events-none opacity-40"></div>
+                </div>
+
+                <!-- Badge Flutuante de Expressão / Estado -->
+                <div id="avatarStateFloatingBadge" class="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full bg-zinc-900/90 border border-indigo-500/40 text-xs font-mono font-bold tracking-wider text-indigo-300 shadow-xl flex items-center gap-2 whitespace-nowrap">
+                    <span id="floatingStateIcon" class="text-sm">🤖</span>
+                    <span id="floatingStateLabel">SISTEMA PRONTO</span>
+                </div>
+            </div>
+
+            <!-- Soundwave Equalizer Bars (Abaixo do Avatar) -->
+            <div id="soundwaveEqContainer" class="relative z-10 mt-8 flex items-center justify-center gap-1.5 h-10 w-64 px-4 py-2 rounded-2xl bg-zinc-900/80 border border-zinc-800/80 backdrop-blur-md shadow-lg">
+                <span class="text-[11px] font-mono font-bold text-zinc-500 mr-1.5">VOZ:</span>
+                <div class="eq-bar w-1.5 h-1.5 rounded-full bg-indigo-500" id="eq1"></div>
+                <div class="eq-bar w-1.5 h-1.5 rounded-full bg-indigo-400" id="eq2"></div>
+                <div class="eq-bar w-1.5 h-1.5 rounded-full bg-purple-500" id="eq3"></div>
+                <div class="eq-bar w-1.5 h-1.5 rounded-full bg-purple-400" id="eq4"></div>
+                <div class="eq-bar w-1.5 h-1.5 rounded-full bg-pink-500" id="eq5"></div>
+                <div class="eq-bar w-1.5 h-1.5 rounded-full bg-pink-400" id="eq6"></div>
+                <div class="eq-bar w-1.5 h-1.5 rounded-full bg-cyan-400" id="eq7"></div>
+                <div class="eq-bar w-1.5 h-1.5 rounded-full bg-emerald-400" id="eq8"></div>
+            </div>
+
+            <!-- Botão de Microfone Central & Controle de Escuta -->
+            <div class="relative z-10 mt-6 flex flex-wrap items-center justify-center gap-3">
+                <button id="avatarMicBtn" onclick="toggleAvatarVoiceListen()"
+                    class="group px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 bg-[length:200%_auto] hover:bg-[position:right_center] transition-all duration-300 font-bold text-sm text-white shadow-xl shadow-indigo-600/30 flex items-center gap-2.5 border border-indigo-400/40 transform active:scale-95 cursor-pointer">
+                    <span id="avatarMicIcon" class="text-base group-hover:scale-125 transition duration-300">🎙️</span>
+                    <span id="avatarMicLabel">Falar com o Agente</span>
+                </button>
+
+                <button id="alwaysListenToggleBtn" onclick="toggleAlwaysListenMode()"
+                    class="px-4 py-3 rounded-2xl bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white transition flex items-center gap-2 cursor-pointer">
+                    <span id="alwaysListenLed" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Wake Word: <b id="alwaysListenWordTag" class="text-indigo-400">"Sexta-Feira"</b></span>
+                </button>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- LIVE CHAT STREAM OVERLAY (Canto Inferior Direito) -->
+    <!-- ========================================================================= -->
+    <div id="liveStreamOverlay" class="fixed bottom-6 right-6 z-40 w-[90vw] sm:w-96 max-w-[420px] flex flex-col justify-end pointer-events-none transition-all duration-300">
+        
+        <!-- Header do Live Chat Stream -->
+        <div class="glass-stream-panel rounded-t-2xl p-3 flex items-center justify-between border-b border-white/5 pointer-events-auto shadow-2xl">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+                <span class="text-xs font-black tracking-wider uppercase text-zinc-200 flex items-center gap-1.5">
+                    <span>🔴 Live Stream Chat</span>
+                </span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button onclick="clearLiveChatFeed()" title="Limpar Mensagens" class="text-[11px] text-zinc-400 hover:text-zinc-200 px-2 py-0.5 rounded-md hover:bg-white/5 transition">
+                    🧹 Limpar
+                </button>
+                <button onclick="toggleStreamChatCollapse()" id="btnCollapseChat" title="Minimizar" class="text-zinc-400 hover:text-zinc-200 p-1 text-xs">
+                    ▼
+                </button>
+            </div>
+        </div>
+
+        <!-- Feed de Mensagens que Sobem Suavemente -->
+        <div id="liveStreamChatBody" class="glass-stream-panel rounded-b-2xl p-3 space-y-3 overflow-y-auto max-h-[340px] pointer-events-auto transition-all duration-300">
+            
+            <!-- Mensagem Inicial de Boas-Vindas -->
+            <div class="glass-message-agent rounded-2xl p-3 text-xs leading-relaxed animate-stream-in text-zinc-200 shadow-md">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm">🤖</span>
+                    <span class="font-bold text-indigo-400" id="streamAgentNameTag">Sexta-Feira</span>
+                    <span class="text-[10px] text-zinc-500 font-mono ml-auto" id="initialMsgTime">agora</span>
+                </div>
+                <p>Olá! Sou seu assistente visual em tempo real. Você pode falar comigo pelo microfone ou digitar sua mensagem abaixo.</p>
+            </div>
+
+            <div id="streamMessagesContainer" class="space-y-3">
+                <!-- Novas mensagens serão inseridas aqui dinamicamente com animação suave de subida -->
+            </div>
+
+            <!-- Indicador "Pensando..." / "Digitando..." -->
+            <div id="streamTypingIndicator" class="hidden glass-message-agent rounded-2xl p-2.5 text-xs text-indigo-300 flex items-center gap-2 animate-pulse">
+                <span class="text-sm animate-spin">🧠</span>
+                <span class="font-mono text-[11px]">Processando resposta...</span>
+            </div>
+
+            <!-- Input de Texto Rápido para Envio Manual -->
+            <form onsubmit="handleManualStreamChatSubmit(event)" class="mt-2 pt-2 border-t border-white/5 flex items-center gap-2">
+                <input id="streamChatInput" type="text" placeholder="Digite uma mensagem..."
+                    class="flex-1 bg-zinc-900/90 border border-zinc-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs focus:outline-none text-white placeholder-zinc-500 transition">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition flex-shrink-0 cursor-pointer shadow-md shadow-indigo-600/20">
+                    ➤
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL DE CONFIGURAÇÕES DE IA, MODELO, VOZ & IMAGEM DO AVATAR -->
+    <!-- ========================================================================= -->
+    <div id="apiKeyModal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div
+            class="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto text-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold flex items-center gap-2 text-white">
+                    <span>✨</span>
+                    <span>Configurações & Visual do Avatar</span>
+                </h3>
+                <button onclick="closeVoiceApiKeyModal()" class="text-zinc-400 hover:text-white cursor-pointer">✕</button>
+            </div>
+            <p class="text-xs text-zinc-400 mb-4">
+                Personalize o nome, voz, imagem do avatar 2D e integrações de IA do assistente.
+            </p>
+
+            <div class="space-y-4">
+                
+                <!-- SEÇÃO AVATAR 2D (IMAGEM DO AGENTE) -->
+                <div class="p-3.5 bg-zinc-950/60 border border-indigo-500/30 rounded-2xl">
+                    <label class="block text-xs font-bold text-indigo-300 mb-2 flex items-center gap-1.5">
+                        <span>🎭</span> Imagem / Foto do Avatar 2D
+                    </label>
+                    <div class="flex items-center gap-3 mb-2.5">
+                        <div class="relative w-14 h-14 rounded-2xl overflow-hidden bg-zinc-800 border-2 border-indigo-500/40 flex-shrink-0 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                            <img id="modalAvatarPreviewImg" src="" alt="Avatar" class="w-full h-full object-cover hidden">
+                            <span id="modalAvatarFallbackEmoji" class="text-2xl">🤖</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <input id="modalAvatarUrlInput" type="text" placeholder="URL da imagem (https://... ou /static/...)"
+                                oninput="handleAvatarUrlChange(this.value)"
+                                class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-mono text-white mb-1.5">
+                            <div class="flex items-center gap-2">
+                                <label class="text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1 rounded-lg cursor-pointer transition flex items-center gap-1">
+                                    <span>📁 Upload Imagem</span>
+                                    <input type="file" id="modalAvatarFileInput" accept="image/*" class="hidden" onchange="handleAvatarFileUpload(event)">
+                                </label>
+                                <button type="button" onclick="clearAvatarImage()" class="text-[11px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 px-2.5 py-1 rounded-lg border border-zinc-700 transition">
+                                    Restaurar Padrão
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Presets Rápidos -->
+                    <div class="flex flex-wrap items-center gap-1.5 text-[10px]">
+                        <span class="text-zinc-500 font-semibold">Presets:</span>
+                        <button type="button" onclick="selectAvatarPreset('/static/avatars/cyber_hood_green.png')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-500/40">🤖 Cyber Hood (Verde)</button>
+                        <button type="button" onclick="selectAvatarPreset('/static/avatars/cyber_hood_smile.png')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-500/40">😸 Cyber Smile</button>
+                        <button type="button" onclick="selectAvatarPreset('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2 py-0.5 rounded-lg border border-zinc-700">Cyber Orb</button>
+                        <button type="button" onclick="selectAvatarPreset('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2 py-0.5 rounded-lg border border-zinc-700">Assistente IA</button>
+                        <button type="button" onclick="selectAvatarPreset('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80')"
+                            class="bg-zinc-800 hover:bg-zinc-700 text-indigo-300 px-2 py-0.5 rounded-lg border border-zinc-700">Jarvis Tech</button>
+                    </div>
+                </div>
+
+                <!-- NOME DO AGENTE -->
+                <div>
+                    <label class="block text-xs font-bold text-zinc-300 mb-1">Nome do Agente (Palavra de Ativação)</label>
+                    <input id="modalAgentNameInput" type="text" placeholder="Sexta-Feira"
+                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-semibold text-white">
+                </div>
+
+                <!-- MODELO DE IA -->
+                <div>
+                    <label class="block text-xs font-bold text-zinc-300 mb-1">Modelo de IA</label>
+                    <input id="modalAiModelInput" list="modalAiSuggestions" type="text"
+                        placeholder="gemini-2.5-flash-lite"
+                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-mono text-white">
+                    <datalist id="modalAiSuggestions">
+                        <option value="gemini-2.5-flash-lite">
+                        <option value="gemini-2.5-flash">
+                        <option value="gemini-2.0-flash">
+                        <option value="gpt-4o-mini">
+                        <option value="gpt-4o">
+                    </datalist>
+                </div>
+
+                <!-- CHAVE DE API -->
+                <div>
+                    <label class="block text-xs font-bold text-zinc-300 mb-1">Chave de API (Gemini ou OpenAI)</label>
+                    <input id="modalApiKeyInput" type="password" placeholder="AIzaSy... ou sk-..."
+                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-mono text-white">
+                </div>
+
+                <!-- VOZ DO AGENTE -->
+                <div>
+                    <label class="block text-xs font-bold text-zinc-300 mb-1">Voz do Agente (TTS Neural)</label>
+                    <select id="modalVoiceSelect"
+                        class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-medium text-white">
+                        <option value="pt-BR-FranciscaNeural">👩 Francisca (Feminina - Suave) ⭐ Mais Natural</option>
+                        <option value="pt-BR-ThalitaMultilingualNeural">👧 Thalita (Feminina - Jovem e Expressiva)</option>
+                        <option value="pt-BR-AntonioNeural">👨 Antonio (Masculina - Natural e Confiante)</option>
+                        <option value="browser-native">🌐 Voz do Navegador (Offline)</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <!-- BOTÕES DO MODAL -->
+            <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-zinc-800">
+                <button type="button" onclick="closeVoiceApiKeyModal()"
+                    class="px-4 py-2.5 rounded-xl border border-zinc-700 hover:bg-zinc-800 text-xs font-semibold transition cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="button" id="saveApiKeyBtn" onclick="saveAvatarSettingsConfig()"
+                    class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 transition cursor-pointer flex items-center gap-1.5">
+                    <span>💾</span>
+                    <span>Salvar Configurações</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- SCRIPTS: 2D Avatar Animation Engine, Live Chat Stream & Voice Loop -->
+    <!-- ========================================================================= -->
+    <script>
+        // ==========================================
+        // ESTADO GLOBAL DO AVATAR & SISTEMA
+        // ==========================================
+        const DEFAULT_AVATAR_IMAGE = "/static/avatars/cyber_hood_green.png";
+        
+        let currentAvatarState = "idle"; // "idle" | "listening" | "thinking" | "speaking"
+        let alwaysListen = localStorage.getItem("alwaysListenSmartHome") !== "false";
+        let isListening = false;
+        let isSpeakingTTS = false;
+        let isProcessingCommand = false;
+        let isAudioPlayingActive = false;
+        let speechQueue = [];
+        let isProcessingQueue = false;
+        let currentPlayingAudio = null;
+        let recognitionInstance = null;
+        let sharedAudioContext = null;
+        let audioAnalyserNode = null;
+        let audioDataArray = null;
+        let lipSyncAnimFrame = null;
+        let blinkIntervalTimer = null;
+        let watchdogInterval = null;
+        let wakeWordTimer = null;
+
+        function getAuthToken() {
+            return localStorage.getItem("smartHomeToken") || "";
+        }
+        function getAgentName() {
+            return localStorage.getItem("smartHomeAgentName") || "Sexta-Feira";
+        }
+        function getAiModel() {
+            return localStorage.getItem("smartHomeAiModel") || "gemini-2.5-flash-lite";
+        }
+        function getApiKey() {
+            return localStorage.getItem("geminiApiKey") || "";
+        }
+        function getSelectedVoice() {
+            return localStorage.getItem("smartHomeVoice") || "pt-BR-FranciscaNeural";
+        }
+        function getAvatarImage() {
+            return localStorage.getItem("smartHomeAvatarImage") || DEFAULT_AVATAR_IMAGE;
+        }
+
+        // ==========================================
+        // RENDERIZAÇÃO E ANIMAÇÃO 2D DO AVATAR
+        // ==========================================
+        function setAvatarState(state) {
+            currentAvatarState = state;
+            const container = document.getElementById("avatarImageContainer");
+            const halo = document.getElementById("avatarHalo");
+            const floatingBadge = document.getElementById("avatarStateFloatingBadge");
+            const floatingIcon = document.getElementById("floatingStateIcon");
+            const floatingLabel = document.getElementById("floatingStateLabel");
+            const stateBadge = document.getElementById("avatarStateBadge");
+            const stateText = document.getElementById("avatarStateText");
+            const mouth = document.getElementById("avatarMouthOverlay");
+
+            if (!container) return;
+
+            // Remove todas as classes de animação de estado
+            container.classList.remove("avatar-breathing", "avatar-listening", "avatar-thinking", "avatar-speaking");
+
+            switch (state) {
+                case "listening":
+                    container.classList.add("avatar-listening");
+                    if (halo) halo.className = "absolute inset-0 rounded-full border-2 border-emerald-400 shadow-[0_0_40px_rgba(52,211,153,0.7)] transition-all duration-300 animate-pulse";
+                    if (floatingIcon) floatingIcon.innerText = "👂";
+                    if (floatingLabel) floatingLabel.innerText = "OUVINDO VOCÊ...";
+                    if (floatingBadge) floatingBadge.className = "absolute -bottom-3 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full bg-emerald-950/90 border border-emerald-500/50 text-xs font-mono font-bold tracking-wider text-emerald-300 shadow-xl flex items-center gap-2 whitespace-nowrap animate-pulse";
+                    if (stateBadge) stateBadge.className = "inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+                    if (stateText) stateText.innerText = "LISTENING • Ouvindo comando de voz";
+                    if (mouth) mouth.style.opacity = "0";
+                    break;
+
+                case "thinking":
+                    container.classList.add("avatar-thinking");
+                    if (halo) halo.className = "absolute inset-0 rounded-full border-2 border-purple-500 shadow-[0_0_45px_rgba(168,85,247,0.7)] transition-all duration-300 animate-pulse";
+                    if (floatingIcon) floatingIcon.innerText = "🧠";
+                    if (floatingLabel) floatingLabel.innerText = "PENSANDO...";
+                    if (floatingBadge) floatingBadge.className = "absolute -bottom-3 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full bg-purple-950/90 border border-purple-500/50 text-xs font-mono font-bold tracking-wider text-purple-300 shadow-xl flex items-center gap-2 whitespace-nowrap animate-pulse";
+                    if (stateBadge) stateBadge.className = "inline-block w-2 h-2 rounded-full bg-purple-400 animate-pulse";
+                    if (stateText) stateText.innerText = "THINKING • Processando com LangChain";
+                    if (mouth) mouth.style.opacity = "0";
+                    break;
+
+                case "speaking":
+                    container.classList.add("avatar-speaking");
+                    if (halo) halo.className = "absolute inset-0 rounded-full border-2 border-pink-500 shadow-[0_0_50px_rgba(236,72,153,0.75)] transition-all duration-300";
+                    if (floatingIcon) floatingIcon.innerText = "🗣️";
+                    if (floatingLabel) floatingLabel.innerText = "FALANDO";
+                    if (floatingBadge) floatingBadge.className = "absolute -bottom-3 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full bg-pink-950/90 border border-pink-500/50 text-xs font-mono font-bold tracking-wider text-pink-300 shadow-xl flex items-center gap-2 whitespace-nowrap";
+                    if (stateBadge) stateBadge.className = "inline-block w-2 h-2 rounded-full bg-pink-400 animate-pulse";
+                    if (stateText) stateText.innerText = "SPEAKING • Sintetizando resposta em tempo real";
+                    if (mouth) mouth.style.opacity = "1";
+                    break;
+
+                case "idle":
+                default:
+                    container.classList.add("avatar-breathing");
+                    if (halo) halo.className = "absolute inset-0 rounded-full border-2 border-indigo-500/50 shadow-[0_0_30px_rgba(99,102,241,0.4)] transition-all duration-300";
+                    if (floatingIcon) floatingIcon.innerText = "🤖";
+                    if (floatingLabel) floatingLabel.innerText = "SISTEMA PRONTO";
+                    if (floatingBadge) floatingBadge.className = "absolute -bottom-3 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full bg-zinc-900/90 border border-indigo-500/40 text-xs font-mono font-bold tracking-wider text-indigo-300 shadow-xl flex items-center gap-2 whitespace-nowrap";
+                    if (stateBadge) stateBadge.className = "inline-block w-2 h-2 rounded-full bg-emerald-400";
+                    if (stateText) stateText.innerText = "IDLE • Aguardando comando";
+                    if (mouth) mouth.style.opacity = "0";
+                    resetEqualizerBars();
+                    break;
+            }
+        }
+
+        // Sistema de Piscada Orgânica (2D Eye Blink)
+        function triggerOrganicBlink() {
+            const eyelid = document.getElementById("avatarEyelidOverlay");
+            if (!eyelid || currentAvatarState === "speaking") return;
+            eyelid.style.opacity = "0.85";
+            setTimeout(() => {
+                eyelid.style.opacity = "0";
+                // Possibilidade de piscada dupla sutil
+                if (Math.random() > 0.7) {
+                    setTimeout(() => {
+                        eyelid.style.opacity = "0.85";
+                        setTimeout(() => { eyelid.style.opacity = "0"; }, 70);
+                    }, 140);
+                }
+            }, 90);
+        }
+
+        function startBlinkCycle() {
+            if (blinkIntervalTimer) clearInterval(blinkIntervalTimer);
+            blinkIntervalTimer = setInterval(() => {
+                if (currentAvatarState === "idle" || currentAvatarState === "listening") {
+                    triggerOrganicBlink();
+                }
+            }, 3800 + Math.random() * 2000);
+        }
+
+        // Sistema de Lip-Sync por Envelope de Áudio e Analisador Web Audio
+        function initAudioAnalyser(audioElement) {
+            try {
+                if (!sharedAudioContext) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) sharedAudioContext = new AudioCtx();
+                }
+                if (sharedAudioContext && sharedAudioContext.state === 'suspended') {
+                    sharedAudioContext.resume().catch(() => {});
+                }
+                if (!audioAnalyserNode && sharedAudioContext) {
+                    audioAnalyserNode = sharedAudioContext.createAnalyser();
+                    audioAnalyserNode.fftSize = 64;
+                    audioDataArray = new Uint8Array(audioAnalyserNode.frequencyBinCount);
+                }
+                if (audioElement && audioAnalyserNode && sharedAudioContext) {
+                    const source = sharedAudioContext.createMediaElementSource(audioElement);
+                    source.connect(audioAnalyserNode);
+                    audioAnalyserNode.connect(sharedAudioContext.destination);
+                }
+            } catch (e) {
+                console.warn("[Analyser Init]:", e);
+            }
+        }
+
+        function startLipSyncLoop() {
+            const mouth = document.getElementById("avatarMouthOverlay");
+            const eqBars = [
+                document.getElementById("eq1"), document.getElementById("eq2"),
+                document.getElementById("eq3"), document.getElementById("eq4"),
+                document.getElementById("eq5"), document.getElementById("eq6"),
+                document.getElementById("eq7"), document.getElementById("eq8")
+            ];
+
+            function loop() {
+                if (currentAvatarState === "speaking") {
+                    let volume = 0;
+                    if (audioAnalyserNode && audioDataArray) {
+                        audioAnalyserNode.getByteFrequencyData(audioDataArray);
+                        let sum = 0;
+                        for (let i = 0; i < audioDataArray.length; i++) {
+                            sum += audioDataArray[i];
+                            // Atualiza barras de equalizador individuais
+                            if (eqBars[i % eqBars.length]) {
+                                const h = Math.max(4, (audioDataArray[i] / 255) * 28);
+                                eqBars[i % eqBars.length].style.height = `${h}px`;
+                            }
+                        }
+                        volume = sum / audioDataArray.length / 255; // 0.0 a 1.0
+                    } else {
+                        // Fallback sintético procedural se o áudio do navegador não estiver no Analyser
+                        volume = 0.35 + Math.random() * 0.55;
+                        eqBars.forEach((bar, idx) => {
+                            if (bar) bar.style.height = `${Math.max(4, Math.random() * 24)}px`;
+                        });
+                    }
+
+                    // Articula a boca proporcionalmente à amplitude da voz
+                    if (mouth) {
+                        const scaleY = 1 + volume * 3.8;
+                        const scaleX = 1 + volume * 1.5;
+                        mouth.style.transform = `translateX(-50%) scale(${scaleX}, ${scaleY})`;
+                        mouth.style.height = `${Math.max(3, volume * 14)}px`;
+                        mouth.style.opacity = `${Math.min(1, 0.4 + volume * 0.7)}`;
+                    }
+
+                    lipSyncAnimFrame = requestAnimationFrame(loop);
+                } else {
+                    if (mouth) mouth.style.opacity = "0";
+                    resetEqualizerBars();
+                }
+            }
+            if (lipSyncAnimFrame) cancelAnimationFrame(lipSyncAnimFrame);
+            lipSyncAnimFrame = requestAnimationFrame(loop);
+        }
+
+        function resetEqualizerBars() {
+            for (let i = 1; i <= 8; i++) {
+                const bar = document.getElementById(`eq${i}`);
+                if (bar) bar.style.height = "6px";
+            }
+        }
+
+        function updateAvatarVisualImage() {
+            const img = document.getElementById("avatarImage");
+            const fallback = document.getElementById("avatarEmojiFallback");
+            const currentImg = getAvatarImage();
+            if (img && currentImg) {
+                img.src = currentImg;
+                img.classList.remove("hidden");
+                if (fallback) fallback.classList.add("hidden");
+            } else if (fallback) {
+                if (img) img.classList.add("hidden");
+                fallback.classList.remove("hidden");
+            }
+        }
+
+        // ==========================================
+        // LIVE CHAT STREAM OVERLAY (Canto Inferior Direito)
+        // ==========================================
+        function addLiveStreamMessage(sender, text, isUser = false) {
+            const container = document.getElementById("streamMessagesContainer");
+            const scrollBody = document.getElementById("liveStreamChatBody");
+            if (!container) return;
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const msgDiv = document.createElement("div");
+            msgDiv.className = isUser 
+                ? "glass-message-user rounded-2xl p-3 text-xs leading-relaxed animate-stream-in text-white shadow-lg"
+                : "glass-message-agent rounded-2xl p-3 text-xs leading-relaxed animate-stream-in text-zinc-200 shadow-md";
+
+            const icon = isUser ? "👤" : "🤖";
+            const name = isUser ? "Você" : getAgentName();
+            const nameColor = isUser ? "text-indigo-300" : "text-pink-400";
+
+            // Converte texto simples / markdown para exibição amigável
+            const formattedText = text.replace(/\n/g, "<br>");
+
+            msgDiv.innerHTML = `
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm">${icon}</span>
+                    <span class="font-bold ${nameColor}">${name}</span>
+                    <span class="text-[10px] text-zinc-500 font-mono ml-auto">${timeStr}</span>
+                </div>
+                <div class="text-xs text-zinc-100">${formattedText}</div>
+            `;
+
+            container.appendChild(msgDiv);
+
+            // Suaviza a rolagem automática para o topo das novas mensagens
+            if (scrollBody) {
+                setTimeout(() => {
+                    scrollBody.scrollTop = scrollBody.scrollHeight;
+                }, 50);
+            }
+        }
+
+        function setStreamTyping(isTyping) {
+            const indicator = document.getElementById("streamTypingIndicator");
+            const scrollBody = document.getElementById("liveStreamChatBody");
+            if (!indicator) return;
+            if (isTyping) {
+                indicator.classList.remove("hidden");
+                if (scrollBody) scrollBody.scrollTop = scrollBody.scrollHeight;
+            } else {
+                indicator.classList.add("hidden");
+            }
+        }
+
+        function clearLiveChatFeed() {
+            const container = document.getElementById("streamMessagesContainer");
+            if (container) container.innerHTML = "";
+        }
+
+        function toggleStreamChatCollapse() {
+            const body = document.getElementById("liveStreamChatBody");
+            const btn = document.getElementById("btnCollapseChat");
+            if (!body || !btn) return;
+            if (body.classList.contains("hidden")) {
+                body.classList.remove("hidden");
+                btn.innerText = "▼";
+            } else {
+                body.classList.add("hidden");
+                btn.innerText = "▲";
+            }
+        }
+
+        function handleManualStreamChatSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById("streamChatInput");
+            if (!input) return;
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = "";
+            processUserQuery(text);
+        }
+
+        // ==========================================
+        // COMUNICAÇÃO COM O CÉREBRO DO AGENTE (LangChain)
+        // ==========================================
+        async function processUserQuery(queryText) {
+            if (!queryText || !queryText.trim()) return;
+            const text = queryText.trim();
+
+            // Adiciona fala do usuário no stream chat
+            addLiveStreamMessage("user", text, true);
+
+            // Transição de estado para THINKING
+            setAvatarState("thinking");
+            setStreamTyping(true);
+            isProcessingCommand = true;
+
+            const token = getAuthToken();
+            const apiKey = getApiKey();
+            const model = getAiModel();
+            const agentName = getAgentName();
+            const cachedConfig = JSON.parse(localStorage.getItem("smartHomeConfig") || "{}");
+
+            const payload = {
+                message: text,
+                api_key: apiKey,
+                model: model,
+                agent_name: agentName,
+                rooms: cachedConfig.rooms || [],
+                rooms_state: cachedConfig.rooms_state || {},
+                broker: cachedConfig.broker || "test.mosquitto.org",
+                port: cachedConfig.port || 1883
+            };
+
+            try {
+                const res = await fetch("/api/chat/stream", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": token ? `Bearer ${token}` : ""
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.detail || `HTTP ${res.status}`);
+                }
+
+                let finalReply = "";
+                let finalSpokenReply = "";
+                let finalActions = [];
+
+                if (res.body && res.body.getReader) {
+                    const reader = res.body.getReader();
+                    const decoder = new TextDecoder("utf-8");
+                    let buffer = "";
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split("\n\n");
+                        buffer = lines.pop();
+
+                        for (const block of lines) {
+                            for (const line of block.split("\n")) {
+                                if (line.startsWith("data: ")) {
+                                    const jsonStr = line.slice(6).trim();
+                                    if (!jsonStr) continue;
+                                    try {
+                                        const ev = JSON.parse(jsonStr);
+                                        if (ev.type === "status") {
+                                            const floatingLabel = document.getElementById("floatingStateLabel");
+                                            if (floatingLabel && ev.message) floatingLabel.innerText = ev.message.toUpperCase();
+                                        } else if (ev.type === "final") {
+                                            finalReply = ev.reply || "";
+                                            finalSpokenReply = ev.spoken_reply || "";
+                                            finalActions = ev.actions || [];
+                                        } else if (ev.type === "error") {
+                                            throw new Error(ev.message || "Erro no processamento do agente");
+                                        }
+                                    } catch (errJson) { }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    const data = await res.json();
+                    finalReply = data.reply || "";
+                    finalSpokenReply = data.spoken_reply || "";
+                    finalActions = data.actions || [];
+                }
+
+                setStreamTyping(false);
+                isProcessingCommand = false;
+
+                const reply = finalReply || "Comando processado com sucesso.";
+                const spokenText = finalSpokenReply || cleanTextForSpeech(reply);
+
+                // Exibe no Live Chat Stream
+                addLiveStreamMessage("agent", reply, false);
+
+                // Trata ações executadas na interface (se o agente navegou ou abriu modal)
+                if (finalActions && Array.isArray(finalActions)) {
+                    for (const act of finalActions) {
+                        handleUiAction(act);
+                    }
+                }
+
+                // Reproduz áudio TTS e anima o Avatar em SPEAKING
+                speakResponse(spokenText);
+
+            } catch (err) {
+                console.error("[Agent Query Error]:", err);
+                setStreamTyping(false);
+                isProcessingCommand = false;
+                setAvatarState("idle");
+                addLiveStreamMessage("agent", `⚠️ Desculpe, ocorreu um erro ao processar: ${err.message}`, false);
+                speakResponse("Desculpe, ocorreu uma falha ao processar.");
+            }
+        }
+
+        function handleUiAction(action) {
+            const type = (action.type || action.action_type || "").toLowerCase();
+            if (type === "ui_navigate" || type === "navigate") {
+                const target = action.target || action.url || "/";
+                setTimeout(() => { window.location.href = target; }, 1200);
+            } else if (type === "ui_modal" || type === "modal") {
+                const verb = (action.action || action.action_type || "open").toLowerCase();
+                const modalName = (action.modal || action.name || "").toLowerCase();
+                if (verb.includes("open") || verb.includes("abrir")) {
+                    openVoiceApiKeyModal();
+                } else {
+                    closeVoiceApiKeyModal();
+                }
+            }
+        }
+
+        // ==========================================
+        // RECONHECIMENTO DE VOZ & WAKE WORD
+        // ==========================================
+        function initVoiceRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                console.warn("[Voice]: Navegador não suporta SpeechRecognition.");
+                return;
+            }
+
+            recognitionInstance = new SpeechRecognition();
+            recognitionInstance.continuous = true;
+            recognitionInstance.interimResults = false;
+            recognitionInstance.lang = "pt-BR";
+
+            recognitionInstance.onstart = () => {
+                isListening = true;
+                updateMicButtonUI();
+            };
+
+            recognitionInstance.onresult = (event) => {
+                const last = event.results.length - 1;
+                const transcript = event.results[last][0].transcript.trim();
+                if (!transcript) return;
+
+                console.log("[Avatar Speech Recognized]:", transcript);
+                const agentName = getAgentName().toLowerCase();
+                const cleanTranscript = transcript.toLowerCase();
+
+                // Detecção de Wake-Word ou comando direto
+                if (cleanTranscript.includes(agentName) || cleanTranscript.includes("sexta-feira") || cleanTranscript.includes("jarvis") || !alwaysListen) {
+                    // Remove wake word se aplicável
+                    let command = transcript.replace(new RegExp(`\\b${agentName}\\b`, "gi"), "").replace(/sexta-feira/gi, "").trim();
+                    if (!command) command = transcript;
+                    processUserQuery(command);
+                }
+            };
+
+            recognitionInstance.onerror = (event) => {
+                if (event.error !== "no-speech") {
+                    console.warn("[Voice Error]:", event.error);
+                }
+            };
+
+            recognitionInstance.onend = () => {
+                isListening = false;
+                updateMicButtonUI();
+                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand) {
+                    setTimeout(startVoiceRecognition, 300);
+                }
+            };
+
+            if (alwaysListen) {
+                startVoiceRecognition();
+            }
+        }
+
+        function startVoiceRecognition() {
+            if (!recognitionInstance || isListening || isSpeakingTTS || isProcessingCommand) return;
+            try {
+                recognitionInstance.start();
+                setAvatarState("listening");
+            } catch (e) { }
+        }
+
+        function stopVoiceRecognition() {
+            if (!recognitionInstance || !isListening) return;
+            try {
+                recognitionInstance.stop();
+            } catch (e) { }
+        }
+
+        function toggleAvatarVoiceListen() {
+            if (isListening) {
+                stopVoiceRecognition();
+                setAvatarState("idle");
+            } else {
+                startVoiceRecognition();
+            }
+        }
+
+        function toggleAlwaysListenMode() {
+            alwaysListen = !alwaysListen;
+            localStorage.setItem("alwaysListenSmartHome", alwaysListen ? "true" : "false");
+            const led = document.getElementById("alwaysListenLed");
+            if (led) {
+                led.className = alwaysListen ? "w-2 h-2 rounded-full bg-emerald-400 animate-pulse" : "w-2 h-2 rounded-full bg-zinc-600";
+            }
+            if (alwaysListen) {
+                startVoiceRecognition();
+            } else {
+                stopVoiceRecognition();
+                setAvatarState("idle");
+            }
+        }
+
+        function updateMicButtonUI() {
+            const icon = document.getElementById("avatarMicIcon");
+            const label = document.getElementById("avatarMicLabel");
+            const btn = document.getElementById("avatarMicBtn");
+            if (!btn || !icon || !label) return;
+
+            if (isListening) {
+                icon.innerText = "🛑";
+                label.innerText = "Parar Escuta";
+                btn.className = "group px-6 py-3 rounded-2xl bg-gradient-to-r from-red-600 to-pink-600 font-bold text-sm text-white shadow-xl shadow-red-600/30 flex items-center gap-2.5 border border-red-400/40 transform active:scale-95 cursor-pointer animate-pulse";
+            } else {
+                icon.innerText = "🎙️";
+                label.innerText = "Falar com o Agente";
+                btn.className = "group px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 bg-[length:200%_auto] hover:bg-[position:right_center] transition-all duration-300 font-bold text-sm text-white shadow-xl shadow-indigo-600/30 flex items-center gap-2.5 border border-indigo-400/40 transform active:scale-95 cursor-pointer";
+            }
+        }
+
+        // ==========================================
+        // SÍNTESE DE VOZ (TTS Neural & Lip-Sync)
+        // ==========================================
+        function cleanTextForSpeech(text) {
+            if (!text) return "";
+            return text
+                .replace(/[*#_~`>\[\]\(\)]/g, "")
+                .replace(/https?:\/\/\S+/g, "")
+                .replace(/[\u{1F600}-\u{1F64F}|\u{1F300}-\u{1F5FF}|\u{1F680}-\u{1F6FF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}]/gu, "")
+                .trim();
+        }
+
+        async function speakResponse(text) {
+            if (!text) return;
+            const cleanText = cleanTextForSpeech(text);
+            if (!cleanText) return;
+
+            // Pausa reconhecimento durante a fala do agente
+            stopVoiceRecognition();
+            isSpeakingTTS = true;
+            setAvatarState("speaking");
+            startLipSyncLoop();
+
+            const voice = getSelectedVoice();
+
+            if (voice !== "browser-native") {
+                try {
+                    const res = await fetch("/api/tts", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ text: cleanText, voice: voice })
+                    });
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        const audioUrl = URL.createObjectURL(blob);
+                        const audio = new Audio(audioUrl);
+                        currentPlayingAudio = audio;
+
+                        initAudioAnalyser(audio);
+
+                        audio.onended = () => {
+                            finishSpeech();
+                        };
+                        audio.onerror = () => {
+                            speakBrowserFallback(cleanText);
+                        };
+
+                        await audio.play();
+                        return;
+                    }
+                } catch (e) {
+                    console.warn("[TTS Edge Server Fallback]:", e);
+                }
+            }
+
+            // Fallback para fala nativa do navegador
+            speakBrowserFallback(cleanText);
+        }
+
+        function speakBrowserFallback(text) {
+            if (!("speechSynthesis" in window)) {
+                finishSpeech();
+                return;
+            }
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = "pt-BR";
+            utterance.rate = 1.05;
+            utterance.onend = () => finishSpeech();
+            utterance.onerror = () => finishSpeech();
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function finishSpeech() {
+            isSpeakingTTS = false;
+            setAvatarState("idle");
+            if (alwaysListen && !isProcessingCommand) {
+                setTimeout(startVoiceRecognition, 400);
+            }
+        }
+
+        // ==========================================
+        // MODAL DE CONFIGURAÇÕES DE IA & AVATAR
+        // ==========================================
+        function openVoiceApiKeyModal() {
+            const modal = document.getElementById("apiKeyModal");
+            if (modal) {
+                modal.classList.remove("hidden");
+                modal.style.display = "flex";
+            }
+            const input = document.getElementById("modalApiKeyInput");
+            const modelInput = document.getElementById("modalAiModelInput");
+            const agentNameInput = document.getElementById("modalAgentNameInput");
+            const voiceSelect = document.getElementById("modalVoiceSelect");
+            const avatarInput = document.getElementById("modalAvatarUrlInput");
+
+            if (input) input.value = getApiKey();
+            if (modelInput) modelInput.value = getAiModel();
+            if (agentNameInput) agentNameInput.value = getAgentName();
+            if (voiceSelect) voiceSelect.value = getSelectedVoice();
+            if (avatarInput) avatarInput.value = getAvatarImage();
+            updateModalAvatarPreview(getAvatarImage());
+
+            // Sincroniza dados do backend
+            const token = getAuthToken();
+            if (token) {
+                fetch("/api/user/ai-config", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                }).then(r => r.json()).then(aiData => {
+                    if (aiData) {
+                        if (aiData.agent_name && agentNameInput) agentNameInput.value = aiData.agent_name;
+                        if (aiData.ai_model && modelInput) modelInput.value = aiData.ai_model;
+                        if (aiData.voice && voiceSelect) voiceSelect.value = aiData.voice;
+                        if (aiData.avatar_image && avatarInput) {
+                            avatarInput.value = aiData.avatar_image;
+                            localStorage.setItem("smartHomeAvatarImage", aiData.avatar_image);
+                            updateModalAvatarPreview(aiData.avatar_image);
+                        }
+                    }
+                }).catch(() => {});
+            }
+        }
+
+        function closeVoiceApiKeyModal() {
+            const modal = document.getElementById("apiKeyModal");
+            if (modal) {
+                modal.classList.add("hidden");
+                modal.style.display = "none";
+            }
+        }
+
+        function updateModalAvatarPreview(url) {
+            const img = document.getElementById("modalAvatarPreviewImg");
+            const emoji = document.getElementById("modalAvatarFallbackEmoji");
+            if (!img || !emoji) return;
+            if (url && url.trim()) {
+                img.src = url.trim();
+                img.classList.remove("hidden");
+                emoji.classList.add("hidden");
+            } else {
+                img.src = "";
+                img.classList.add("hidden");
+                emoji.classList.remove("hidden");
+            }
+        }
+
+        function handleAvatarUrlChange(val) {
+            updateModalAvatarPreview(val);
+        }
+
+        function selectAvatarPreset(url) {
+            const input = document.getElementById("modalAvatarUrlInput");
+            if (input) input.value = url;
+            updateModalAvatarPreview(url);
+        }
+
+        function clearAvatarImage() {
+            const input = document.getElementById("modalAvatarUrlInput");
+            if (input) input.value = DEFAULT_AVATAR_IMAGE;
+            updateModalAvatarPreview(DEFAULT_AVATAR_IMAGE);
+        }
+
+        function handleAvatarFileUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result;
+                const input = document.getElementById("modalAvatarUrlInput");
+                if (input) input.value = base64;
+                updateModalAvatarPreview(base64);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function saveAvatarSettingsConfig() {
+            const key = document.getElementById("modalApiKeyInput")?.value.trim() || "";
+            const model = document.getElementById("modalAiModelInput")?.value.trim() || "gemini-2.5-flash-lite";
+            const agentName = document.getElementById("modalAgentNameInput")?.value.trim() || "Sexta-Feira";
+            const voice = document.getElementById("modalVoiceSelect")?.value || "pt-BR-FranciscaNeural";
+            const avatarUrl = document.getElementById("modalAvatarUrlInput")?.value.trim() || DEFAULT_AVATAR_IMAGE;
+
+            if (key && !key.includes("...") && !key.includes("•")) {
+                localStorage.setItem("geminiApiKey", key);
+            }
+            localStorage.setItem("smartHomeAiModel", model);
+            localStorage.setItem("smartHomeAgentName", agentName);
+            localStorage.setItem("smartHomeVoice", voice);
+            localStorage.setItem("smartHomeAvatarImage", avatarUrl);
+
+            // Atualiza tags na UI
+            const headerTag = document.getElementById("headerAgentName");
+            const streamTag = document.getElementById("streamAgentNameTag");
+            const wakeWordTag = document.getElementById("alwaysListenWordTag");
+            if (headerTag) headerTag.innerText = agentName;
+            if (streamTag) streamTag.innerText = agentName;
+            if (wakeWordTag) wakeWordTag.innerText = `"${agentName}"`;
+
+            updateAvatarVisualImage();
+
+            // Salva no backend
+            const token = getAuthToken();
+            if (token) {
+                try {
+                    const aiPayload = {
+                        ai_model: model,
+                        voice: voice,
+                        agent_name: agentName,
+                        avatar_image: avatarUrl
+                    };
+                    if (key && !key.includes("...") && !key.includes("•")) {
+                        aiPayload.api_key = key;
+                    }
+                    await fetch("/api/user/ai-config", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                        },
+                        body: JSON.stringify(aiPayload)
+                    });
+                } catch (e) {
+                    console.warn("[Save Config Backend]:", e);
+                }
+            }
+
+            closeVoiceApiKeyModal();
+            addLiveStreamMessage("agent", `Configurações salvas com sucesso! Nome: ${agentName}, Modelo: ${model}.`, false);
+        }
+
+        // ==========================================
+        // INICIALIZAÇÃO NO CARREGAMENTO
+        // ==========================================
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Inicializa componentes visuais
+            let agentName = getAgentName();
+            const headerTag = document.getElementById("headerAgentName");
+            const streamTag = document.getElementById("streamAgentNameTag");
+            const wakeWordTag = document.getElementById("alwaysListenWordTag");
+            if (headerTag) headerTag.innerText = agentName;
+            if (streamTag) streamTag.innerText = agentName;
+            if (wakeWordTag) wakeWordTag.innerText = `"${agentName}"`;
+
+            updateAvatarVisualImage();
+            setAvatarState("idle");
+            startBlinkCycle();
+
+            // Sincroniza configurações do backend SQLite se autenticado
+            const token = getAuthToken();
+            if (token) {
+                try {
+                    const res = await fetch("/api/user/ai-config", {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.agent_name) {
+                            agentName = data.agent_name;
+                            localStorage.setItem("smartHomeAgentName", data.agent_name);
+                            if (headerTag) headerTag.innerText = agentName;
+                            if (streamTag) streamTag.innerText = agentName;
+                            if (wakeWordTag) wakeWordTag.innerText = `"${agentName}"`;
+                        }
+                        if (data.avatar_image) {
+                            localStorage.setItem("smartHomeAvatarImage", data.avatar_image);
+                            updateAvatarVisualImage();
+                        }
+                        if (data.ai_model) {
+                            localStorage.setItem("smartHomeAiModel", data.ai_model);
+                        }
+                        if (data.voice) {
+                            localStorage.setItem("smartHomeVoice", data.voice);
+                        }
+                        if (data.api_key) {
+                            localStorage.setItem("geminiApiKey", data.api_key);
+                        }
+                    }
+                } catch (err) {
+                    console.warn("[Sync Config SQLite Error]:", err);
+                }
+            }
+
+            // Inicia reconhecimento de voz contínuo
+            initVoiceRecognition();
+
+            // Desbloqueia Web Audio no primeiro toque do usuário
+            const unlockAudio = () => {
+                if (!sharedAudioContext) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) sharedAudioContext = new AudioCtx();
+                }
+                if (sharedAudioContext && sharedAudioContext.state === 'suspended') {
+                    sharedAudioContext.resume().catch(() => {});
+                }
+            };
+            document.addEventListener("click", unlockAudio, { once: true });
+            document.addEventListener("touchstart", unlockAudio, { once: true });
+        });
+    </script>
+</body>
+
+</html>

@@ -165,7 +165,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     spoken_reply: Optional[str] = None
-    actions: List[Dict[str, str]] = []
+    actions: List[Dict[str, Any]] = []
 
 # =========================================================================
 # DEPENDÊNCIA DE AUTENTICAÇÃO JWT
@@ -1539,10 +1539,11 @@ class UserAiConfigRequest(BaseModel):
     agent_name: Optional[str] = None
     voice: Optional[str] = None
     system_commands_enabled: Optional[bool] = None
+    avatar_image: Optional[str] = None
 
 @app.get("/api/user/ai-config")
 def get_user_ai_config_endpoint(token_payload: dict = Depends(get_current_user_token)):
-    """Retorna as preferências de IA, modelo, nome do agente, voz e comandos de máquina salvas para o usuário logado."""
+    """Retorna as preferências de IA, modelo, nome do agente, voz, comandos de máquina e avatar salvas para o usuário logado."""
     user_email = token_payload.get("sub", "")
     if not user_email:
         raise HTTPException(status_code=401, detail="Usuário não autenticado.")
@@ -1553,7 +1554,7 @@ def save_user_ai_config_endpoint(
     req: UserAiConfigRequest,
     token_payload: dict = Depends(get_current_user_token)
 ):
-    """Salva a chave de API, modelo, nome do agente, voz e flag de comandos do sistema diretamente no perfil SQLite do usuário."""
+    """Salva a chave de API, modelo, nome do agente, voz, flag de comandos e imagem do avatar diretamente no perfil SQLite do usuário."""
     user_email = token_payload.get("sub", "")
     if not user_email:
         raise HTTPException(status_code=401, detail="Usuário não autenticado.")
@@ -1564,7 +1565,8 @@ def save_user_ai_config_endpoint(
         ai_model=req.ai_model if req.ai_model is not None else "",
         agent_name=req.agent_name if req.agent_name is not None else "",
         voice=req.voice if req.voice is not None else "",
-        system_commands_enabled=req.system_commands_enabled
+        system_commands_enabled=req.system_commands_enabled,
+        avatar_image=req.avatar_image
     )
     return {"status": "success", "config": saved}
 
@@ -2045,6 +2047,9 @@ async def generate_tts(request: TTSRequest):
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    avatars_dir = static_dir / "avatars"
+    if avatars_dir.exists():
+        app.mount("/avatars", StaticFiles(directory=avatars_dir), name="avatars")
 
 # Montar pasta config
 config_dir = project_root / "config"
@@ -2090,6 +2095,16 @@ def serve_casa():
         return FileResponse(path)
     return {"message": "Casa page"}
 
+@app.get("/avatar")
+@app.get("/avatar.html")
+def serve_avatar():
+    path = static_dir / "avatar.html"
+    if not path.exists():
+        path = current_dir / "avatar.html"
+    if path.exists():
+        return FileResponse(path)
+    return {"message": "Avatar page"}
+
 @app.get("/config")
 @app.get("/config/config.html")
 def serve_config():
@@ -2111,8 +2126,19 @@ def serve_guide_modal_js():
         return FileResponse(path, media_type="application/javascript")
     return {"message": "Guide script"}
 
+@app.get("/voice_agent.js")
+def serve_voice_agent_js():
+    path = static_dir / "voice_agent.js"
+    if not path.exists():
+        path = current_dir / "voice_agent.js"
+    if path.exists():
+        return FileResponse(path, media_type="application/javascript")
+    return {"message": "Voice agent script"}
+
 @app.get("/agent")
 @app.get("/agent.html")
+@app.get("/index.html")
+@app.get("/index")
 @app.get("/")
 def serve_index():
     index_path = static_dir / "index.html"
