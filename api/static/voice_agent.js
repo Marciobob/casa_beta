@@ -309,7 +309,11 @@
             if (!blob) { resolve(false); return; }
             try {
                 isAudioPlayingActive = true;
-                stopVoiceRecognition();
+                if (!alwaysListen) {
+                    stopVoiceRecognition();
+                } else if (!isListening && !isProcessingCommand) {
+                    startVoiceRecognition();
+                }
 
                 if (currentPlayingAudio) {
                     try {
@@ -406,7 +410,7 @@
 
             if (alwaysListen && !isProcessingCommand) {
                 voiceRestartTimeout = setTimeout(() => {
-                    if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                    if (alwaysListen && !isListening && !isProcessingCommand) {
                         startVoiceRecognition();
                     }
                 }, 120);
@@ -418,7 +422,11 @@
         isProcessingQueue = true;
         isSpeakingTTS = true;
         isAudioPlayingActive = true;
-        stopVoiceRecognition();
+        if (!alwaysListen) {
+            stopVoiceRecognition();
+        } else if (!isListening && !isProcessingCommand) {
+            startVoiceRecognition();
+        }
 
         const item = speechQueue.shift();
 
@@ -695,11 +703,6 @@
         };
 
         rec.onresult = (event) => {
-            if (isSpeakingTTS || isProcessingCommand || isAudioPlayingActive) {
-                latestHeardText = "";
-                return;
-            }
-
             let fullTranscript = "";
             for (let i = 0; i < event.results.length; ++i) {
                 fullTranscript += event.results[i][0].transcript + " ";
@@ -707,6 +710,54 @@
 
             const currentText = fullTranscript.trim();
             if (!currentText) return;
+
+            // BARGE-IN: Se o assistente estiver falando (TTS), permite interrupção imediata por Wake Word ou comando de parada
+            if (isSpeakingTTS || isAudioPlayingActive || speechQueue.length > 0) {
+                const agentName = getAgentName();
+                const { isWake, command } = extractWakeWordAndCommand(currentText, agentName);
+                const isStop = isStopTalkingCommand(currentText) || (isWake && isStopTalkingCommand(command));
+
+                if (isWake || isStop) {
+                    console.log("[VoiceAgent Barge-In Detected]:", currentText);
+                    silenciarAudio(false);
+                    latestHeardText = "";
+
+                    if (isStop) {
+                        setVoiceStatus("⏹️", "Áudio interrompido.", false);
+                        return;
+                    }
+
+                    if (isWake) {
+                        if (command.length > 1) {
+                            clearTimeout(wakeWordTimer);
+                            isWaitingCommandAfterWakeWord = false;
+                            showVoiceHud();
+                            setVoiceStatus("✨", "Processando comando...", true);
+                            setVoiceTranscript(`"${agentName}, ${command}"`, false);
+                            processCommandWithApi(command);
+                        } else {
+                            isWaitingCommandAfterWakeWord = true;
+                            showVoiceHud();
+                            setVoiceStatus("⚡", `Sim! Diga o comando agora...`, true);
+                            setVoiceTranscript(`"${agentName}..." (Aguardando instrução...)`, false);
+                            speakResponse("Sim, estou ouvindo!");
+
+                            clearTimeout(wakeWordTimer);
+                            wakeWordTimer = setTimeout(() => {
+                                isWaitingCommandAfterWakeWord = false;
+                                setVoiceStatus("💤", "Aguardando ativação...", false);
+                            }, 8000);
+                        }
+                        return;
+                    }
+                }
+                return;
+            }
+
+            if (isProcessingCommand) {
+                latestHeardText = "";
+                return;
+            }
 
             latestHeardText = currentText;
             showVoiceHud();
@@ -717,6 +768,7 @@
             if (event.error === "not-allowed") {
                 setVoiceStatus("⚠️", "Permissão de microfone negada", false);
                 alwaysListen = false;
+                updateAlwaysListenUI();
             }
         };
 
@@ -732,7 +784,7 @@
             const wasManual = isManualMicTriggered;
             isManualMicTriggered = false;
 
-            if (latestHeardText && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive) {
+            if (latestHeardText && !isProcessingCommand) {
                 const textToProcess = latestHeardText;
                 latestHeardText = "";
                 if (wasManual) {
@@ -748,10 +800,11 @@
                 }
             }
 
-            if (alwaysListen && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+            // Mantém o microfone reiniciando continuamente para capturar Barge-In mesmo durante TTS
+            if (alwaysListen && !isProcessingCommand) {
                 clearTimeout(voiceRestartTimeout);
                 voiceRestartTimeout = setTimeout(() => {
-                    if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                    if (alwaysListen && !isListening && !isProcessingCommand) {
                         startVoiceRecognition();
                     }
                 }, 80);
@@ -763,7 +816,7 @@
 
     function handleWakeWordDetection(text) {
         if (!text || !text.trim()) return;
-        if (isProcessingCommand || isSpeakingTTS || isAudioPlayingActive) return;
+        if (isProcessingCommand) return;
         const norm = normalizeText(text);
         const agentName = getAgentName();
 
@@ -778,6 +831,7 @@
             if (command.length > 1) {
                 clearTimeout(wakeWordTimer);
                 isWaitingCommandAfterWakeWord = false;
+                silenciarAudio(false);
                 showVoiceHud();
                 setVoiceStatus("✨", "Processando comando...", true);
                 setVoiceTranscript(`"${agentName}, ${command}"`, false);
@@ -787,6 +841,7 @@
 
             if (!isWaitingCommandAfterWakeWord) {
                 isWaitingCommandAfterWakeWord = true;
+                silenciarAudio(false);
                 showVoiceHud();
                 setVoiceStatus("⚡", `Sim! Diga o comando agora...`, true);
                 setVoiceTranscript(`"${agentName}..." (Aguardando instrução...)`, false);
@@ -809,6 +864,7 @@
                 silenciarAudio(true);
                 return;
             }
+            silenciarAudio(false);
             showVoiceHud();
             setVoiceStatus("✨", "Executando comando...", true);
             setVoiceTranscript(`"${text.trim()}"`, false);
@@ -887,14 +943,14 @@
     };
 
     function startVoiceRecognition() {
-        if (isListening || isSpeakingTTS || isProcessingCommand || isAudioPlayingActive || speechQueue.length > 0) return;
+        if (isListening || isProcessingCommand) return;
         try {
             recognitionInstance = createFreshRecognition();
             if (recognitionInstance) recognitionInstance.start();
         } catch (e) {
             clearTimeout(voiceRestartTimeout);
             voiceRestartTimeout = setTimeout(() => {
-                if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                if (alwaysListen && !isListening && !isProcessingCommand) {
                     startVoiceRecognition();
                 }
             }, 400);
@@ -942,14 +998,87 @@
     // =========================================================================
     function getAgentFeedbackPhrase(commandText) {
         const raw = normalizeText(commandText || "");
-        const isMusic = /\b(tocar|toca|toque|escutar|musica|musicas|samba|rock|podcast|som|silencio)\b/.test(raw);
-        const isSearch = /\b(pesquis|procur|busc|quem|onde|quando|quanto|qual|noticia|clima|tempo|previsao|cotacao|explique|o que e)\b/.test(raw);
-        const isHome = /\b(luz|luzes|lampada|lampadas|ligar|ligue|desligar|desligue|apagar|apague|acender|acenda|camera|quarto|sala|cozinha|garagem|porta)\b/.test(raw);
 
-        if (isMusic) return "Preparando a reprodução...";
-        if (isSearch) return "Pesquisando para você...";
-        if (isHome) return "Verificando os dispositivos...";
-        return "Processando sua solicitação...";
+        // 1. Data e Hora ("Que horas são?", "Que dia é hoje?", "Qual a data?")
+        if (/\b(horas?|horario|que horas|sao que horas|dia de hoje|qual data|que dia e|dia da semana|calendario)\b/.test(raw)) {
+            const timePhrases = [
+                "Verificando o horário para você...",
+                "Consultando data e hora agora...",
+                "Só um instante, checando o horário..."
+            ];
+            return timePhrases[Math.floor(Math.random() * timePhrases.length)];
+        }
+
+        // 2. Pesquisa Web, Notícias, Previsão do tempo, Perguntas gerais na Internet
+        if (/\b(pesquis|pesquise|procur|procure|busc|busque|noticia|noticias|clima|tempo|previsao|cotacao|dolar|euro|quem e|quem foi|o que e|significado|como funciona|explica|explique|artigo|site|google|internet|web)\b/.test(raw)) {
+            const searchPhrases = [
+                "Ok, estou indo buscar suas informações na internet...",
+                "Consultando na internet, só um instante...",
+                "Ó, vai demorar um pouquinho porque estou consultando na internet...",
+                "Buscando as informações atualizadas para você..."
+            ];
+            return searchPhrases[Math.floor(Math.random() * searchPhrases.length)];
+        }
+
+        // 3. Google Calendar & Compromissos
+        if (/\b(agenda|compromisso|compromissos|reuniao|reunioes|evento|eventos|marcar|agendar|desmarcar|cancelar compromisso)\b/.test(raw)) {
+            return "Ok, consultando seus compromissos na agenda...";
+        }
+
+        // 4. Gmail & E-mails
+        if (/\b(email|emails|e-mail|e-mails|gmail|caixa de entrada|mensagens recentes|enviar email|responder email|apagar email)\b/.test(raw)) {
+            return "Ok, acessando sua caixa de entrada no Gmail...";
+        }
+
+        // 5. Tarefas & Google Keep / Notas / Listas de compras
+        if (/\b(tarefa|tarefas|afazer|afazeres|to-do|lembrete|lembretes|nota|notas|keep|lista|compras|adicionar na lista|marcar na lista)\b/.test(raw)) {
+            return "Consultando suas anotações e tarefas...";
+        }
+
+        // 6. Contatos & Agenda telefônica
+        if (/\b(contato|contatos|telefone|telefones|agenda de contatos|salvar contato|buscar contato|numero do|numero da)\b/.test(raw)) {
+            return "Buscando seus contatos...";
+        }
+
+        // 7. Visão Computacional, Câmeras & Reconhecimento
+        if (/\b(camera|cameras|olhar|olhe|veja|quem esta|quem chegou|morador|visitante|foto|rosto|reconhecer|sala|garagem|porta)\b/.test(raw)) {
+            return "Ok, acessando a câmera para analisar o ambiente...";
+        }
+
+        // 8. Música, Áudio & YouTube
+        if (/\b(tocar|toca|toque|escutar|musica|musicas|som|volume|podcast|samba|rock|pagode|youtube|video|tutorial|transcrever|transcricao)\b/.test(raw)) {
+            return "Ok, buscando o áudio para você...";
+        }
+
+        // 9. Luzes, Cômodos & Automação Residencial
+        if (/\b(luz|luzes|lampada|lampadas|ligar|ligue|desligar|desligue|apagar|apague|acender|acenda|comodo|comodos|automacao|automacoes)\b/.test(raw)) {
+            return "Ok, verificando os dispositivos da casa...";
+        }
+
+        // 10. Slack & Telegram
+        if (/\b(slack|telegram|mensagem|notificacao|relatorio|canal|workspace)\b/.test(raw)) {
+            return "Ok, verificando mensagens e canais...";
+        }
+
+        // 11. OSINT & Sherlock / Holehe
+        if (/\b(investigar|investigacao|osint|sherlock|holehe|dossie|rastrear|redes sociais)\b/.test(raw)) {
+            return "Iniciando levantamento detalhado na internet, isso pode levar alguns segundos...";
+        }
+
+        // 12. Antigravity & Comandos de Terminal
+        if (/\b(antigravity|terminal|comando|bash|linux|servidor|uptime|processo|cpu|memoria)\b/.test(raw)) {
+            return "Ok, consultando o especialista Antigravity...";
+        }
+
+        // 13. Padrão genérico acolhedor e dinâmico (evita silêncio absoluto)
+        const generalPhrases = [
+            "Ok, estou buscando suas informações...",
+            "Só um instante, consultando para você...",
+            "Entendido! Buscando os dados agora...",
+            "Um momento, verificando suas informações...",
+            "Deixa comigo, estou verificando..."
+        ];
+        return generalPhrases[Math.floor(Math.random() * generalPhrases.length)];
     }
 
     function renderFormattedChatHtml(rawText) {
@@ -986,6 +1115,7 @@
         clearSpeechQueue();
 
         const feedbackPhrase = getAgentFeedbackPhrase(userCommand);
+        let lastSpokenStatus = feedbackPhrase;
         setVoiceStatus("⚡", feedbackPhrase, true);
         showResponse(`⏳ ${feedbackPhrase}`);
         speakIntermediateStatus(feedbackPhrase);
@@ -1053,6 +1183,11 @@
                                     if (ev.type === "status") {
                                         setVoiceStatus("🔄", ev.message, true);
                                         showResponse(`⏳ ${ev.message}`);
+                                        const spokenMsg = ev.spoken_message || ev.message;
+                                        if (ev.spoken !== false && spokenMsg && spokenMsg !== lastSpokenStatus) {
+                                            lastSpokenStatus = spokenMsg;
+                                            speakIntermediateStatus(spokenMsg);
+                                        }
                                     } else if (ev.type === "final") {
                                         finalReply = ev.reply || "";
                                         finalSpokenReply = ev.spoken_reply || "";
@@ -1236,7 +1371,7 @@
     function startContinuousWatchdog() {
         if (watchdogInterval) clearInterval(watchdogInterval);
         watchdogInterval = setInterval(() => {
-            if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+            if (alwaysListen && !isListening && !isProcessingCommand) {
                 startVoiceRecognition();
             }
         }, 1200);
@@ -1270,7 +1405,7 @@
         ['click', 'touchstart', 'keydown'].forEach(evt => {
             document.addEventListener(evt, () => {
                 primeAudioEngine();
-                if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                if (alwaysListen && !isListening && !isProcessingCommand) {
                     startVoiceRecognition();
                 }
             }, { passive: true });

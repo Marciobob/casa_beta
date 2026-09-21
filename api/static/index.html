@@ -2359,78 +2359,90 @@
         // =========================================================================
         function getAgentFeedbackPhrase(commandText) {
             const raw = (commandText || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-            
-            // Música / Sons / Podcasts / Reprodução de Áudio
-            const isMusic = /\b(tocar|toca|toque|escutar|escute|ouvir|ouca|musica|musicas|samba|pagode|rock|sertanejo|podcast|som|parar musica|pare a musica|desliga o som|para o audio|silencio)\b/.test(raw);
 
-            // YouTube / Tutoriais em Vídeo / Consertos / Manutenção / Passo a Passo
-            const isYouTube = /\b(youtube|video|videos|tutorial|tutoriais|consertar|conserto|arrumar|arruma|panela|chuveiro|reparar|reparo|trocar|como fazer|receita|passo a passo|transcricao|legenda)\b/.test(raw);
-
-            // Pesquisas / Dúvidas / Web / Fatos / Notícias / Clima / Quem é / Como / O que
-            const isSearch = /\b(pesquis|procur|busc|quem|onde|quando|quanto|qual|noticia|noticias|clima|tempo|previsao|cotacao|dolar|euro|fale sobre|explique|como funciona|o que e|defina|resuma|conte sobre|descubra|informe|sabe me dizer)\b/.test(raw);
-            
-            // Ações na casa / Dispositivos / Luzes / Câmera / Automação
-            const isHome = /\b(luz|luzes|lampada|lampadas|ligar|ligue|desligar|desligue|apagar|apague|acender|acenda|camera|quarto|sala|cozinha|banheiro|garagem|automac|porta|portao|dispositivo|dispositivos|ambiente|comodo)\b/.test(raw);
-            
-            // Produtividade / Google / E-mail / Calendário / Tarefas / Keep / Contatos / Moradores / Perfil
-            const isProductivity = /\b(email|emails|e-mail|mensagem|agenda|compromisso|evento|lembrete|tarefa|tarefas|nota|notas|lista|compras|contato|contatos|morador|moradores|perfil|preferencia|alergia)\b/.test(raw);
-
-            if (isMusic) {
-                const musicPhrases = [
-                    "Buscando e preparando a música...",
-                    "Já estou colocando o som...",
-                    "Deixa comigo, soltando o áudio...",
-                    "Só um instante, preparando a reprodução..."
+            // 1. Data e Hora ("Que horas são?", "Que dia é hoje?", "Qual a data?")
+            if (/\b(horas?|horario|que horas|sao que horas|dia de hoje|qual data|que dia e|dia da semana|calendario)\b/.test(raw)) {
+                const timePhrases = [
+                    "Verificando o horário para você...",
+                    "Consultando data e hora agora...",
+                    "Só um instante, checando o horário..."
                 ];
-                return musicPhrases[Math.floor(Math.random() * musicPhrases.length)];
+                return timePhrases[Math.floor(Math.random() * timePhrases.length)];
             }
 
-            if (isYouTube) {
-                const ytPhrases = [
-                    "Tô pesquisando o tutorial no YouTube...",
-                    "Tô buscando o vídeo e a transcrição...",
-                    "Deixa comigo, estou vendo esse tutorial...",
-                    "Tô pesquisando no YouTube para você..."
-                ];
-                return ytPhrases[Math.floor(Math.random() * ytPhrases.length)];
-            }
-
-            if (isSearch) {
+            // 2. Pesquisa Web, Notícias, Previsão do tempo, Perguntas gerais na Internet
+            if (/\b(pesquis|pesquise|procur|procure|busc|busque|noticia|noticias|clima|tempo|previsao|cotacao|dolar|euro|quem e|quem foi|o que e|significado|como funciona|explica|explique|artigo|site|google|internet|web)\b/.test(raw)) {
                 const searchPhrases = [
-                    "Tô pesquisando...",
-                    "Tô pesquisando isso para você...",
-                    "Estou pesquisando, só um momento...",
-                    "Só um instante, estou pesquisando..."
+                    "Ok, estou indo buscar suas informações na internet...",
+                    "Consultando na internet, só um instante...",
+                    "Ó, vai demorar um pouquinho porque estou consultando na internet...",
+                    "Buscando as informações atualizadas para você..."
                 ];
                 return searchPhrases[Math.floor(Math.random() * searchPhrases.length)];
             }
-            
-            if (isHome) {
-                const homePhrases = [
-                    "Tô vendo isso agora...",
-                    "Deixa comigo, estou verificando...",
-                    "Tô verificando os dispositivos...",
-                    "Só um instante, verificando a casa..."
-                ];
-                return homePhrases[Math.floor(Math.random() * homePhrases.length)];
+
+            // 3. YouTube / Tutoriais em Vídeo / Passo a Passo
+            if (/\b(youtube|video|videos|tutorial|tutoriais|consertar|arrumar|receita|passo a passo|transcricao)\b/.test(raw)) {
+                return "Localizando e transcrevendo tutorial no YouTube, um momento...";
             }
 
-            if (isProductivity) {
-                const prodPhrases = [
-                    "Tô verificando suas informações...",
-                    "Só um momento, estou acessando...",
-                    "Tô consultando seus dados...",
-                    "Deixa comigo, estou verificando..."
-                ];
-                return prodPhrases[Math.floor(Math.random() * prodPhrases.length)];
+            // 4. Google Calendar & Compromissos
+            if (/\b(agenda|compromisso|compromissos|reuniao|reunioes|evento|eventos|marcar|agendar|desmarcar|cancelar compromisso)\b/.test(raw)) {
+                return "Ok, consultando seus compromissos na agenda...";
             }
 
-            // Geral / Conversação / Perguntas em geral
+            // 5. Gmail & E-mails
+            if (/\b(email|emails|e-mail|e-mails|gmail|caixa de entrada|mensagens recentes|enviar email|responder email|apagar email)\b/.test(raw)) {
+                return "Ok, acessando sua caixa de entrada no Gmail...";
+            }
+
+            // 6. Tarefas & Google Keep / Notas / Listas de compras
+            if (/\b(tarefa|tarefas|afazer|afazeres|to-do|lembrete|lembretes|nota|notas|keep|lista|compras|adicionar na lista|marcar na lista)\b/.test(raw)) {
+                return "Consultando suas anotações e tarefas...";
+            }
+
+            // 7. Contatos & Agenda telefônica
+            if (/\b(contato|contatos|telefone|telefones|agenda de contatos|salvar contato|buscar contato|numero do|numero da)\b/.test(raw)) {
+                return "Buscando seus contatos...";
+            }
+
+            // 8. Visão Computacional, Câmeras & Reconhecimento
+            if (/\b(camera|cameras|olhar|olhe|veja|quem esta|quem chegou|morador|visitante|foto|rosto|reconhecer|sala|garagem|porta)\b/.test(raw)) {
+                return "Ok, acessando a câmera para analisar o ambiente...";
+            }
+
+            // 9. Música, Sons & Reprodução de Áudio
+            if (/\b(tocar|toca|toque|escutar|musica|musicas|som|volume|podcast|samba|rock|pagode)\b/.test(raw)) {
+                return "Ok, buscando a música para você...";
+            }
+
+            // 10. Luzes, Cômodos & Automação Residencial
+            if (/\b(luz|luzes|lampada|lampadas|ligar|ligue|desligar|desligue|apagar|apague|acender|acenda|comodo|comodos|automacao|automacoes)\b/.test(raw)) {
+                return "Ok, verificando os dispositivos da casa...";
+            }
+
+            // 11. Slack & Telegram
+            if (/\b(slack|telegram|mensagem|notificacao|relatorio|canal|workspace)\b/.test(raw)) {
+                return "Ok, verificando mensagens e canais...";
+            }
+
+            // 12. OSINT & Sherlock / Holehe
+            if (/\b(investigar|investigacao|osint|sherlock|holehe|dossie|rastrear|redes sociais)\b/.test(raw)) {
+                return "Iniciando levantamento detalhado na internet, isso pode levar alguns segundos...";
+            }
+
+            // 13. Antigravity & Comandos de Terminal
+            if (/\b(antigravity|terminal|comando|bash|linux|servidor|uptime|processo|cpu|memoria)\b/.test(raw)) {
+                return "Ok, consultando o especialista Antigravity...";
+            }
+
+            // 14. Padrão genérico acolhedor e dinâmico (evita silêncio absoluto)
             const generalPhrases = [
-                "Tô vendo isso para você...",
-                "Tô respondendo a sua pergunta, só um instante...",
-                "Só um momento, estou verificando...",
-                "Estou processando sua solicitação..."
+                "Ok, estou buscando suas informações...",
+                "Só um instante, consultando para você...",
+                "Entendido! Buscando os dados agora...",
+                "Um momento, verificando suas informações...",
+                "Deixa comigo, estou verificando..."
             ];
             return generalPhrases[Math.floor(Math.random() * generalPhrases.length)];
         }
@@ -2502,6 +2514,7 @@
 
             // Determina a frase de feedback imediato para o agente falar e exibir
             const feedbackPhrase = getAgentFeedbackPhrase(userText);
+            let lastSpokenStatus = feedbackPhrase;
 
             // Indicador de digitação / processamento dinâmico
             const typingEl = document.createElement("div");
@@ -2598,6 +2611,11 @@
                                             const statusSpan = document.getElementById("agentThinkingStatus");
                                             if (statusSpan) statusSpan.textContent = ev.message;
                                             logToConsole(`[Agente]: ${ev.message}`, "info");
+                                            const spokenMsg = ev.spoken_message || ev.message;
+                                            if (ev.spoken !== false && spokenMsg && spokenMsg !== lastSpokenStatus) {
+                                                lastSpokenStatus = spokenMsg;
+                                                speakIntermediateStatus(spokenMsg);
+                                            }
                                         } else if (ev.type === "final") {
                                             finalReply = ev.reply || "";
                                             finalSpokenReply = ev.spoken_reply || "";
@@ -3119,7 +3137,11 @@
                 }
                 try {
                     isAudioPlayingActive = true;
-                    stopVoiceRecognition();
+                    if (!alwaysListen) {
+                        stopVoiceRecognition();
+                    } else if (!isListening && !isProcessingCommand) {
+                        startVoiceRecognition();
+                    }
 
                     if (currentPlayingAudio) {
                         try {
@@ -3268,7 +3290,7 @@
 
                 if (alwaysListen && !isProcessingCommand) {
                     voiceRestartTimeout = setTimeout(() => {
-                        if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                        if (alwaysListen && !isListening && !isProcessingCommand) {
                             startVoiceRecognition();
                         }
                     }, 120);
@@ -3280,7 +3302,11 @@
             isProcessingQueue = true;
             isSpeakingTTS = true;
             isAudioPlayingActive = true;
-            stopVoiceRecognition();
+            if (!alwaysListen) {
+                stopVoiceRecognition();
+            } else if (!isListening && !isProcessingCommand) {
+                startVoiceRecognition();
+            }
 
             const item = speechQueue.shift();
 
@@ -3618,20 +3644,64 @@
             };
 
             rec.onresult = (event) => {
-                if (isSpeakingTTS || isProcessingCommand || isAudioPlayingActive) {
-                    latestHeardText = "";
-                    return;
-                }
                 let fullTranscript = "";
                 for (let i = 0; i < event.results.length; ++i) {
                     fullTranscript += event.results[i][0].transcript + " ";
                 }
                 const currentText = fullTranscript.trim();
-                if (currentText) {
-                    latestHeardText = currentText;
-                    const wText = document.getElementById("voiceWaveText");
-                    if (wText) wText.innerText = `"${currentText}"`;
+                if (!currentText) return;
+
+                // BARGE-IN: Se o assistente estiver falando (TTS), permite interrupção imediata por Wake Word ou comando de parada
+                if (isSpeakingTTS || isAudioPlayingActive || speechQueue.length > 0) {
+                    const agentName = getAgentName();
+                    const { isWake, command } = extractWakeWordAndCommand(currentText, agentName);
+                    const isStop = isStopTalkingCommand(currentText) || (isWake && isStopTalkingCommand(command));
+
+                    if (isWake || isStop) {
+                        console.log("[Index Barge-In Detected]:", currentText);
+                        silenciarAudio(false);
+                        latestHeardText = "";
+
+                        if (isStop) {
+                            const wText = document.getElementById("voiceWaveText");
+                            if (wText) wText.innerText = "Áudio interrompido.";
+                            return;
+                        }
+
+                        if (isWake) {
+                            if (command.length > 1) {
+                                clearTimeout(wakeWordTimer);
+                                isWaitingCommandAfterWakeWord = false;
+                                const wText = document.getElementById("voiceWaveText");
+                                if (wText) wText.innerText = `"${agentName}, ${command}"`;
+                                processCommand(command);
+                            } else {
+                                isWaitingCommandAfterWakeWord = true;
+                                const wText = document.getElementById("voiceWaveText");
+                                if (wText) wText.innerText = `"${agentName}..." (Aguardando instrução...)`;
+                                speakResponse("Sim, estou ouvindo!");
+
+                                clearTimeout(wakeWordTimer);
+                                wakeWordTimer = setTimeout(() => {
+                                    isWaitingCommandAfterWakeWord = false;
+                                    const wt = document.getElementById("voiceWaveText");
+                                    if (wt) wt.innerText = `Ouvindo... Diga "${agentName}"`;
+                                }, 8000);
+                            }
+                            return;
+                        }
+                    }
+                    return;
                 }
+
+                if (isProcessingCommand) {
+                    latestHeardText = "";
+                    return;
+                }
+
+                latestHeardText = currentText;
+                const wText = document.getElementById("voiceWaveText");
+                if (wText) wText.innerText = `"${currentText}"`;
             };
 
             rec.onerror = (event) => {
@@ -3661,7 +3731,7 @@
                     if (lbl) lbl.innerText = "Falar por Voz";
                 }
 
-                if (latestHeardText && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive) {
+                if (latestHeardText && !isProcessingCommand) {
                     const textToProcess = latestHeardText;
                     latestHeardText = "";
                     if (alwaysListen) {
@@ -3671,10 +3741,11 @@
                     }
                 }
 
-                if (alwaysListen && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                // Mantém o microfone reiniciando continuamente para capturar Barge-In mesmo durante TTS
+                if (alwaysListen && !isProcessingCommand) {
                     clearTimeout(voiceRestartTimeout);
                     voiceRestartTimeout = setTimeout(() => {
-                        if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                        if (alwaysListen && !isListening && !isProcessingCommand) {
                             startVoiceRecognition();
                         }
                     }, 80);
@@ -3794,7 +3865,7 @@
 
         function handleWakeWordDetection(text) {
             if (!text || !text.trim()) return;
-            if (isProcessingCommand || isSpeakingTTS || isAudioPlayingActive) return;
+            if (isProcessingCommand) return;
             const norm = normalizeText(text);
             const agentName = getAgentName();
 
@@ -3809,12 +3880,14 @@
                 if (command.length > 1) {
                     clearTimeout(wakeWordTimer);
                     isWaitingCommandAfterWakeWord = false;
+                    silenciarAudio(false);
                     processCommand(command);
                     return;
                 }
 
                 if (!isWaitingCommandAfterWakeWord) {
                     isWaitingCommandAfterWakeWord = true;
+                    silenciarAudio(false);
                     speakResponse("Sim, estou ouvindo!");
                     clearTimeout(wakeWordTimer);
                     wakeWordTimer = setTimeout(() => {
@@ -3831,6 +3904,7 @@
                     silenciarAudio(true);
                     return;
                 }
+                silenciarAudio(false);
                 processCommand(text.trim());
             }
         }
@@ -3842,7 +3916,7 @@
         }
 
         function startVoiceRecognition() {
-            if (isListening || isSpeakingTTS || isProcessingCommand || isAudioPlayingActive || speechQueue.length > 0) return;
+            if (isListening || isProcessingCommand) return;
             try {
                 recognitionInstance = createFreshRecognition();
                 if (recognitionInstance) recognitionInstance.start();
@@ -5712,7 +5786,7 @@
         function startContinuousWatchdog() {
             if (watchdogInterval) clearInterval(watchdogInterval);
             watchdogInterval = setInterval(() => {
-                if (alwaysListen && !isListening && !isSpeakingTTS && !isProcessingCommand && !isAudioPlayingActive && speechQueue.length === 0) {
+                if (alwaysListen && !isListening && !isProcessingCommand) {
                     startVoiceRecognition();
                 }
             }, 1200);

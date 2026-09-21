@@ -505,14 +505,23 @@ async def chat_stream_endpoint(request: ChatRequest, token_payload: dict = Depen
         loop = asyncio.get_running_loop()
 
         def status_callback(event_type: str, message: str, extra: Optional[Dict[str, Any]] = None):
+            extra_data = extra or {}
+            spoken_msg = extra_data.get("spoken_message") or message
+            is_spoken = extra_data.get("spoken", True)
             loop.call_soon_threadsafe(
                 queue.put_nowait,
-                {"type": event_type, "message": message, "extra": extra or {}}
+                {
+                    "type": event_type,
+                    "message": message,
+                    "spoken": is_spoken,
+                    "spoken_message": spoken_msg,
+                    "extra": extra_data
+                }
             )
 
         def worker():
             try:
-                status_callback("status", "Analisando sua solicitação...")
+                status_callback("status", "Analisando sua solicitação...", {"spoken": False})
                 req_name = (request.agent_name or "").strip()
                 effective_agent_name = (req_name if req_name and req_name != "Sexta-Feira" else None) or (ai_cfg.get("agent_name") or "").strip() or req_name or os.getenv("AGENT_NAME", "Sexta-Feira")
                 res = processar_comando_agente(
@@ -1983,16 +1992,55 @@ async def _synthesize_edge_tts_bytes(text: str, voice: str, rate: str = "+0%", p
     return audio_stream.getvalue()
 
 def prewarm_tts_cache_background():
-    """Pré-aquece em segundo plano o cache de áudio das mensagens de status mais comuns."""
+    """Pré-aquece em segundo plano o cache de áudio das mensagens de status e feedback mais comuns."""
     def worker():
         try:
-            from api.agent import TOOL_STATUS_MESSAGES
-            phrases = list(set(list(TOOL_STATUS_MESSAGES.values()) + [
-                "Analisando sua solicitação...",
-                "Processando as informações para responder você...",
-                "Só um momento, verificando...",
-                "Aguarde um instante..."
-            ]))
+            try:
+                from api.agent import TOOL_STATUS_MESSAGES, TOOL_SPOKEN_STATUS_MESSAGES
+            except ImportError:
+                from agent import TOOL_STATUS_MESSAGES, TOOL_SPOKEN_STATUS_MESSAGES
+
+            initial_feedback_phrases = [
+                "Verificando o horário para você...",
+                "Consultando data e hora agora...",
+                "Só um instante, checando o horário...",
+                "Ok, estou indo buscar suas informações na internet...",
+                "Consultando na internet, só um instante...",
+                "Ó, vai demorar um pouquinho porque estou consultando na internet...",
+                "Buscando as informações atualizadas para você...",
+                "Ok, consultando seus compromissos na agenda...",
+                "Só um momento, verificando sua agenda...",
+                "Ok, acessando sua caixa de entrada no Gmail...",
+                "Verificando seus e-mails...",
+                "Consultando suas anotações e tarefas...",
+                "Verificando suas notas...",
+                "Buscando seus contatos...",
+                "Verificando o contato para você...",
+                "Ok, acessando a câmera para analisar o ambiente...",
+                "Verificando as imagens da câmera...",
+                "Ok, buscando o áudio para você...",
+                "Preparando a reprodução de áudio...",
+                "Ok, verificando os dispositivos da casa...",
+                "Enviando comando para os dispositivos...",
+                "Ok, verificando mensagens e canais...",
+                "Iniciando levantamento detalhado na internet, isso pode levar alguns segundos...",
+                "Ok, consultando o especialista Antigravity...",
+                "Executando no sistema operacional...",
+                "Ok, estou buscando suas informações...",
+                "Só um instante, consultando para você...",
+                "Entendido! Buscando os dados agora...",
+                "Um momento, verificando suas informações...",
+                "Deixa comigo, estou verificando...",
+                "Analisando sua solicitação..."
+            ]
+
+            all_phrases = set(
+                list(TOOL_STATUS_MESSAGES.values()) +
+                list(TOOL_SPOKEN_STATUS_MESSAGES.values()) +
+                initial_feedback_phrases
+            )
+
+            phrases = [p.strip() for p in all_phrases if p and p.strip()]
             voices = ["pt-BR-FranciscaNeural", "pt-BR-AntonioNeural"]
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
