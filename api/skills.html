@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Central de Habilidades & Skills • Smart Home AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .glass {
+            background: rgba(24, 24, 27, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .glass-card {
+            background: rgba(18, 18, 23, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.35);
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(18, 18, 23, 0.6);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.7);
+        }
+
+        /* Toggle switch checkbox style */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #6366f1;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #4f46e5;
+        }
+
+        /* Markdown rendered preview styling */
+        .markdown-preview h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 0.75rem; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.3rem; }
+        .markdown-preview h2 { font-size: 1.25rem; font-weight: 700; margin-top: 1rem; margin-bottom: 0.5rem; color: #e0e7ff; }
+        .markdown-preview h3 { font-size: 1.1rem; font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.4rem; color: #c7d2fe; }
+        .markdown-preview p { margin-bottom: 0.75rem; color: #d1d5db; line-height: 1.6; font-size: 0.875rem; }
+        .markdown-preview ul { list-style-type: disc; margin-left: 1.25rem; margin-bottom: 0.75rem; color: #d1d5db; font-size: 0.875rem; }
+        .markdown-preview ol { list-style-type: decimal; margin-left: 1.25rem; margin-bottom: 0.75rem; color: #d1d5db; font-size: 0.875rem; }
+        .markdown-preview li { margin-bottom: 0.25rem; }
+        .markdown-preview code { font-family: 'JetBrains Mono', monospace; background: rgba(30, 27, 75, 0.7); color: #a5b4fc; padding: 0.15rem 0.35rem; border-radius: 0.35rem; font-size: 0.8rem; border: 1px solid rgba(99, 102, 241, 0.2); }
+        .markdown-preview pre { font-family: 'JetBrains Mono', monospace; background: rgba(10, 10, 15, 0.9); padding: 0.75rem 1rem; border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); overflow-x: auto; margin-bottom: 0.75rem; }
+        .markdown-preview pre code { background: transparent; padding: 0; border: none; color: #e0e7ff; }
+        .markdown-preview blockquote { border-left: 3px solid #6366f1; padding-left: 0.75rem; margin-left: 0; color: #9ca3af; font-style: italic; }
+        .markdown-preview strong { color: #fff; font-weight: 700; }
+        .markdown-preview hr { border-color: rgba(255,255,255,0.1); margin: 1rem 0; }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white min-h-screen pb-20">
+
+    <!-- TOP GLOW BACKGROUND EFFECT -->
+    <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-72 bg-gradient-to-b from-indigo-600/15 via-purple-600/10 to-transparent blur-3xl pointer-events-none -z-10"></div>
+
+    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- ========================================================================= -->
+        <!-- HEADER & NAVEGAÇÃO SUPERIOR -->
+        <!-- ========================================================================= -->
+        <header class="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-5 pb-6 border-b border-zinc-800/80 mb-8">
+            <div class="flex items-center gap-4">
+                <div class="relative w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-600/30 shrink-0">
+                    <span class="text-2xl">⚡</span>
+                    <div class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-zinc-950 flex items-center justify-center">
+                        <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center gap-3">
+                        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
+                            <span>Central de Skills & Habilidades</span>
+                        </h1>
+                        <span class="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 px-3 py-1 rounded-full font-mono font-bold flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+                            Claude/AGY Skills
+                        </span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-zinc-400 mt-1">
+                        Gerencie prompts especializados, diretrizes comportamentais e conhecimentos do seu assistente
+                    </p>
+                </div>
+            </div>
+
+            <!-- Navegação e Ações Rápidas -->
+            <div class="flex flex-wrap items-center gap-2.5">
+                <a href="/" class="bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-zinc-200 px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
+                    <span>💬</span>
+                    <span>Chat / Início</span>
+                </a>
+
+                <a href="/casa.html" class="bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-zinc-200 px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
+                    <span>🏠</span>
+                    <span>Casa</span>
+                </a>
+
+                <a href="/avatar.html" class="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 text-indigo-200 px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
+                    <span>🎭</span>
+                    <span>Avatar 2D</span>
+                </a>
+
+                <a href="/profile.html" class="bg-zinc-800/90 hover:bg-zinc-700 border border-zinc-700/80 text-zinc-200 px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
+                    <span>👤</span>
+                    <span>Perfil</span>
+                </a>
+
+                <!-- BOTAO ESCUTA CONTÍNUA -->
+                <button id="alwaysListenBtn" onclick="toggleAlwaysListen()" title="Ativar/Desativar escuta contínua por voz"
+                    class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 transition px-3.5 py-2.5 rounded-2xl font-semibold text-xs flex items-center gap-2 cursor-pointer">
+                    <span id="alwaysListenDot" class="w-2.5 h-2.5 rounded-full bg-zinc-500"></span>
+                    <span id="alwaysListenText">🎙️ Ouvir Sempre</span>
+                </button>
+
+                <!-- USUÁRIO E LOGOUT -->
+                <div class="flex items-center gap-2 bg-zinc-900 border border-zinc-800 pl-3 pr-1 py-1 rounded-2xl">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span id="userNameDisplay" class="text-xs font-bold text-zinc-300 max-w-[100px] truncate">Usuário</span>
+                    <button onclick="handleLogout()" title="Sair" class="hover:bg-red-500/20 text-red-400 p-2 rounded-xl text-xs transition">
+                        🚪
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- ========================================================================= -->
+        <!-- HERO STATS & AÇÕES PRINCIPAIS -->
+        <!-- ========================================================================= -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
+            <!-- Card de Estatísticas -->
+            <div class="lg:col-span-2 glass p-5 rounded-3xl border border-zinc-800/80 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-indigo-400 font-mono">Status do Sistema de Skills</span>
+                        <h2 class="text-xl font-bold text-white mt-1">Especializações Ativas no Agente</h2>
+                    </div>
+                    <span class="p-2.5 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-2xl text-xl">🧠</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-zinc-800/80 text-center">
+                    <div class="bg-zinc-900/60 p-3 rounded-2xl border border-zinc-800/50">
+                        <span class="text-xs text-zinc-400 block">Total</span>
+                        <span id="statTotalSkills" class="text-2xl font-black text-white font-mono">0</span>
+                    </div>
+                    <div class="bg-indigo-950/40 p-3 rounded-2xl border border-indigo-500/30">
+                        <span class="text-xs text-indigo-300 block">Ativas</span>
+                        <span id="statActiveSkills" class="text-2xl font-black text-indigo-400 font-mono">0</span>
+                    </div>
+                    <div class="bg-zinc-900/60 p-3 rounded-2xl border border-zinc-800/50">
+                        <span class="text-xs text-zinc-400 block">Categorias</span>
+                        <span id="statCategories" class="text-2xl font-black text-purple-400 font-mono">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botões de Ação em Bloco -->
+            <div class="lg:col-span-2 flex flex-col justify-between gap-3">
+                <button onclick="openCreateSkillModal()"
+                    class="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm flex items-center justify-center gap-3 shadow-xl shadow-indigo-600/25 border border-indigo-400/30 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer">
+                    <span class="text-xl">✨</span>
+                    <span>Criar Nova Habilidade</span>
+                </button>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="openUploadModal()"
+                        class="py-3 px-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700/90 text-zinc-200 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 border border-zinc-700/80 transition cursor-pointer">
+                        <span class="text-base">📤</span>
+                        <span>Importar Arquivo</span>
+                    </button>
+
+                    <button onclick="openTemplatesModal()"
+                        class="py-3 px-4 rounded-2xl bg-purple-950/60 hover:bg-purple-900/80 text-purple-200 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 border border-purple-500/40 transition cursor-pointer">
+                        <span class="text-base">📚</span>
+                        <span>Ver Templates</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- TOOLBAR DE BUSCA E FILTROS DE CATEGORIA -->
+        <!-- ========================================================================= -->
+        <div class="glass p-4 rounded-3xl border border-zinc-800/80 mb-8 flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center">
+            
+            <!-- Campo de Busca Textual -->
+            <div class="relative flex-1">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">🔍</span>
+                <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Pesquisar por nome, palavra-chave, gatilho ou instrução..."
+                    class="w-full pl-10 pr-4 py-2.5 bg-zinc-900/90 border border-zinc-700/80 rounded-2xl text-xs sm:text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+            </div>
+
+            <!-- Filtros de Categoria -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+                <button onclick="filterByCategory('all')" data-cat="all" class="cat-pill bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0">
+                    Todas
+                </button>
+                <button onclick="filterByCategory('desenvolvimento')" data-cat="desenvolvimento" class="cat-pill bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-semibold transition shrink-0">
+                    🐍 Dev
+                </button>
+                <button onclick="filterByCategory('automacao')" data-cat="automacao" class="cat-pill bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-semibold transition shrink-0">
+                    🏠 Automação
+                </button>
+                <button onclick="filterByCategory('seguranca')" data-cat="seguranca" class="cat-pill bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-semibold transition shrink-0">
+                    🛡️ OSINT / Seg
+                </button>
+                <button onclick="filterByCategory('produtividade')" data-cat="produtividade" class="cat-pill bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-semibold transition shrink-0">
+                    📊 Produtividade
+                </button>
+                <button onclick="filterByCategory('comunicacao')" data-cat="comunicacao" class="cat-pill bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-semibold transition shrink-0">
+                    ✍️ Redação
+                </button>
+            </div>
+
+            <!-- Switch Somente Ativas -->
+            <label class="flex items-center gap-2 cursor-pointer select-none text-xs text-zinc-300 font-semibold shrink-0">
+                <input type="checkbox" id="onlyActiveFilter" onchange="applyFilters()" class="w-4 h-4 rounded bg-zinc-900 border-zinc-700 text-indigo-600 focus:ring-indigo-500">
+                <span>Somente Ativas</span>
+            </label>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- GRID DE CARDS DE SKILLS -->
+        <!-- ========================================================================= -->
+        <div id="skillsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- Carregando Skeleton -->
+            <div class="glass-card p-6 rounded-3xl border border-zinc-800/60 animate-pulse">
+                <div class="h-6 bg-zinc-800 rounded-lg w-1/3 mb-4"></div>
+                <div class="h-4 bg-zinc-800 rounded-lg w-2/3 mb-2"></div>
+                <div class="h-4 bg-zinc-800 rounded-lg w-1/2 mb-6"></div>
+                <div class="h-8 bg-zinc-800 rounded-xl w-full"></div>
+            </div>
+        </div>
+
+        <!-- Estado Vazio -->
+        <div id="emptyState" class="hidden text-center py-16 px-4">
+            <div class="w-16 h-16 bg-zinc-900 border border-zinc-800 rounded-3xl flex items-center justify-center mx-auto text-3xl mb-4">
+                ⚡
+            </div>
+            <h3 class="text-lg font-bold text-white mb-1">Nenhuma Habilidade Encontrada</h3>
+            <p class="text-sm text-zinc-400 max-w-md mx-auto mb-6">
+                Não encontramos nenhuma skill correspondente aos filtros selecionados. Crie uma nova ou explore nosso catálogo de templates prontos.
+            </p>
+            <div class="flex items-center justify-center gap-3">
+                <button onclick="openCreateSkillModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
+                    + Criar Skill
+                </button>
+                <button onclick="openTemplatesModal()" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs px-4 py-2.5 rounded-xl transition">
+                    Ver Templates
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 1: CRIAR / EDITAR SKILL -->
+    <!-- ========================================================================= -->
+    <div id="skillModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-800 w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            
+            <!-- Header do Modal -->
+            <div class="flex items-center justify-between p-6 border-b border-zinc-800/80 bg-zinc-950/40">
+                <div class="flex items-center gap-3">
+                    <span id="modalIconPreview" class="text-2xl p-2 bg-indigo-600/20 border border-indigo-500/30 rounded-2xl">⚡</span>
+                    <div>
+                        <h2 id="modalTitle" class="text-lg font-bold text-white">Criar Nova Habilidade</h2>
+                        <p class="text-xs text-zinc-400">Configure diretrizes especializadas e gatilhos para o agente</p>
+                    </div>
+                </div>
+                <button onclick="closeSkillModal()" class="text-zinc-400 hover:text-white p-2 rounded-xl hover:bg-zinc-800 transition">✕</button>
+            </div>
+
+            <!-- Corpo do Modal com Scroll -->
+            <div class="p-6 overflow-y-auto space-y-5 flex-1">
+                
+                <input type="hidden" id="editSkillId" value="">
+
+                <!-- Linha 1: Nome, Ícone e Categoria -->
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">Ícone</label>
+                        <input type="text" id="skillIconInput" value="⚡" maxlength="4" oninput="document.getElementById('modalIconPreview').textContent = this.value || '⚡'"
+                            class="w-full text-center text-xl py-2 bg-zinc-950 border border-zinc-700/80 rounded-2xl text-white focus:border-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div class="sm:col-span-6">
+                        <label class="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">Nome da Skill *</label>
+                        <input type="text" id="skillNameInput" placeholder="Ex: Engenheiro Python Sênior" oninput="autoGenerateSlug(this.value)"
+                            class="w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-700/80 rounded-2xl text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div class="sm:col-span-4">
+                        <label class="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">Categoria</label>
+                        <select id="skillCategorySelect" class="w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-700/80 rounded-2xl text-sm text-white focus:border-indigo-500 focus:outline-none">
+                            <option value="desenvolvimento">🐍 Desenvolvimento</option>
+                            <option value="automacao">🏠 Automação</option>
+                            <option value="seguranca">🛡️ Segurança / OSINT</option>
+                            <option value="produtividade">📊 Produtividade</option>
+                            <option value="comunicacao">✍️ Comunicação</option>
+                            <option value="general">⚡ Geral</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Linha 2: Slug e Versão -->
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                    <div class="sm:col-span-8">
+                        <label class="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">Identificador / Slug (único)</label>
+                        <input type="text" id="skillSlugInput" placeholder="ex: dev_python_senior"
+                            class="w-full px-3.5 py-2 bg-zinc-950 border border-zinc-700/80 rounded-2xl text-xs font-mono text-indigo-300 placeholder-zinc-500 focus:border-indigo-500 focus:outline-none">
+                    </div>
+                    <div class="sm:col-span-4">
+                        <label class="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">Versão</label>
+                        <input type="text" id="skillVersionInput" value="1.0.0" placeholder="1.0.0"
+                            class="w-full px-3.5 py-2 bg-zinc-950 border border-zinc-700/80 rounded-2xl text-xs font-mono text-zinc-300 focus:border-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Linha 3: Descrição Curta -->
+                <div>
+                    <label class="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">Descrição / Finalidade</label>
+                    <input type="text" id="skillDescInput" placeholder="Breve resumo da especialização desta skill..."
+                        class="w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-700/80 rounded-2xl text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none">
+                </div>
+
+                <!-- Linha 4: Gatilhos / Palavras-chave -->
+                <div>
+                    <label class="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                        Gatilhos e Palavras-chave de Ativação <span class="text-zinc-500 font-normal lowercase">(separados por vírgula)</span>
+                    </label>
+                    <input type="text" id="skillTriggersInput" placeholder="python, código, backend, fastapi, refatorar, bug"
+                        class="w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-700/80 rounded-2xl text-xs font-mono text-zinc-300 placeholder-zinc-500 focus:border-indigo-500 focus:outline-none">
+                </div>
+
+                <!-- Linha 5: Editor de Instruções Markdown com Preview -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                            Diretrizes & Instruções de Comportamento (Markdown) *
+                        </label>
+                        <!-- Abas Editor / Preview -->
+                        <div class="flex items-center bg-zinc-950 p-1 rounded-xl border border-zinc-800 text-xs">
+                            <button type="button" onclick="switchEditorTab('edit')" id="tabBtnEdit" class="px-3 py-1 rounded-lg bg-indigo-600 text-white font-bold transition">Editor</button>
+                            <button type="button" onclick="switchEditorTab('preview')" id="tabBtnPreview" class="px-3 py-1 rounded-lg text-zinc-400 hover:text-white transition">Pré-Visualizar</button>
+                        </div>
+                    </div>
+
+                    <div id="editorPane">
+                        <textarea id="skillInstructionsInput" rows="10" placeholder="Descreva passo a passo como o agente deve agir, diretrizes técnicas, boas práticas, estilo de resposta..."
+                            class="w-full p-4 bg-zinc-950 border border-zinc-700/80 rounded-2xl text-sm font-mono text-zinc-200 placeholder-zinc-500 focus:border-indigo-500 focus:outline-none resize-y leading-relaxed"></textarea>
+                    </div>
+
+                    <div id="previewPane" class="hidden p-4 bg-zinc-950 border border-zinc-800 rounded-2xl min-h-[240px] markdown-preview overflow-y-auto max-h-[350px]">
+                        <!-- Renderizado dinamicamente -->
+                    </div>
+                </div>
+
+                <!-- Switch Ativar Imediatamente -->
+                <div class="flex items-center justify-between p-3.5 bg-zinc-950/60 rounded-2xl border border-zinc-800">
+                    <div>
+                        <span class="text-xs font-bold text-white block">Ativar Habilidade Imediatamente</span>
+                        <span class="text-[11px] text-zinc-400">Quando ativa, as diretrizes serão aplicadas em tempo real pelo agente.</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="skillActiveInput" checked class="sr-only peer">
+                        <div class="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>
+
+            </div>
+
+            <!-- Footer do Modal -->
+            <div class="flex items-center justify-end gap-3 p-4 px-6 border-t border-zinc-800/80 bg-zinc-950/60">
+                <button type="button" onclick="closeSkillModal()" class="px-4 py-2.5 rounded-xl text-xs font-bold text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+                    Cancelar
+                </button>
+                <button type="button" onclick="saveSkillForm()" class="px-6 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition">
+                    Salvar Habilidade
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 2: UPLOAD DRAG & DROP -->
+    <!-- ========================================================================= -->
+    <div id="uploadModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-800 w-full max-w-lg rounded-3xl shadow-2xl p-6">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-zinc-800">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl">📤</span>
+                    <h3 class="text-base font-bold text-white">Importar Arquivo de Skill</h3>
+                </div>
+                <button onclick="closeUploadModal()" class="text-zinc-400 hover:text-white p-1.5 rounded-xl hover:bg-zinc-800 transition">✕</button>
+            </div>
+
+            <p class="text-xs text-zinc-400 mb-4">
+                Faça upload de arquivos no formato Claude / Antigravity (<code class="text-indigo-300">SKILL.md</code> ou <code class="text-indigo-300">.md</code> com YAML frontmatter), definições <code class="text-indigo-300">.json</code>, notas <code class="text-indigo-300">.txt</code> ou pacotes <code class="text-indigo-300">.zip</code> com múltiplas skills.
+            </p>
+
+            <!-- Drop Zone -->
+            <div id="dropZone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)"
+                class="border-2 border-dashed border-zinc-700 hover:border-indigo-500 bg-zinc-950/60 rounded-3xl p-8 text-center transition cursor-pointer mb-4">
+                <span class="text-4xl block mb-2">📁</span>
+                <span class="text-xs font-bold text-zinc-200 block mb-1">Arraste e solte o arquivo aqui</span>
+                <span class="text-[11px] text-zinc-500 block mb-4">ou clique para selecionar do computador</span>
+                <button type="button" onclick="document.getElementById('skillFileInput').click()"
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow transition">
+                    Escolher Arquivo
+                </button>
+                <input type="file" id="skillFileInput" accept=".md,.markdown,.json,.txt,.zip" onchange="handleFileSelect(event)" class="hidden">
+            </div>
+
+            <div id="uploadFileInfo" class="hidden p-3 bg-zinc-950 rounded-2xl border border-zinc-800 mb-4 flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2 truncate">
+                    <span>📄</span>
+                    <span id="selectedFileName" class="font-mono text-zinc-300 truncate">arquivo.md</span>
+                </div>
+                <span id="selectedFileSize" class="text-zinc-500 text-[10px] shrink-0 font-mono">0 KB</span>
+            </div>
+
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" onclick="closeUploadModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+                    Cancelar
+                </button>
+                <button type="button" id="btnConfirmUpload" onclick="submitSkillUpload()" disabled
+                    class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 disabled:opacity-40 hover:bg-indigo-500 text-white shadow-lg transition">
+                    Importar Agora
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 3: CATÁLOGO DE TEMPLATES PRONTOS -->
+    <!-- ========================================================================= -->
+    <div id="templatesModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-800 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div class="flex items-center justify-between p-6 border-b border-zinc-800/80 bg-zinc-950/40">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl p-2 bg-purple-600/20 border border-purple-500/30 rounded-2xl">📚</span>
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Catálogo de Templates de Skills</h2>
+                        <p class="text-xs text-zinc-400">Instale especializações prontas e comprovadas com 1 clique</p>
+                    </div>
+                </div>
+                <button onclick="closeTemplatesModal()" class="text-zinc-400 hover:text-white p-2 rounded-xl hover:bg-zinc-800 transition">✕</button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-4 flex-1">
+                <div id="templatesGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Preenchido dinamicamente via JS -->
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between p-4 px-6 border-t border-zinc-800 bg-zinc-950/60">
+                <span class="text-xs text-zinc-400">Templates instalados tornam-se habilidades customizáveis.</span>
+                <button onclick="closeTemplatesModal()" class="px-5 py-2 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-white transition">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 4: VISUALIZADOR RÁPIDO DE INSTRUÇÕES -->
+    <!-- ========================================================================= -->
+    <div id="viewModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-800 w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div class="flex items-center justify-between p-6 border-b border-zinc-800/80 bg-zinc-950/40">
+                <div class="flex items-center gap-3">
+                    <span id="viewIcon" class="text-2xl p-2 bg-indigo-600/20 border border-indigo-500/30 rounded-2xl">⚡</span>
+                    <div>
+                        <h2 id="viewTitle" class="text-lg font-bold text-white">Nome da Skill</h2>
+                        <span id="viewSlug" class="text-[11px] font-mono text-indigo-300">slug_da_skill</span>
+                    </div>
+                </div>
+                <button onclick="closeViewModal()" class="text-zinc-400 hover:text-white p-2 rounded-xl hover:bg-zinc-800 transition">✕</button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-4 flex-1">
+                <div class="p-3.5 bg-zinc-950 rounded-2xl border border-zinc-800">
+                    <span class="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-1">Finalidade</span>
+                    <p id="viewDesc" class="text-xs text-zinc-200"></p>
+                </div>
+
+                <div id="viewTriggersContainer" class="p-3.5 bg-zinc-950 rounded-2xl border border-zinc-800">
+                    <span class="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-2">Gatilhos / Assuntos</span>
+                    <div id="viewTriggers" class="flex flex-wrap gap-1.5"></div>
+                </div>
+
+                <div>
+                    <span class="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-2">Instruções Especializadas de Comportamento</span>
+                    <div id="viewMarkdownContent" class="p-5 bg-zinc-950 rounded-2xl border border-zinc-800/80 markdown-preview"></div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between p-4 px-6 border-t border-zinc-800 bg-zinc-950/60">
+                <div class="flex items-center gap-2">
+                    <button id="btnViewExportMd" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition">
+                        📥 Baixar .SKILL.md
+                    </button>
+                    <button id="btnViewExportJson" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition">
+                        📥 Baixar .JSON
+                    </button>
+                </div>
+                <button onclick="closeViewModal()" class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2.5 max-w-sm"></div>
+
+    <!-- ========================================================================= -->
+    <!-- SCRIPTS E LÓGICA DO FRONTEND DE SKILLS -->
+    <!-- ========================================================================= -->
+    <script>
+        // State
+        let allSkills = [];
+        let allTemplates = [];
+        let currentFilterCategory = 'all';
+        let selectedUploadFile = null;
+
+        // Helper para obter Token de Autenticação
+        function getAuthToken() {
+            return localStorage.getItem('smartHomeToken') || localStorage.getItem('token') || '';
+        }
+
+        // Auth Header Helper
+        function getAuthHeaders() {
+            const token = getAuthToken();
+            return {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        // Init on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = getAuthToken();
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            // Exibição instantânea do nome do usuário em cache
+            const userStr = localStorage.getItem('smartHomeUser');
+            if (userStr) {
+                try {
+                    const u = JSON.parse(userStr);
+                    document.getElementById('userNameDisplay').textContent = u.name || u.email || 'Usuário';
+                } catch(e) {}
+            }
+
+            loadUserProfileHeader();
+            await loadSkills();
+            await loadTemplates();
+        });
+
+        // Carrega dados do usuário no header
+        async function loadUserProfileHeader() {
+            try {
+                const res = await fetch('/api/auth/me', { headers: getAuthHeaders() });
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('userNameDisplay').textContent = data.name || data.email || 'Usuário';
+                } else if (res.status === 401) {
+                    localStorage.removeItem('smartHomeToken');
+                    localStorage.removeItem('smartHomeUser');
+                    localStorage.removeItem('token');
+                    window.location.href = '/login.html';
+                }
+            } catch (err) {
+                console.error('Erro ao buscar usuário:', err);
+            }
+        }
+
+        function handleLogout() {
+            if (confirm("Deseja realmente sair do sistema?")) {
+                try {
+                    sessionStorage.removeItem("smartHomeSystemInitialized");
+                    sessionStorage.clear();
+                } catch(e) {}
+                localStorage.removeItem('smartHomeToken');
+                localStorage.removeItem('smartHomeUser');
+                localStorage.removeItem('token');
+                window.location.href = '/login.html';
+            }
+        }
+
+        // Carrega Skills do Usuário
+        async function loadSkills() {
+            try {
+                const res = await fetch('/api/skills', { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Falha ao carregar skills.');
+                const data = await res.json();
+                allSkills = data.skills || [];
+                updateStats();
+                renderSkills();
+            } catch (err) {
+                showToast('Erro ao carregar skills: ' + err.message, 'error');
+            }
+        }
+
+        // Carrega Catálogo de Templates
+        async function loadTemplates() {
+            try {
+                const res = await fetch('/api/skills/templates', { headers: getAuthHeaders() });
+                if (res.ok) {
+                    const data = await res.json();
+                    allTemplates = data.templates || [];
+                    renderTemplates();
+                }
+            } catch (err) {
+                console.error('Erro ao carregar templates:', err);
+            }
+        }
+
+        // Atualiza contadores
+        function updateStats() {
+            const total = allSkills.length;
+            const active = allSkills.filter(s => s.is_active).length;
+            const categories = new Set(allSkills.map(s => s.category)).size;
+
+            document.getElementById('statTotalSkills').textContent = total;
+            document.getElementById('statActiveSkills').textContent = active;
+            document.getElementById('statCategories').textContent = categories;
+        }
+
+        // Renderiza lista de cards
+        function renderSkills() {
+            const grid = document.getElementById('skillsGrid');
+            const emptyState = document.getElementById('emptyState');
+            const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
+            const onlyActive = document.getElementById('onlyActiveFilter').checked;
+
+            const filtered = allSkills.filter(s => {
+                const matchCategory = currentFilterCategory === 'all' || s.category.toLowerCase() === currentFilterCategory.toLowerCase();
+                const matchActive = !onlyActive || s.is_active;
+                
+                const matchSearch = !searchVal || 
+                    s.name.toLowerCase().includes(searchVal) ||
+                    s.slug.toLowerCase().includes(searchVal) ||
+                    s.description.toLowerCase().includes(searchVal) ||
+                    (s.triggers && s.triggers.some(t => t.toLowerCase().includes(searchVal))) ||
+                    s.system_instructions.toLowerCase().includes(searchVal);
+
+                return matchCategory && matchActive && matchSearch;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            grid.innerHTML = filtered.map(s => {
+                const categoryColor = getCategoryColor(s.category);
+                const triggersHtml = (s.triggers || []).slice(0, 5).map(t => 
+                    `<span class="text-[10px] font-mono px-2 py-0.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-md truncate max-w-[120px]">${escapeHtml(t)}</span>`
+                ).join('');
+                
+                const extraTriggersCount = (s.triggers || []).length > 5 ? `<span class="text-[10px] text-zinc-500 font-mono">+${s.triggers.length - 5}</span>` : '';
+
+                return `
+                <div class="glass-card p-5 rounded-3xl flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${s.is_active ? 'border-indigo-500/30' : 'opacity-70'}">
+                    
+                    <!-- Top: Icon, Name & Toggle Switch -->
+                    <div>
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <div class="flex items-center gap-3 min-w-0 flex-1">
+                                <span class="text-2xl sm:text-3xl p-2.5 bg-zinc-900/90 border border-zinc-800 rounded-2xl shrink-0 flex items-center justify-center">${s.icon || '⚡'}</span>
+                                <div class="min-w-0 flex-1">
+                                    <h3 class="text-sm sm:text-base font-bold text-white truncate" title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</h3>
+                                    <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                        <span class="text-[11px] font-mono text-indigo-300 truncate max-w-[130px]">${escapeHtml(s.slug)}</span>
+                                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0 ${categoryColor}">
+                                            ${escapeHtml(s.category)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Toggle Ativa/Inativa Switch -->
+                            <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-1 mt-0.5" title="Ativar ou desativar esta skill">
+                                <input type="checkbox" ${s.is_active ? 'checked' : ''} onchange="toggleSkillStatus(${s.id})" class="sr-only peer">
+                                <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            </label>
+                        </div>
+
+                        <!-- Descrição -->
+                        <p class="text-xs text-zinc-400 line-clamp-2 mb-3 min-h-[32px]">
+                            ${escapeHtml(s.description || 'Habilidade customizada sem descrição.')}
+                        </p>
+
+                        <!-- Gatilhos Tags -->
+                        <div class="flex flex-wrap items-center gap-1 mb-4">
+                            ${triggersHtml}
+                            ${extraTriggersCount}
+                        </div>
+                    </div>
+
+                    <!-- Bottom Action Buttons -->
+                    <div class="pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2 text-xs">
+                        <button onclick="openViewModal(${s.id})" class="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl border border-zinc-800 transition flex items-center gap-1">
+                            <span>👁️</span>
+                            <span>Ver</span>
+                        </button>
+
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="openEditSkillModal(${s.id})" class="px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-indigo-300 hover:text-indigo-200 rounded-xl border border-zinc-800 transition" title="Editar Skill">
+                                ✏️
+                            </button>
+                            <button onclick="exportSkill(${s.id})" class="px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl border border-zinc-800 transition" title="Exportar .SKILL.md">
+                                📥
+                            </button>
+                            <button onclick="deleteSkill(${s.id}, '${escapeHtml(s.name)}')" class="px-2.5 py-1.5 bg-zinc-900 hover:bg-red-950/60 text-red-400 hover:text-red-300 rounded-xl border border-zinc-800 hover:border-red-800/60 transition" title="Excluir">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+                `;
+            }).join('');
+        }
+
+        // Renderiza Catálogo de Templates
+        function renderTemplates() {
+            const container = document.getElementById('templatesGrid');
+            if (!container) return;
+
+            container.innerHTML = allTemplates.map(t => {
+                const categoryColor = getCategoryColor(t.category);
+                return `
+                <div class="bg-zinc-950 p-4 rounded-2xl border border-zinc-800/80 flex flex-col justify-between gap-3">
+                    <div>
+                        <div class="flex items-center gap-2.5 mb-1.5">
+                            <span class="text-2xl">${t.icon || '⚡'}</span>
+                            <div>
+                                <h4 class="text-sm font-bold text-white">${escapeHtml(t.name)}</h4>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${categoryColor}">
+                                    ${escapeHtml(t.category)}
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-zinc-400 mt-1">${escapeHtml(t.description)}</p>
+                    </div>
+
+                    <button onclick="installTemplate('${t.slug}')" class="w-full py-2 bg-indigo-600/30 hover:bg-indigo-600 border border-indigo-500/40 text-indigo-200 hover:text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5">
+                        <span>⚡</span>
+                        <span>Instalar no Sistema</span>
+                    </button>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // Instalar Template
+        async function installTemplate(slug) {
+            try {
+                const res = await fetch('/api/skills/import-template', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ slug: slug })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Erro ao instalar template.');
+                
+                showToast(data.message, 'success');
+                closeTemplatesModal();
+                await loadSkills();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        // Filtro de Categoria
+        function filterByCategory(cat) {
+            currentFilterCategory = cat;
+            document.querySelectorAll('.cat-pill').forEach(btn => {
+                if (btn.dataset.cat === cat) {
+                    btn.classList.remove('bg-zinc-800/80', 'text-zinc-300');
+                    btn.classList.add('bg-indigo-600', 'text-white');
+                } else {
+                    btn.classList.remove('bg-indigo-600', 'text-white');
+                    btn.classList.add('bg-zinc-800/80', 'text-zinc-300');
+                }
+            });
+            renderSkills();
+        }
+
+        function applyFilters() {
+            renderSkills();
+        }
+
+        // Toggle Status da Skill
+        async function toggleSkillStatus(skillId) {
+            try {
+                const res = await fetch(`/api/skills/${skillId}/toggle`, {
+                    method: 'PATCH',
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Falha ao alterar status.');
+                
+                showToast(data.message, 'success');
+                const idx = allSkills.findIndex(s => s.id === skillId);
+                if (idx !== -1) {
+                    allSkills[idx] = data.skill;
+                    updateStats();
+                    renderSkills();
+                }
+            } catch (err) {
+                showToast(err.message, 'error');
+                renderSkills();
+            }
+        }
+
+        // Excluir Skill
+        async function deleteSkill(skillId, name) {
+            if (!confirm(`Tem certeza que deseja excluir permanentemente a habilidade "${name}"?`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/skills/${skillId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                if (!res.ok) throw new Error('Falha ao excluir skill.');
+                showToast('Habilidade excluída com sucesso.', 'info');
+                allSkills = allSkills.filter(s => s.id !== skillId);
+                updateStats();
+                renderSkills();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        // Exportar Skill
+        function exportSkill(skillId, format = 'markdown') {
+            const token = getAuthToken();
+            const url = `/api/skills/${skillId}/export?format=${format}&token=${encodeURIComponent(token)}`;
+            window.open(url, '_blank');
+        }
+
+        // Auto Gerador de Slug
+        function autoGenerateSlug(val) {
+            const editId = document.getElementById('editSkillId').value;
+            if (editId) return; // Não sobrescreve slug ao editar
+            const clean = val.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            const slug = clean.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+            document.getElementById('skillSlugInput').value = slug;
+        }
+
+        // Modal Criar / Editar
+        function openCreateSkillModal() {
+            document.getElementById('editSkillId').value = '';
+            document.getElementById('modalTitle').textContent = 'Criar Nova Habilidade';
+            document.getElementById('modalIconPreview').textContent = '⚡';
+            document.getElementById('skillIconInput').value = '⚡';
+            document.getElementById('skillNameInput').value = '';
+            document.getElementById('skillSlugInput').value = '';
+            document.getElementById('skillVersionInput').value = '1.0.0';
+            document.getElementById('skillCategorySelect').value = 'general';
+            document.getElementById('skillDescInput').value = '';
+            document.getElementById('skillTriggersInput').value = '';
+            document.getElementById('skillInstructionsInput').value = '';
+            document.getElementById('skillActiveInput').checked = true;
+
+            switchEditorTab('edit');
+            document.getElementById('skillModal').classList.remove('hidden');
+        }
+
+        function openEditSkillModal(skillId) {
+            const skill = allSkills.find(s => s.id === skillId);
+            if (!skill) return;
+
+            document.getElementById('editSkillId').value = skill.id;
+            document.getElementById('modalTitle').textContent = 'Editar Habilidade: ' + skill.name;
+            document.getElementById('modalIconPreview').textContent = skill.icon || '⚡';
+            document.getElementById('skillIconInput').value = skill.icon || '⚡';
+            document.getElementById('skillNameInput').value = skill.name;
+            document.getElementById('skillSlugInput').value = skill.slug;
+            document.getElementById('skillVersionInput').value = skill.version || '1.0.0';
+            document.getElementById('skillCategorySelect').value = skill.category || 'general';
+            document.getElementById('skillDescInput').value = skill.description || '';
+            document.getElementById('skillTriggersInput').value = (skill.triggers || []).join(', ');
+            document.getElementById('skillInstructionsInput').value = skill.system_instructions || '';
+            document.getElementById('skillActiveInput').checked = skill.is_active;
+
+            switchEditorTab('edit');
+            document.getElementById('skillModal').classList.remove('hidden');
+        }
+
+        function closeSkillModal() {
+            document.getElementById('skillModal').classList.add('hidden');
+        }
+
+        // Switch Editor / Preview
+        function switchEditorTab(tab) {
+            const editorPane = document.getElementById('editorPane');
+            const previewPane = document.getElementById('previewPane');
+            const btnEdit = document.getElementById('tabBtnEdit');
+            const btnPreview = document.getElementById('tabBtnPreview');
+
+            if (tab === 'preview') {
+                const rawMarkdown = document.getElementById('skillInstructionsInput').value || '*Nenhuma instrução escrita ainda.*';
+                previewPane.innerHTML = renderMarkdown(rawMarkdown);
+                editorPane.classList.add('hidden');
+                previewPane.classList.remove('hidden');
+                btnEdit.classList.remove('bg-indigo-600', 'text-white');
+                btnEdit.classList.add('text-zinc-400');
+                btnPreview.classList.add('bg-indigo-600', 'text-white');
+                btnPreview.classList.remove('text-zinc-400');
+            } else {
+                editorPane.classList.remove('hidden');
+                previewPane.classList.add('hidden');
+                btnPreview.classList.remove('bg-indigo-600', 'text-white');
+                btnPreview.classList.add('text-zinc-400');
+                btnEdit.classList.add('bg-indigo-600', 'text-white');
+                btnEdit.classList.remove('text-zinc-400');
+            }
+        }
+
+        // Salvar Formulário de Skill
+        async function saveSkillForm() {
+            const editId = document.getElementById('editSkillId').value;
+            const name = document.getElementById('skillNameInput').value.trim();
+            const slug = document.getElementById('skillSlugInput').value.trim();
+            const icon = document.getElementById('skillIconInput').value.trim() || '⚡';
+            const category = document.getElementById('skillCategorySelect').value;
+            const version = document.getElementById('skillVersionInput').value.trim() || '1.0.0';
+            const description = document.getElementById('skillDescInput').value.trim();
+            const triggersRaw = document.getElementById('skillTriggersInput').value;
+            const instructions = document.getElementById('skillInstructionsInput').value.trim();
+            const isActive = document.getElementById('skillActiveInput').checked;
+
+            if (!name) {
+                showToast('Informe o nome da habilidade.', 'warning');
+                return;
+            }
+            if (!instructions) {
+                showToast('Informe as instruções e diretrizes da habilidade.', 'warning');
+                return;
+            }
+
+            const triggers = triggersRaw.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
+            const payload = {
+                name,
+                slug,
+                icon,
+                category,
+                version,
+                description,
+                triggers,
+                system_instructions: instructions,
+                is_active: isActive
+            };
+
+            try {
+                let res;
+                if (editId) {
+                    res = await fetch(`/api/skills/${editId}`, {
+                        method: 'PUT',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    res = await fetch('/api/skills', {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify(payload)
+                    });
+                }
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Erro ao salvar habilidade.');
+
+                showToast(data.message || 'Habilidade salva com sucesso!', 'success');
+                closeSkillModal();
+                await loadSkills();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        // Visualizador Rápido
+        function openViewModal(skillId) {
+            const skill = allSkills.find(s => s.id === skillId);
+            if (!skill) return;
+
+            document.getElementById('viewIcon').textContent = skill.icon || '⚡';
+            document.getElementById('viewTitle').textContent = skill.name;
+            document.getElementById('viewSlug').textContent = skill.slug;
+            document.getElementById('viewDesc').textContent = skill.description || 'Nenhuma descrição fornecida.';
+            
+            const triggersContainer = document.getElementById('viewTriggers');
+            if (skill.triggers && skill.triggers.length > 0) {
+                triggersContainer.innerHTML = skill.triggers.map(t => 
+                    `<span class="text-xs font-mono px-2.5 py-1 bg-zinc-900 border border-zinc-800 text-indigo-300 rounded-lg">${escapeHtml(t)}</span>`
+                ).join('');
+                document.getElementById('viewTriggersContainer').classList.remove('hidden');
+            } else {
+                document.getElementById('viewTriggersContainer').classList.add('hidden');
+            }
+
+            document.getElementById('viewMarkdownContent').innerHTML = renderMarkdown(skill.system_instructions || '');
+
+            document.getElementById('btnViewExportMd').onclick = () => exportSkill(skill.id, 'markdown');
+            document.getElementById('btnViewExportJson').onclick = () => exportSkill(skill.id, 'json');
+
+            document.getElementById('viewModal').classList.remove('hidden');
+        }
+
+        function closeViewModal() {
+            document.getElementById('viewModal').classList.add('hidden');
+        }
+
+        // Modal Upload
+        function openUploadModal() {
+            selectedUploadFile = null;
+            document.getElementById('skillFileInput').value = '';
+            document.getElementById('uploadFileInfo').classList.add('hidden');
+            document.getElementById('btnConfirmUpload').disabled = true;
+            document.getElementById('uploadModal').classList.remove('hidden');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.add('hidden');
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.getElementById('dropZone').classList.add('border-indigo-500', 'bg-indigo-950/20');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.getElementById('dropZone').classList.remove('border-indigo-500', 'bg-indigo-950/20');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.getElementById('dropZone').classList.remove('border-indigo-500', 'bg-indigo-950/20');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                setUploadFile(e.dataTransfer.files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            if (e.target.files && e.target.files.length > 0) {
+                setUploadFile(e.target.files[0]);
+            }
+        }
+
+        function setUploadFile(file) {
+            selectedUploadFile = file;
+            document.getElementById('selectedFileName').textContent = file.name;
+            document.getElementById('selectedFileSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
+            document.getElementById('uploadFileInfo').classList.remove('hidden');
+            document.getElementById('btnConfirmUpload').disabled = false;
+        }
+
+        async function submitSkillUpload() {
+            if (!selectedUploadFile) return;
+
+            const formData = new FormData();
+            formData.append('file', selectedUploadFile);
+
+            const token = getAuthToken();
+            const btn = document.getElementById('btnConfirmUpload');
+            btn.disabled = true;
+            btn.textContent = 'Importando...';
+
+            try {
+                const res = await fetch('/api/skills/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Falha ao processar arquivo.');
+
+                showToast(data.message || 'Skills importadas com sucesso!', 'success');
+                closeUploadModal();
+                await loadSkills();
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Importar Agora';
+            }
+        }
+
+        // Modal Templates
+        function openTemplatesModal() {
+            document.getElementById('templatesModal').classList.remove('hidden');
+        }
+
+        function closeTemplatesModal() {
+            document.getElementById('templatesModal').classList.add('hidden');
+        }
+
+        // Helper para Badge de Categoria
+        function getCategoryColor(cat) {
+            const c = (cat || '').toLowerCase();
+            if (c.includes('dev') || c.includes('program')) return 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30';
+            if (c.includes('auto') || c.includes('iot')) return 'bg-amber-950/60 text-amber-400 border border-amber-500/30';
+            if (c.includes('seg') || c.includes('osint')) return 'bg-red-950/60 text-red-400 border border-red-500/30';
+            if (c.includes('prod') || c.includes('finan')) return 'bg-blue-950/60 text-blue-400 border border-blue-500/30';
+            if (c.includes('comun') || c.includes('copy')) return 'bg-purple-950/60 text-purple-400 border border-purple-500/30';
+            return 'bg-zinc-800 text-zinc-300 border border-zinc-700';
+        }
+
+        // Renderizador Leve de Markdown
+        function renderMarkdown(md) {
+            if (!md) return '';
+            let html = escapeHtml(md);
+
+            // Code blocks
+            html = html.replace(/```([a-z]*)\n([\s\S]*?)```/gm, (match, lang, code) => {
+                return `<pre><code class="language-${lang}">${code}</code></pre>`;
+            });
+
+            // Inline code
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+            // Headers
+            html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+            html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+            // Bold and Italic
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+            // Unordered list
+            html = html.replace(/^\s*-\s+(.*$)/gim, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>)/gim, '<ul>$1</ul>');
+            // Remove duplicate wrapper tags
+            html = html.replace(/<\/ul>\s*<ul>/gim, '');
+
+            // Ordered list
+            html = html.replace(/^\s*\d+\.\s+(.*$)/gim, '<li>$1</li>');
+
+            // Blockquote
+            html = html.replace(/^\> (.*$)/gim, '<blockquote>$1</blockquote>');
+
+            // Paragraphs and newlines
+            html = html.replace(/\n\n/g, '</p><p>');
+            html = '<p>' + html + '</p>';
+            html = html.replace(/<p><\/p>/g, '');
+
+            return html;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Toast Notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            let bg = 'bg-zinc-900 border-zinc-700 text-zinc-200';
+            let icon = 'ℹ️';
+            if (type === 'success') {
+                bg = 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200';
+                icon = '✅';
+            } else if (type === 'error') {
+                bg = 'bg-red-950/90 border-red-500/50 text-red-200';
+                icon = '❌';
+            } else if (type === 'warning') {
+                bg = 'bg-amber-950/90 border-amber-500/50 text-amber-200';
+                icon = '⚠️';
+            }
+
+            toast.className = `p-4 rounded-2xl border shadow-xl flex items-center gap-3 text-xs font-semibold backdrop-blur-md transition-all duration-300 transform translate-y-2 opacity-0 ${bg}`;
+            toast.innerHTML = `<span>${icon}</span><span class="flex-1">${escapeHtml(message)}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+    </script>
+
+    <!-- Voice Agent Script para suporte contínuo a voz -->
+    <script src="/voice_agent.js"></script>
+
+</body>
+</html>

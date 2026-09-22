@@ -20,6 +20,7 @@ SCREEN_MAPPINGS = {
     "dashboard_principal": {"url": "/", "name": "Dashboard Principal (Agente & Chat)"},
     "dashboard_casa": {"url": "/casa.html", "name": "Dashboard da Casa (Smart Home & Cômodos)"},
     "avatar": {"url": "/avatar.html", "name": "Tela do Avatar 2D & Live Stream"},
+    "skills": {"url": "/skills.html", "name": "Painel de Skills & Habilidades"},
     "configuracoes": {"url": "/config/config.html", "name": "Configurações da Residência & Broker"},
     "perfil": {"url": "/profile.html", "name": "Perfil do Usuário & Morador"}
 }
@@ -32,15 +33,19 @@ def normalize_screen_name(input_str: str) -> tuple[str, str]:
     if any(k in s for k in ["avatar", "assistente visual", "tela do avatar", "ver avatar", "abrir avatar", "mostrar avatar", "live avatar", "avatar 2d", "rosto"]):
         return "/avatar.html", "Tela do Avatar 2D"
 
-    # 2. Perfil do Usuário / Morador
+    # 2. Tela de Skills e Habilidades Customizadas
+    if any(k in s for k in ["skill", "skills", "habilidade", "habilidades", "especializacao", "especialização", "prompts", "agentes"]):
+        return "/skills.html", "Painel de Skills & Habilidades"
+
+    # 3. Perfil do Usuário / Morador
     if any(k in s for k in ["perfil", "morador", "usuario", "usuário", "meus dados", "foto de perfil", "biometria"]):
         return "/profile.html", "Perfil do Usuário"
         
-    # 3. Configurações da Residência / Broker MQTT
+    # 4. Configurações da Residência / Broker MQTT
     if any(k in s for k in ["config", "ajuste", "preferencia", "preferência", "broker", "conexao", "conexão", "mqtt"]):
         return "/config/config.html", "Configurações"
         
-    # 4. Dashboard Principal / Painel do Agente / Chat / Início / Terminal
+    # 5. Dashboard Principal / Painel do Agente / Chat / Início / Terminal
     # Verifica termos específicos do agente/painel principal antes do painel da casa
     if any(k in s for k in [
         "dashboard do agente", "painel do agente", "tela do agente", "agente", "chat",
@@ -48,7 +53,7 @@ def normalize_screen_name(input_str: str) -> tuple[str, str]:
     ]):
         return "/", "Dashboard Principal"
 
-    # 5. Dashboard da Casa / Smart Home / Cômodos
+    # 6. Dashboard da Casa / Smart Home / Cômodos
     if any(k in s for k in ["casa", "smart home", "smarthome", "comodo", "cômodo", "lampada", "lâmpada", "luzes", "residencial", "dashboard da casa", "painel da casa", "tela da casa"]):
         return "/casa.html", "Dashboard da Casa"
         

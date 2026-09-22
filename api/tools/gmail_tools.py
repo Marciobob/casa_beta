@@ -173,6 +173,58 @@ def connect_smtp() -> Tuple[Optional[smtplib.SMTP], Optional[str]]:
         gmail_logger.error(err)
         return None, err
 
+def _fetch_fast_email_summary(mail: imaplib.IMAP4_SSL, msg_id: bytes) -> Optional[Dict[str, str]]:
+    """
+    Recupera cabeçalhos essenciais e uma prévia rápida do corpo do e-mail
+    usando PEEK para evitar download de anexos pesados e manter alta performance.
+    """
+    try:
+        res, msg_data = mail.fetch(msg_id, "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)] BODY.PEEK[TEXT]<0.1200>)")
+        if res != "OK" or not msg_data:
+            return None
+            
+        remetente = "Desconhecido"
+        assunto = "(Sem Assunto)"
+        data_envio = ""
+        raw_body = b""
+        
+        for part in msg_data:
+            if isinstance(part, tuple):
+                header_desc = part[0]
+                if b"HEADER.FIELDS" in header_desc:
+                    hdr_msg = email.message_from_bytes(part[1])
+                    remetente = decode_mime_text(hdr_msg.get("From", "Desconhecido"))
+                    assunto = decode_mime_text(hdr_msg.get("Subject", "(Sem Assunto)"))
+                    data_envio = hdr_msg.get("Date", "")
+                elif b"BODY[TEXT]" in header_desc:
+                    raw_body = part[1]
+                    
+        # Extrai e limpa texto do trecho
+        body_text = ""
+        if raw_body:
+            try:
+                import quopri
+                decoded = quopri.decodestring(raw_body).decode("utf-8", errors="replace")
+            except Exception:
+                decoded = raw_body.decode("utf-8", errors="replace")
+            clean = re.sub(r'<[^>]+>', ' ', decoded)
+            clean = re.sub(r'--[a-f0-9_\-]+', '', clean)
+            clean = re.sub(r'Content-[A-Za-z\-]+:[^\n]+', '', clean)
+            clean = re.sub(r'\s+', ' ', clean).strip()
+            body_text = clean[:300] + ("..." if len(clean) > 300 else "")
+            
+        id_str = msg_id.decode("utf-8", errors="ignore")
+        return {
+            "id": id_str,
+            "from": remetente,
+            "subject": assunto,
+            "date": data_envio,
+            "snippet": body_text or "(Sem conteúdo de texto)"
+        }
+    except Exception as e:
+        gmail_logger.warning(f"Erro no fetch rápido do email {msg_id}: {e}")
+        return None
+
 # =========================================================================
 # FERRAMENTAS DO AGENTE LANGCHAIN (GMAIL TOOLS)
 # =========================================================================
@@ -198,6 +250,11 @@ def ler_emails_recentes(quantidade: int = 5, apenas_nao_lidos: bool = True) -> s
         status, data = mail.search(None, criterio)
         
         if status != "OK" or not data or not data[0]:
+            try:
+                mail.close()
+                mail.logout()
+            except Exception:
+                pass
             if apenas_nao_lidos:
                 return "Você não possui novos e-mails não lidos no Gmail no momento."
             return "Nenhum e-mail encontrado na sua caixa de entrada do Gmail."
@@ -210,32 +267,22 @@ def ler_emails_recentes(quantidade: int = 5, apenas_nao_lidos: bool = True) -> s
         
         resultados = []
         for msg_id in selected_ids:
-            res, msg_data = mail.fetch(msg_id, "(RFC822)")
-            if res != "OK" or not msg_data or not msg_data[0]:
+            item = _fetch_fast_email_summary(mail, msg_id)
+            if not item:
                 continue
-                
-            raw_email = msg_data[0][1]
-            msg = email.message_from_bytes(raw_email)
-            
-            remetente = decode_mime_text(msg.get("From", "Desconhecido"))
-            assunto = decode_mime_text(msg.get("Subject", "(Sem Assunto)"))
-            data_envio = msg.get("Date", "")
-            corpo = extract_plain_text(msg)
-            
-            # Limita a prévia para não sobrecarregar o prompt
-            previa = corpo[:350] + ("..." if len(corpo) > 350 else "") if corpo else "(Sem conteúdo de texto)"
-            
-            id_str = msg_id.decode("utf-8", errors="ignore")
             resultados.append(
-                f"[ID: {id_str}]\n"
-                f"Remetente: {remetente}\n"
-                f"Assunto: {assunto}\n"
-                f"Data: {data_envio}\n"
-                f"Conteúdo: {previa}"
+                f"[ID: {item['id']}]\n"
+                f"Remetente: {item['from']}\n"
+                f"Assunto: {item['subject']}\n"
+                f"Data: {item['date']}\n"
+                f"Conteúdo: {item['snippet']}"
             )
             
-        mail.close()
-        mail.logout()
+        try:
+            mail.close()
+            mail.logout()
+        except Exception:
+            pass
         
         tipo_str = "não lido(s)" if apenas_nao_lidos else "recente(s)"
         header = f"Encontrei {len(resultados)} e-mail(s) {tipo_str} (de um total de {total_encontrados}):\n\n"
@@ -283,28 +330,22 @@ def buscar_emails(termo_busca: str, quantidade: int = 5) -> str:
         
         resultados = []
         for msg_id in selected_ids:
-            res, msg_data = mail.fetch(msg_id, "(RFC822)")
-            if res != "OK" or not msg_data or not msg_data[0]:
+            item = _fetch_fast_email_summary(mail, msg_id)
+            if not item:
                 continue
-                
-            msg = email.message_from_bytes(msg_data[0][1])
-            remetente = decode_mime_text(msg.get("From", "Desconhecido"))
-            assunto = decode_mime_text(msg.get("Subject", "(Sem Assunto)"))
-            data_envio = msg.get("Date", "")
-            corpo = extract_plain_text(msg)
-            previa = corpo[:300] + ("..." if len(corpo) > 300 else "") if corpo else "(Sem conteúdo de texto)"
-            
-            id_str = msg_id.decode("utf-8", errors="ignore")
             resultados.append(
-                f"[ID: {id_str}]\n"
-                f"Remetente: {remetente}\n"
-                f"Assunto: {assunto}\n"
-                f"Data: {data_envio}\n"
-                f"Conteúdo: {previa}"
+                f"[ID: {item['id']}]\n"
+                f"Remetente: {item['from']}\n"
+                f"Assunto: {item['subject']}\n"
+                f"Data: {item['date']}\n"
+                f"Conteúdo: {item['snippet']}"
             )
             
-        mail.close()
-        mail.logout()
+        try:
+            mail.close()
+            mail.logout()
+        except Exception:
+            pass
         return f"Encontrei {len(resultados)} e-mail(s) relacionados a '{termo_busca}':\n\n" + "\n\n---\n\n".join(resultados)
         
     except Exception as e:

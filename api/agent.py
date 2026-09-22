@@ -88,7 +88,19 @@ try:
         fechar_modal,
         alternar_aba_interface
     )
-    from api.database import db_get_google_credentials, db_get_camera_config, db_get_recent_important_memories_summary, db_get_ai_config
+    from api.tools.skill_tools import (
+        consultar_skills_ativas,
+        alternar_status_skill,
+        cadastrar_ou_atualizar_skill,
+        set_skills_context
+    )
+    from api.database import (
+        db_get_google_credentials,
+        db_get_camera_config,
+        db_get_recent_important_memories_summary,
+        db_get_ai_config,
+        db_get_active_skills_prompt_block
+    )
 except ImportError:
     from logger import agent_logger
     from tools.search_tools import pesquisar_na_internet
@@ -152,16 +164,40 @@ except ImportError:
         fechar_modal,
         alternar_aba_interface
     )
-    from database import db_get_google_credentials, db_get_camera_config, db_get_recent_important_memories_summary, db_get_ai_config
+    from tools.skill_tools import (
+        consultar_skills_ativas,
+        alternar_status_skill,
+        cadastrar_ou_atualizar_skill,
+        set_skills_context
+    )
+    from database import (
+        db_get_google_credentials,
+        db_get_camera_config,
+        db_get_recent_important_memories_summary,
+        db_get_ai_config,
+        db_get_active_skills_prompt_block
+    )
 
 def get_fallback_models(primary_model: str) -> List[str]:
     """Retorna lista de modelos de fallback ordenados por preferência caso o modelo primário sofra 503/429 ou sobrecarga."""
     primary = (primary_model or "gemini-2.5-flash-lite").strip()
     primary_lower = primary.lower()
     
+    # Modelos descontinuados ou com alta latência conhecidos são mapeados para modelos rápidos e ativos
+    deprecated_or_slow_map = {
+        "gemini-1.5-flash": "gemini-2.5-flash-lite",
+        "gemini-1.5-pro": "gemini-2.5-flash-lite",
+        "gemini-2.0-flash": "gemini-2.5-flash-lite",
+        "gemini-2.5-flash": "gemini-2.5-flash-lite",
+        "gemini-3.5-flash-lite": "gemini-2.5-flash-lite",
+    }
+    if primary in deprecated_or_slow_map:
+        primary = deprecated_or_slow_map[primary]
+        primary_lower = primary.lower()
+    
     if "gemini" in primary_lower:
         candidates = [primary]
-        for alt in ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+        for alt in ["gemini-2.5-flash-lite", "gemini-3.6-flash", "gemini-flash-lite-latest", "gemini-flash-latest"]:
             if alt not in candidates:
                 candidates.append(alt)
         return candidates
@@ -174,13 +210,16 @@ def get_fallback_models(primary_model: str) -> List[str]:
 
 def get_chat_model(model_name: str, api_key: str):
     """Instancia o modelo adequado de acordo com o provedor (Google Gemini ou OpenAI)."""
-    model_lower = (model_name or "gemini-2.5-flash-lite").lower()
+    model_name = (model_name or "gemini-2.5-flash-lite").strip()
+    model_lower = model_name.lower()
     
     if "gemini" in model_lower:
         if ChatGoogleGenerativeAI is None:
             raise ImportError("Pacote langchain-google-genai não está instalado.")
+        if model_name in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-3.5-flash-lite"]:
+            model_name = "gemini-2.5-flash-lite"
         return ChatGoogleGenerativeAI(
-            model=model_name or "gemini-2.5-flash-lite",
+            model=model_name,
             google_api_key=api_key,
             temperature=0.1
         )
@@ -351,7 +390,10 @@ TOOL_STATUS_MESSAGES = {
     "navegar_para_tela": "Navegando para a tela solicitada...",
     "abrir_modal": "Abrindo janela na interface...",
     "fechar_modal": "Fechando janela...",
-    "alternar_aba_interface": "Alternando aba na interface..."
+    "alternar_aba_interface": "Alternando aba na interface...",
+    "consultar_skills_ativas": "Consultando habilidades especializadas ativas...",
+    "alternar_status_skill": "Atualizando status da habilidade...",
+    "cadastrar_ou_atualizar_skill": "Criando nova habilidade especializada..."
 }
 
 TOOL_SPOKEN_STATUS_MESSAGES = {
@@ -423,7 +465,10 @@ TOOL_SPOKEN_STATUS_MESSAGES = {
     "navegar_para_tela": "Navegando...",
     "abrir_modal": "Abrindo janela...",
     "fechar_modal": "Fechando janela...",
-    "alternar_aba_interface": "Alternando aba..."
+    "alternar_aba_interface": "Alternando aba...",
+    "consultar_skills_ativas": "Verificando suas habilidades ativas...",
+    "alternar_status_skill": "Atualizando a habilidade...",
+    "cadastrar_ou_atualizar_skill": "Cadastrando nova habilidade..."
 }
 
 def get_tool_friendly_status(tool_name: str) -> str:
@@ -485,6 +530,7 @@ def processar_comando_agente(
     set_antigravity_context(user_email=user_email or "", api_key=api_key or "", model_name=modelo or "")
     set_osint_context(user_email=user_email or "", api_key=api_key or "", model_name=modelo or "")
     set_memory_context(user_email=user_email or "")
+    set_skills_context(user_email=user_email or "")
     
     # Carrega credenciais do Google do usuário ativo
     gmail_user, gmail_pwd = db_get_google_credentials(user_email or "")
@@ -494,6 +540,9 @@ def processar_comando_agente(
     
     # Carrega resumo de memórias de longo prazo aprendidas sobre o usuário
     memories_summary = db_get_recent_important_memories_summary(user_email or "", limit=10)
+    
+    # Carrega bloco formatado de Skills ativas do usuário
+    active_skills_block = db_get_active_skills_prompt_block(user_email or "")
 
     # Contexto temporal em tempo real (data, hora, dia da semana e fuso)
     now_dt = datetime.now().astimezone()
@@ -510,6 +559,9 @@ def processar_comando_agente(
         consultar_memorias_longo_prazo,
         listar_todas_memorias,
         esquecer_memoria,
+        consultar_skills_ativas,
+        alternar_status_skill,
+        cadastrar_ou_atualizar_skill,
         consultar_agente_antigravity,
         executar_comando_antigravity,
         perguntar_e_executar_antigravity,
@@ -588,6 +640,8 @@ CONTEXTO TEMPORAL ATUAL EM TEMPO REAL:
 
 FATOS E PREFERÊNCIAS DE LONGO PRAZO QUE VOCÊ JÁ APRENDEU SOBRE O USUÁRIO:
 {memories_summary}
+
+{active_skills_block}
 
 Suas capacidades e ferramentas disponíveis:
 1. MEMÓRIA DE LONGO PRAZO & APRENDIZADO AUTÔNOMO:
@@ -678,9 +732,10 @@ Suas capacidades e ferramentas disponíveis:
       * 'dashboard_principal' (ou '/', 'agente', 'chat', 'inicio', 'painel principal') -> Direciona para o Painel Principal do Agente
       * 'dashboard_casa' (ou '/casa.html', 'casa', 'smart home', 'cômodos', 'luzes') -> Direciona para o Dashboard da Casa Inteligente
       * 'avatar' (ou '/avatar.html', 'assistente visual', 'tela do avatar', 'avatar 2d', 'live avatar') -> Direciona para a Tela do Avatar 2D em Tempo Real
+      * 'skills' (ou '/skills.html', 'habilidades', 'painel de skills', 'especializações') -> Direciona para a Tela de Gerenciamento de Skills
       * 'configuracoes' (ou '/config/config.html', 'config', 'ajustes', 'broker') -> Direciona para a tela de Configurações da Casa
       * 'perfil' (ou '/profile.html', 'meu perfil', 'morador', 'dados') -> Direciona para a tela de Perfil do Usuário
-      Exemplos: "Vá para o avatar", "Abra a tela do avatar", "Vá para o dashboard da casa", "Mude para a tela da casa", "Vá para o dashboard principal", "Volte para o início", "Abra as configurações", "Vá para o meu perfil".
+      Exemplos: "Vá para o avatar", "Abra a tela do avatar", "Vá para a tela de skills", "Abra as habilidades", "Vá para o dashboard da casa", "Mude para a tela da casa", "Vá para o dashboard principal", "Volte para o início", "Abra as configurações", "Vá para o meu perfil".
     - 'abrir_modal': Use SEMPRE que o usuário pedir para abrir um modal ou janela suspensa na tela:
       * 'automacoes' (opcional: aba_ou_topico='list' para listar ou 'new' para cadastrar nova regra) -> Abre o Gerenciador de Automações
       * 'chave_api' (ou 'configuracoes_ia', 'modelo', 'voz') -> Abre o modal de Configuração de IA & Chave API
@@ -693,6 +748,10 @@ Suas capacidades e ferramentas disponíveis:
       * Aceita 'todos', 'automacoes', 'chave_api', 'guia', 'webcam', 'adicionar_comodo'
       Exemplos: "Feche o modal", "Feche as automações", "Feche a janela", "Feche as configurações".
     - 'alternar_aba_interface': Use quando o usuário pedir para mudar de aba dentro de um modal (ex: 'list' para lista de automações, 'new' para criar nova regra).
+22. HABILIDADES ESPECIALIZADAS & GERENCIAMENTO DE SKILLS:
+    - 'consultar_skills_ativas': Use quando o usuário perguntar quais habilidades ou especializações estão ativas no sistema ou pedir para listar suas skills.
+    - 'alternar_status_skill': Use quando o usuário pedir para ativar ou desativar uma skill específica por voz/chat (ex: 'ative a skill de Python', 'desative a skill de finanças').
+    - 'cadastrar_ou_atualizar_skill': Use quando o usuário pedir para criar uma nova habilidade/especialização personalizada com diretrizes específicas.
 
 REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO VISUAL:
 - Formate sua resposta de maneira elegante e organizada para visualização na tela do chat utilizando Markdown bem estruturado:

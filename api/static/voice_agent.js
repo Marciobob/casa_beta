@@ -1159,38 +1159,52 @@
                 const decoder = new TextDecoder("utf-8");
                 let buffer = "";
 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split("\n\n");
-                    buffer = lines.pop();
-
-                    for (const block of lines) {
-                        for (const line of block.split("\n")) {
-                            if (line.startsWith("data: ")) {
-                                const jsonStr = line.slice(6).trim();
-                                if (!jsonStr) continue;
-                                try {
-                                    const ev = JSON.parse(jsonStr);
-                                    if (ev.type === "status") {
-                                        setVoiceStatus("🔄", ev.message, true);
-                                        showResponse(`⏳ ${ev.message}`);
-                                        const spokenMsg = ev.spoken_message || ev.message;
-                                        if (ev.spoken !== false && spokenMsg && spokenMsg !== lastSpokenStatus) {
-                                            lastSpokenStatus = spokenMsg;
-                                            speakIntermediateStatus(spokenMsg);
-                                        }
-                                    } else if (ev.type === "final") {
-                                        finalReply = ev.reply || "";
-                                        finalSpokenReply = ev.spoken_reply || "";
-                                        finalActions = ev.actions || [];
-                                    } else if (ev.type === "error") {
-                                        throw new Error(ev.message || "Erro no agente");
+                const parseSseChunk = (rawBlock) => {
+                    if (!rawBlock) return;
+                    for (const line of rawBlock.split("\n")) {
+                        if (line.startsWith("data: ")) {
+                            const jsonStr = line.slice(6).trim();
+                            if (!jsonStr) continue;
+                            try {
+                                const ev = JSON.parse(jsonStr);
+                                if (ev.type === "status") {
+                                    setVoiceStatus("🔄", ev.message, true);
+                                    showResponse(`⏳ ${ev.message}`);
+                                    const spokenMsg = ev.spoken_message || ev.message;
+                                    if (ev.spoken !== false && spokenMsg && spokenMsg !== lastSpokenStatus) {
+                                        lastSpokenStatus = spokenMsg;
+                                        speakIntermediateStatus(spokenMsg);
                                     }
-                                } catch (errJson) { }
+                                } else if (ev.type === "final") {
+                                    finalReply = ev.reply || "";
+                                    finalSpokenReply = ev.spoken_reply || "";
+                                    finalActions = ev.actions || [];
+                                } else if (ev.type === "error") {
+                                    throw new Error(ev.message || "Erro no agente");
+                                }
+                            } catch (errJson) {
+                                if (errJson && errJson.message && errJson.message.includes("Erro no agente")) {
+                                    throw errJson;
+                                }
                             }
                         }
+                    }
+                };
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        if (buffer && buffer.trim()) {
+                            parseSseChunk(buffer);
+                        }
+                        break;
+                    }
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split("\n\n");
+                    buffer = lines.pop() || "";
+
+                    for (const block of lines) {
+                        parseSseChunk(block);
                     }
                 }
             } else {

@@ -9,7 +9,7 @@ import edge_tts
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from fastapi import FastAPI, HTTPException, Depends, Header, Query, Response, status
+from fastapi import FastAPI, HTTPException, Depends, Header, Query, Response, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
@@ -48,8 +48,10 @@ try:
         db_update_automation, db_delete_automation, db_toggle_automation,
         db_get_automations_count,
         db_save_agent_memory, db_search_agent_memories, db_get_all_agent_memories, db_delete_agent_memory, db_get_recent_important_memories_summary,
-        db_add_screen_notification, db_get_unread_screen_notifications, db_clear_screen_notifications
+        db_add_screen_notification, db_get_unread_screen_notifications, db_clear_screen_notifications,
+        db_list_user_skills, db_get_skill, db_get_skill_by_slug, db_create_skill, db_update_skill, db_toggle_skill, db_delete_skill, db_get_skill_templates, db_seed_default_skills
     )
+    from api.tools.skill_tools import parse_skill_file_content, export_skill_to_markdown
     from api.tools.vision_tools import capture_camera_frame, set_latest_browser_snapshot
     from api.tools.slack_tools import get_slack_auth_info, send_slack_message_payload, build_slack_report_blocks
     from api.telegram_bot import send_telegram_message, get_telegram_bot_info, telegram_manager
@@ -74,8 +76,10 @@ except ImportError:
         db_update_automation, db_delete_automation, db_toggle_automation,
         db_get_automations_count,
         db_save_agent_memory, db_search_agent_memories, db_get_all_agent_memories, db_delete_agent_memory, db_get_recent_important_memories_summary,
-        db_add_screen_notification, db_get_unread_screen_notifications, db_clear_screen_notifications
+        db_add_screen_notification, db_get_unread_screen_notifications, db_clear_screen_notifications,
+        db_list_user_skills, db_get_skill, db_get_skill_by_slug, db_create_skill, db_update_skill, db_toggle_skill, db_delete_skill, db_get_skill_templates, db_seed_default_skills
     )
+    from tools.skill_tools import parse_skill_file_content, export_skill_to_markdown
     from tools.vision_tools import capture_camera_frame, set_latest_browser_snapshot
     from tools.slack_tools import get_slack_auth_info, send_slack_message_payload, build_slack_report_blocks
     from telegram_bot import send_telegram_message, get_telegram_bot_info, telegram_manager
@@ -1928,6 +1932,186 @@ def clear_user_notifications_endpoint(token_payload: dict = Depends(get_current_
     return {"status": "success", "message": "Notificações limpas com sucesso."}
 
 # =========================================================================
+# GESTÃO DE HABILIDADES CUSTOMIZADAS DO AGENTE (AGENT SKILLS)
+# =========================================================================
+
+class SkillCreateRequest(BaseModel):
+    name: str
+    slug: Optional[str] = None
+    description: Optional[str] = ""
+    category: Optional[str] = "general"
+    icon: Optional[str] = "⚡"
+    is_active: Optional[bool] = True
+    system_instructions: str
+    triggers: Optional[List[str]] = []
+    examples: Optional[List[str]] = []
+    tools_required: Optional[List[str]] = []
+    author: Optional[str] = "user"
+    version: Optional[str] = "1.0.0"
+
+class SkillUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    slug: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    icon: Optional[str] = None
+    is_active: Optional[bool] = None
+    system_instructions: Optional[str] = None
+    triggers: Optional[List[str]] = None
+    examples: Optional[List[str]] = None
+    tools_required: Optional[List[str]] = None
+    version: Optional[str] = None
+
+class SkillImportTemplateRequest(BaseModel):
+    slug: str
+
+@app.get("/api/skills")
+def list_user_skills_endpoint(
+    only_active: bool = False,
+    category: Optional[str] = None,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    skills = db_list_user_skills(user_email, only_active=only_active, category=category)
+    return {"status": "success", "skills": skills, "total": len(skills)}
+
+@app.get("/api/skills/templates")
+def list_skill_templates_endpoint(
+    token_payload: dict = Depends(get_current_user_token)
+):
+    templates = db_get_skill_templates()
+    return {"status": "success", "templates": templates}
+
+@app.post("/api/skills/import-template")
+def import_skill_template_endpoint(
+    payload: SkillImportTemplateRequest,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    templates = db_get_skill_templates()
+    target_tpl = next((t for t in templates if t["slug"] == payload.slug), None)
+    if not target_tpl:
+        raise HTTPException(status_code=404, detail="Template de skill não encontrado.")
+        
+    created = db_create_skill(user_email, target_tpl)
+    return {"status": "success", "skill": created, "message": f"Template '{target_tpl['name']}' instalado com sucesso!"}
+
+@app.post("/api/skills")
+def create_user_skill_endpoint(
+    payload: SkillCreateRequest,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    if not payload.name.strip() or not payload.system_instructions.strip():
+        raise HTTPException(status_code=400, detail="Nome e instruções da skill são obrigatórios.")
+        
+    created = db_create_skill(user_email, payload.dict())
+    return {"status": "success", "skill": created, "message": f"Skill '{created['name']}' criada com sucesso!"}
+
+@app.post("/api/skills/upload")
+async def upload_user_skills_endpoint(
+    file: UploadFile = File(...),
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    try:
+        content_bytes = await file.read()
+        filename = file.filename or "skill.md"
+        parsed_skills = parse_skill_file_content(filename, content_bytes)
+        
+        if not parsed_skills:
+            raise HTTPException(status_code=400, detail=f"Nenhuma skill válida encontrada no arquivo '{filename}'.")
+            
+        installed = []
+        for s in parsed_skills:
+            res = db_create_skill(user_email, s)
+            installed.append(res)
+            
+        return {
+            "status": "success",
+            "imported_count": len(installed),
+            "skills": installed,
+            "message": f"{len(installed)} skill(s) importada(s) com sucesso!"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        system_logger.error(f"Erro no upload de skill: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao processar arquivo de skill: {str(e)}")
+
+@app.get("/api/skills/{skill_id}")
+def get_user_skill_endpoint(
+    skill_id: int,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    skill = db_get_skill(skill_id, user_email)
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill não encontrada.")
+    return {"status": "success", "skill": skill}
+
+@app.put("/api/skills/{skill_id}")
+def update_user_skill_endpoint(
+    skill_id: int,
+    payload: SkillUpdateRequest,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    data = {k: v for k, v in payload.dict().items() if v is not None}
+    updated = db_update_skill(skill_id, user_email, data)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Skill não encontrada.")
+    return {"status": "success", "skill": updated, "message": f"Skill '{updated['name']}' atualizada com sucesso!"}
+
+@app.patch("/api/skills/{skill_id}/toggle")
+def toggle_user_skill_endpoint(
+    skill_id: int,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    toggled = db_toggle_skill(skill_id, user_email)
+    if not toggled:
+        raise HTTPException(status_code=404, detail="Skill não encontrada.")
+    state_str = "ativada" if toggled["is_active"] else "desativada"
+    return {"status": "success", "skill": toggled, "message": f"Skill '{toggled['name']}' {state_str}!"}
+
+@app.delete("/api/skills/{skill_id}")
+def delete_user_skill_endpoint(
+    skill_id: int,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    ok = db_delete_skill(skill_id, user_email)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Skill não encontrada.")
+    return {"status": "success", "message": "Skill removida com sucesso."}
+
+@app.get("/api/skills/{skill_id}/export")
+def export_user_skill_endpoint(
+    skill_id: int,
+    format: str = "markdown",
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    skill = db_get_skill(skill_id, user_email)
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill não encontrada.")
+        
+    if format.lower() == "json":
+        return Response(
+            content=json.dumps(skill, indent=2, ensure_ascii=False),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={skill['slug']}.json"}
+        )
+    else:
+        md_content = export_skill_to_markdown(skill)
+        return Response(
+            content=md_content,
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename={skill['slug']}.SKILL.md"}
+        )
+
+# =========================================================================
 # SÍNTESE DE VOZ NEURAL HUMANA (TTS)
 # =========================================================================
 
@@ -2152,6 +2336,16 @@ def serve_avatar():
     if path.exists():
         return FileResponse(path)
     return {"message": "Avatar page"}
+
+@app.get("/skills")
+@app.get("/skills.html")
+def serve_skills():
+    path = static_dir / "skills.html"
+    if not path.exists():
+        path = current_dir / "skills.html"
+    if path.exists():
+        return FileResponse(path)
+    return {"message": "Skills page"}
 
 @app.get("/config")
 @app.get("/config/config.html")

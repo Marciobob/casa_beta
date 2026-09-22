@@ -1,6 +1,8 @@
 import os
+import re
 import json
 import sqlite3
+import unicodedata
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List, Tuple
@@ -320,6 +322,34 @@ def init_db():
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_screen_notifications_user
         ON screen_notifications(user_email, is_read, id DESC)
+    """)
+
+    # Tabela de Habilidades Customizadas do Agente (Skills)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_skills (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT NOT NULL,
+            name TEXT NOT NULL,
+            slug TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            category TEXT DEFAULT 'general',
+            icon TEXT DEFAULT '⚡',
+            is_active INTEGER DEFAULT 1,
+            system_instructions TEXT NOT NULL,
+            triggers TEXT DEFAULT '[]',
+            examples TEXT DEFAULT '[]',
+            tools_required TEXT DEFAULT '[]',
+            author TEXT DEFAULT 'user',
+            version TEXT DEFAULT '1.0.0',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(user_email, slug)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_user_skills_lookup
+        ON user_skills(user_email, is_active DESC, name ASC)
     """)
     
     conn.commit()
@@ -2374,5 +2404,493 @@ def db_clear_screen_notifications(user_email: str):
     conn.commit()
     conn.close()
 
+# =========================================================================
+# GESTÃO DE HABILIDADES CUSTOMIZADAS DO AGENTE (AGENT SKILLS)
+# =========================================================================
+
+DEFAULT_SKILL_TEMPLATES: List[Dict[str, Any]] = [
+    {
+        "name": "Engenheiro Python Sênior",
+        "slug": "dev_python_senior",
+        "category": "desenvolvimento",
+        "icon": "🐍",
+        "description": "Especialista em desenvolvimento Python limpo, modular, com type hints e boas práticas PEP 8.",
+        "triggers": ["python", "código", "programação", "script", "debug", "refatorar", "fastapi", "bug", "função", "algoritmo"],
+        "examples": [
+            "Escreva uma função assíncrona com FastAPI para processar dados.",
+            "Refatore este trecho de código para deixá-lo mais performático."
+        ],
+        "tools_required": ["executar_comando_sistema"],
+        "system_instructions": """Você atua como um Engenheiro de Software Python Sênior.
+Ao escrever ou analisar códigos:
+1. Priorize clareza, legibilidade e manutenibilidade (Zen do Python / PEP 8).
+2. Use Type Hints explicitamente em assinaturas e retornos de funções.
+3. Adicione docstrings objetivas e tratamento robusto de erros/exceções.
+4. Prefira bibliotecas padrão modernas (`pathlib`, `dataclasses`, `asyncio`, `typing`).
+5. Explique de forma sucinta a lógica adotada e eventuais trade-offs de performance."""
+    },
+    {
+        "name": "Especialista em Automação & IoT",
+        "slug": "automacao_domotica_iot",
+        "category": "automacao",
+        "icon": "🏠",
+        "description": "Especialista em domótica, integração MQTT, sensores ESP32 e cenários inteligentes para casa.",
+        "triggers": ["mqtt", "automação", "sensor", "luz", "cômodo", "dispositivo", "casa inteligente", "esp32", "cenário", "relé"],
+        "examples": [
+            "Crie uma rotina para desligar as luzes e ligar o alarme às 23h.",
+            "Como configurar um ESP32 para publicar temperatura via MQTT?"
+        ],
+        "tools_required": ["controlar_dispositivo_comodo", "listar_comodos_casa"],
+        "system_instructions": """Você atua como um Especialista Sênior em Automação Residencial e IoT.
+1. Compreenda a infraestrutura da casa: cômodos, tópicos MQTT (`pensador/casa/...`) e atuadores.
+2. Ao criar rotinas, valide a segurança operacional (ex: desarmar travas, horários de silêncio).
+3. Auxilie com códigos para microcontroladores (ESP32, Arduino, Raspberry Pi) em C++/MicroPython.
+4. Sugira melhorias em eficiência energética e conforto para o morador."""
+    },
+    {
+        "name": "Analista de Inteligência OSINT & Investigação",
+        "slug": "analista_osint_seguranca",
+        "category": "seguranca",
+        "icon": "🛡️",
+        "description": "Especialista em inteligência de fontes abertas (OSINT), análise de números telefônicos e segurança da informação.",
+        "triggers": ["osint", "investigar", "telefone", "número", "ddd", "operadora", "vazamento", "whois", "segurança", "dork", "phonextract"],
+        "examples": [
+            "Investigue o número de telefone (11) 98765-4321.",
+            "Faça uma checagem de reputação e formato deste contato."
+        ],
+        "tools_required": ["extrair_e_analisar_telefones", "buscar_informacoes_web"],
+        "system_instructions": """Você atua como um Analista de Inteligência OSINT e Segurança Cibernética.
+1. Realize triagens profundas de números e dados públicos seguindo normas éticas e legais.
+2. Identifique operadora, região geográfica, tipo de linha (móvel, fixo, voip) e formato internacional E.164.
+3. Forneça links de busca avançada (Google Dorks) e WhatsApp direto para investigação rápida.
+4. Alerte o usuário sobre eventuais riscos de engenharia social, spoofing ou tentativas de phishing."""
+    },
+    {
+        "name": "Consultor Financeiro & Orçamento",
+        "slug": "consultor_financeiro_pessoal",
+        "category": "produtividade",
+        "icon": "📊",
+        "description": "Auxiliar para controle de gastos, planejamento financeiro pessoal, regra 50/30/20 e metas.",
+        "triggers": ["finanças", "orçamento", "gastos", "investimento", "economia", "dinheiro", "planejamento financeiro", "poupar"],
+        "examples": [
+            "Como devo dividir meu salário líquido de R$ 5.000 no método 50/30/20?",
+            "Ajude-me a montar um plano para quitar uma dívida em 6 meses."
+        ],
+        "tools_required": ["criar_tarefa_lembrete", "criar_nota_google_keep"],
+        "system_instructions": """Você atua como um Consultor Financeiro Pessoal experiente.
+1. Adote uma abordagem analítica, encorajando hábitos sustentáveis de economia e reserva de emergência.
+2. Sugira a regra 50/30/20 (50% necessidades, 30% desejos, 20% poupança/investimentos).
+3. Auxilie no cálculo de juros, amortizações e projeções financeiras objetivas.
+4. Lembre que orientações específicas de investimento de alto risco devem sempre ter validação de profissionais credenciados."""
+    },
+    {
+        "name": "Copywriter & Redação Criativa",
+        "slug": "copywriter_redacao_criativa",
+        "category": "comunicacao",
+        "icon": "✍️",
+        "description": "Especialista em textos persuasivos, e-mails de alta conversão, posts para redes e comunicação assertiva.",
+        "triggers": ["copy", "texto", "redigir", "email", "post", "artigo", "mensagem persuasiva", "storytelling", "marketing", "anúncio"],
+        "examples": [
+            "Escreva um e-mail formal solicitando reunião de alinhamento com a diretoria.",
+            "Crie 3 ganchos magnéticos para um post sobre inteligência artificial no LinkedIn."
+        ],
+        "tools_required": [],
+        "system_instructions": """Você atua como um Copywriter de elite e Redator Criativo.
+1. Adapte tom de voz e vocabulário à audiência e ao objetivo (corporativo, persuasivo, empático, descontraído).
+2. Utilize frameworks consagrados como AIDA (Atenção, Interesse, Desejo, Ação) ou PAS (Problema, Agitação, Solução).
+3. Crie títulos atrativos, chamadas para ação (CTA) claras e frases de alto impacto.
+4. Elimine prolixidade e garanta clareza gramatical e ortográfica impecável."""
+    },
+    {
+        "name": "Coach de Produtividade & GTD",
+        "slug": "coach_produtividade_gtd",
+        "category": "produtividade",
+        "icon": "⏱️",
+        "description": "Especialista em gestão de tempo, método Getting Things Done (GTD), técnica Pomodoro e priorização de tarefas.",
+        "triggers": ["produtividade", "tarefas", "priorizar", "foco", "pomodoro", "gtd", "rotina", "organizar dia", "planejamento"],
+        "examples": [
+            "Organize minha lista de tarefas de hoje usando a Matriz de Eisenhower.",
+            "Como estruturar blocos de trabalho profundo (deep work) na minha rotina?"
+        ],
+        "tools_required": ["criar_tarefa_lembrete", "listar_tarefas_pendentes"],
+        "system_instructions": """Você atua como um Mentor de Alta Performance e Produtividade Pessoal.
+1. Aplique os princípios do método GTD (Capturar, Esclarecer, Organizar, Refletir, Engajar).
+2. Ajude o usuário a quebrar projetos complexos em tarefas com ações imediatas de até 15-30 minutos.
+3. Utilize a Matriz de Eisenhower para separar o que é urgente do que é realmente importante.
+4. Estimule rotinas saudáveis de pausas estratégicas e foco ininterrupto."""
+    }
+]
+
+def _generate_skill_slug(name: str) -> str:
+    """Gera um slug URL-friendly a partir do nome da skill."""
+    clean = unicodedata.normalize('NFKD', name or "").encode('ascii', 'ignore').decode('utf-8').lower().strip()
+    slug = re.sub(r'[^a-z0-9]+', '_', clean).strip('_')
+    return slug or "skill_custom"
+
+def db_get_skill_templates() -> List[Dict[str, Any]]:
+    """Retorna o catálogo de templates pré-configurados de skills."""
+    return DEFAULT_SKILL_TEMPLATES
+
+def db_seed_default_skills(user_email: str) -> List[Dict[str, Any]]:
+    """Inicializa as skills padrão do sistema caso o usuário ainda não possua nenhuma cadastrada."""
+    clean_email = (user_email or "").strip().lower()
+    if not clean_email:
+        return []
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) as cnt FROM user_skills WHERE user_email = ?", (clean_email,))
+    count = cursor.fetchone()["cnt"]
+    
+    if count == 0:
+        system_logger.info(f"Instalando templates padrão de skills para o usuário: {clean_email}")
+        now = datetime.now(timezone.utc).isoformat()
+        for tpl in DEFAULT_SKILL_TEMPLATES:
+            triggers_json = json.dumps(tpl.get("triggers", []), ensure_ascii=False)
+            examples_json = json.dumps(tpl.get("examples", []), ensure_ascii=False)
+            tools_json = json.dumps(tpl.get("tools_required", []), ensure_ascii=False)
+            cursor.execute("""
+                INSERT OR IGNORE INTO user_skills (
+                    user_email, name, slug, description, category, icon,
+                    is_active, system_instructions, triggers, examples,
+                    tools_required, author, version, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, 'system', '1.0.0', ?, ?)
+            """, (
+                clean_email,
+                tpl["name"],
+                tpl["slug"],
+                tpl.get("description", ""),
+                tpl.get("category", "general"),
+                tpl.get("icon", "⚡"),
+                tpl.get("system_instructions", ""),
+                triggers_json,
+                examples_json,
+                tools_json,
+                now,
+                now
+            ))
+        conn.commit()
+    conn.close()
+    return db_list_user_skills(clean_email)
+
+def db_list_user_skills(
+    user_email: str,
+    only_active: bool = False,
+    category: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """Lista todas as skills cadastradas para o usuário, com auto-seed se for primeiro acesso."""
+    clean_email = (user_email or "").strip().lower()
+    if not clean_email:
+        return []
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Verifica se precisa de seed inicial
+    cursor.execute("SELECT COUNT(*) as cnt FROM user_skills WHERE user_email = ?", (clean_email,))
+    if cursor.fetchone()["cnt"] == 0:
+        conn.close()
+        return db_seed_default_skills(clean_email)
+        
+    query = "SELECT * FROM user_skills WHERE user_email = ?"
+    params: List[Any] = [clean_email]
+    
+    if only_active:
+        query += " AND is_active = 1"
+    if category and category.lower() != "all":
+        query += " AND LOWER(category) = ?"
+        params.append(category.lower())
+        
+    query += " ORDER BY is_active DESC, name ASC"
+    
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    skills = []
+    for r in rows:
+        triggers = []
+        examples = []
+        tools_required = []
+        try:
+            triggers = json.loads(r["triggers"]) if r["triggers"] else []
+        except Exception:
+            pass
+        try:
+            examples = json.loads(r["examples"]) if r["examples"] else []
+        except Exception:
+            pass
+        try:
+            tools_required = json.loads(r["tools_required"]) if r["tools_required"] else []
+        except Exception:
+            pass
+            
+        skills.append({
+            "id": r["id"],
+            "user_email": r["user_email"],
+            "name": r["name"],
+            "slug": r["slug"],
+            "description": r["description"] or "",
+            "category": r["category"] or "general",
+            "icon": r["icon"] or "⚡",
+            "is_active": bool(r["is_active"]),
+            "system_instructions": r["system_instructions"] or "",
+            "triggers": triggers,
+            "examples": examples,
+            "tools_required": tools_required,
+            "author": r["author"] or "user",
+            "version": r["version"] or "1.0.0",
+            "created_at": r["created_at"],
+            "updated_at": r["updated_at"]
+        })
+    return skills
+
+def db_get_skill(skill_id: int, user_email: str) -> Optional[Dict[str, Any]]:
+    """Retorna uma skill específica pelo ID."""
+    clean_email = (user_email or "").strip().lower()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM user_skills WHERE id = ? AND user_email = ?", (skill_id, clean_email))
+    r = cursor.fetchone()
+    conn.close()
+    if not r:
+        return None
+        
+    triggers = []
+    examples = []
+    tools_required = []
+    try:
+        triggers = json.loads(r["triggers"]) if r["triggers"] else []
+    except Exception:
+        pass
+    try:
+        examples = json.loads(r["examples"]) if r["examples"] else []
+    except Exception:
+        pass
+    try:
+        tools_required = json.loads(r["tools_required"]) if r["tools_required"] else []
+    except Exception:
+        pass
+        
+    return {
+        "id": r["id"],
+        "user_email": r["user_email"],
+        "name": r["name"],
+        "slug": r["slug"],
+        "description": r["description"] or "",
+        "category": r["category"] or "general",
+        "icon": r["icon"] or "⚡",
+        "is_active": bool(r["is_active"]),
+        "system_instructions": r["system_instructions"] or "",
+        "triggers": triggers,
+        "examples": examples,
+        "tools_required": tools_required,
+        "author": r["author"] or "user",
+        "version": r["version"] or "1.0.0",
+        "created_at": r["created_at"],
+        "updated_at": r["updated_at"]
+    }
+
+def db_get_skill_by_slug(slug: str, user_email: str) -> Optional[Dict[str, Any]]:
+    """Retorna uma skill específica pelo slug."""
+    clean_email = (user_email or "").strip().lower()
+    clean_slug = (slug or "").strip().lower()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM user_skills WHERE slug = ? AND user_email = ?", (clean_slug, clean_email))
+    r = cursor.fetchone()
+    conn.close()
+    if not r:
+        return None
+    return db_get_skill(r["id"], clean_email)
+
+def db_create_skill(user_email: str, skill_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Cadastra uma nova skill para o usuário."""
+    clean_email = (user_email or "").strip().lower()
+    name = (skill_data.get("name") or "Nova Skill").strip()
+    slug = (skill_data.get("slug") or "").strip()
+    if not slug:
+        slug = _generate_skill_slug(name)
+        
+    # Garante unicidade do slug para o mesmo usuário
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM user_skills WHERE user_email = ? AND slug = ?", (clean_email, slug))
+    existing = cursor.fetchone()
+    if existing:
+        slug = f"{slug}_{int(datetime.now().timestamp())}"
+        
+    now = datetime.now(timezone.utc).isoformat()
+    triggers_json = json.dumps(skill_data.get("triggers", []), ensure_ascii=False)
+    examples_json = json.dumps(skill_data.get("examples", []), ensure_ascii=False)
+    tools_json = json.dumps(skill_data.get("tools_required", []), ensure_ascii=False)
+    
+    cursor.execute("""
+        INSERT INTO user_skills (
+            user_email, name, slug, description, category, icon,
+            is_active, system_instructions, triggers, examples,
+            tools_required, author, version, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        clean_email,
+        name,
+        slug,
+        (skill_data.get("description") or "").strip(),
+        (skill_data.get("category") or "general").strip(),
+        (skill_data.get("icon") or "⚡").strip(),
+        1 if skill_data.get("is_active", True) else 0,
+        (skill_data.get("system_instructions") or "").strip(),
+        triggers_json,
+        examples_json,
+        tools_json,
+        (skill_data.get("author") or "user").strip(),
+        (skill_data.get("version") or "1.0.0").strip(),
+        now,
+        now
+    ))
+    new_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    
+    system_logger.info(f"Skill '{name}' (id: {new_id}, slug: {slug}) criada para {clean_email}")
+    return db_get_skill(new_id, clean_email)
+
+def db_update_skill(skill_id: int, user_email: str, skill_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Atualiza os dados de uma skill existente."""
+    clean_email = (user_email or "").strip().lower()
+    existing = db_get_skill(skill_id, clean_email)
+    if not existing:
+        return None
+        
+    name = (skill_data.get("name") if "name" in skill_data else existing["name"]).strip()
+    slug = (skill_data.get("slug") if "slug" in skill_data else existing["slug"]).strip()
+    if not slug:
+        slug = _generate_skill_slug(name)
+        
+    description = skill_data.get("description", existing["description"])
+    category = skill_data.get("category", existing["category"])
+    icon = skill_data.get("icon", existing["icon"])
+    is_active = 1 if skill_data.get("is_active", existing["is_active"]) else 0
+    instructions = skill_data.get("system_instructions", existing["system_instructions"])
+    
+    triggers = skill_data.get("triggers", existing["triggers"])
+    examples = skill_data.get("examples", existing["examples"])
+    tools = skill_data.get("tools_required", existing["tools_required"])
+    
+    version = skill_data.get("version", existing["version"])
+    now = datetime.now(timezone.utc).isoformat()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE user_skills SET
+            name = ?,
+            slug = ?,
+            description = ?,
+            category = ?,
+            icon = ?,
+            is_active = ?,
+            system_instructions = ?,
+            triggers = ?,
+            examples = ?,
+            tools_required = ?,
+            version = ?,
+            updated_at = ?
+        WHERE id = ? AND user_email = ?
+    """, (
+        name,
+        slug,
+        description,
+        category,
+        icon,
+        is_active,
+        instructions,
+        json.dumps(triggers, ensure_ascii=False),
+        json.dumps(examples, ensure_ascii=False),
+        json.dumps(tools, ensure_ascii=False),
+        version,
+        now,
+        skill_id,
+        clean_email
+    ))
+    conn.commit()
+    conn.close()
+    
+    return db_get_skill(skill_id, clean_email)
+
+def db_toggle_skill(skill_id: int, user_email: str, is_active: Optional[bool] = None) -> Optional[Dict[str, Any]]:
+    """Ativa ou desativa uma skill específica."""
+    clean_email = (user_email or "").strip().lower()
+    existing = db_get_skill(skill_id, clean_email)
+    if not existing:
+        return None
+        
+    new_state = (not existing["is_active"]) if is_active is None else bool(is_active)
+    now = datetime.now(timezone.utc).isoformat()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE user_skills SET is_active = ?, updated_at = ?
+        WHERE id = ? AND user_email = ?
+    """, (1 if new_state else 0, now, skill_id, clean_email))
+    conn.commit()
+    conn.close()
+    
+    system_logger.info(f"Skill {skill_id} ({existing['name']}) alterada para is_active={new_state} por {clean_email}")
+    return db_get_skill(skill_id, clean_email)
+
+def db_delete_skill(skill_id: int, user_email: str) -> bool:
+    """Exclui permanentemente uma skill do usuário."""
+    clean_email = (user_email or "").strip().lower()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM user_skills WHERE id = ? AND user_email = ?", (skill_id, clean_email))
+    affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return affected > 0
+
+def db_get_active_skills_prompt_block(user_email: str) -> str:
+    """
+    Gera o bloco estruturado de instruções Markdown de todas as skills ATIVAS
+    do usuário para injeção dinâmica no prompt do agente de IA.
+    """
+    clean_email = (user_email or "").strip().lower()
+    if not clean_email:
+        return ""
+        
+    skills = db_list_user_skills(clean_email, only_active=True)
+    if not skills:
+        return ""
+        
+    lines = [
+        "### ⚡ HABILIDADES & ESPECIALIZAÇÕES ATIVAS (AGENT SKILLS):",
+        "O usuário possui as seguintes habilidades especializadas habilitadas no sistema.",
+        "Quando o contexto da conversa, perguntas ou pedidos corresponderem aos temas abaixo, aplique estas diretrizes com alta prioridade:",
+        ""
+    ]
+    
+    for s in skills:
+        icon = s.get("icon") or "⚡"
+        name = s.get("name") or "Skill"
+        slug = s.get("slug") or ""
+        desc = s.get("description") or ""
+        triggers = s.get("triggers") or []
+        instructions = (s.get("system_instructions") or "").strip()
+        
+        triggers_str = ", ".join(triggers) if triggers else "Nenhum gatilho específico"
+        
+        lines.append(f"#### {icon} {name} (`{slug}`)")
+        if desc:
+            lines.append(f"- **Finalidade**: {desc}")
+        lines.append(f"- **Gatilhos/Assuntos de Aplicação**: {triggers_str}")
+        lines.append("- **Diretrizes e Comportamento Especializado**:")
+        lines.append(instructions)
+        lines.append("")
+        
+    return "\n".join(lines).strip()
+
 # Inicializa o banco automaticamente ao carregar o módulo
 init_db()
+
