@@ -1078,9 +1078,7 @@
                 patterns.add("sexta");
                 patterns.add("cesta-feira");
                 patterns.add("cesta feira");
-                patterns.add("cesta");
                 patterns.add("sesta feira");
-                patterns.add("sesta");
                 patterns.add("6a feira");
                 patterns.add("6 feira");
                 patterns.add("sexta f");
@@ -1213,45 +1211,38 @@
                 const currentText = fullTranscript.trim();
                 if (!currentText) return;
 
-                // BARGE-IN: Se o assistente estiver falando (TTS), permite interrupção imediata por Wake Word ou comando de parada
+                // BARGE-IN: Interrupção de áudio APENAS se o usuário chamar o nome cadastrado do agente (Wake Word)
                 if (isSpeakingTTS || isAudioPlayingActive || speechQueue.length > 0) {
                     const agentName = getAgentName();
                     const { isWake, command } = extractWakeWordAndCommand(currentText, agentName);
-                    const isStop = isStopTalkingCommand(currentText) || (isWake && isStopTalkingCommand(command));
 
-                    if (isWake || isStop) {
-                        console.log("[Avatar Barge-In Detected]:", currentText);
+                    // O áudio SÓ É interrompido se a Wake Word (nome do agente) for detectada
+                    if (isWake) {
+                        console.log("[Avatar Barge-In por Wake Word]:", currentText);
                         silenciarAudio(false);
                         latestHeardText = "";
 
-                        if (isStop) {
-                            setAvatarState("idle");
+                        const isStopCmd = isStopTalkingCommand(command);
+                        if (command.length > 1 && !isStopCmd) {
+                            clearTimeout(wakeWordTimer);
+                            isWaitingCommandAfterWakeWord = false;
+                            processUserQuery(command);
+                        } else {
+                            // Chamou apenas o nome (ex: "Sexta-feira") ou comando de parar (ex: "Sexta-feira, pare")
+                            clearTimeout(wakeWordTimer);
+                            isWaitingCommandAfterWakeWord = true;
+                            setAvatarState("listening");
                             const floatingLabel = document.getElementById("floatingStateLabel");
-                            if (floatingLabel) floatingLabel.innerText = "ÁUDIO INTERROMPIDO";
-                            return;
-                        }
+                            if (floatingLabel) floatingLabel.innerText = "ÁUDIO INTERROMPIDO. OUVINDO...";
 
-                        if (isWake) {
-                            if (command.length > 1) {
-                                clearTimeout(wakeWordTimer);
+                            wakeWordTimer = setTimeout(() => {
                                 isWaitingCommandAfterWakeWord = false;
-                                processUserQuery(command);
-                            } else {
-                                isWaitingCommandAfterWakeWord = true;
-                                setAvatarState("listening");
-                                const floatingLabel = document.getElementById("floatingStateLabel");
-                                if (floatingLabel) floatingLabel.innerText = "SIM! DIGA O COMANDO...";
-                                speakResponse("Sim, estou ouvindo!");
-
-                                clearTimeout(wakeWordTimer);
-                                wakeWordTimer = setTimeout(() => {
-                                    isWaitingCommandAfterWakeWord = false;
-                                    if (currentAvatarState === "listening") setAvatarState("idle");
-                                }, 8000);
-                            }
-                            return;
+                                if (currentAvatarState === "listening") setAvatarState("idle");
+                            }, 8000);
                         }
+                        return;
                     }
+                    // Ignora ruídos, eco do próprio TTS e palavras sem o nome do agente
                     return;
                 }
 

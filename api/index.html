@@ -2426,8 +2426,8 @@
                 return "Ok, verificando mensagens e canais...";
             }
 
-            // 12. OSINT & Sherlock / Holehe
-            if (/\b(investigar|investigacao|osint|sherlock|holehe|dossie|rastrear|redes sociais)\b/.test(raw)) {
+            // 12. OSINT & Sherlock / Holehe / PhoneXtract
+            if (/\b(investigar|investigacao|osint|sherlock|holehe|phonextract|telefone|telefones|celular|numero de telefone|ddd|operadora|dossie|rastrear|redes sociais)\b/.test(raw)) {
                 return "Iniciando levantamento detalhado na internet, isso pode levar alguns segundos...";
             }
 
@@ -3651,46 +3651,40 @@
                 const currentText = fullTranscript.trim();
                 if (!currentText) return;
 
-                // BARGE-IN: Se o assistente estiver falando (TTS), permite interrupção imediata por Wake Word ou comando de parada
+                // BARGE-IN: Interrupção de áudio APENAS se o usuário chamar o nome cadastrado do agente (Wake Word)
                 if (isSpeakingTTS || isAudioPlayingActive || speechQueue.length > 0) {
                     const agentName = getAgentName();
                     const { isWake, command } = extractWakeWordAndCommand(currentText, agentName);
-                    const isStop = isStopTalkingCommand(currentText) || (isWake && isStopTalkingCommand(command));
 
-                    if (isWake || isStop) {
-                        console.log("[Index Barge-In Detected]:", currentText);
+                    // O áudio SÓ É interrompido se a Wake Word (nome do agente) for detectada
+                    if (isWake) {
+                        console.log("[Index Barge-In por Wake Word]:", currentText);
                         silenciarAudio(false);
                         latestHeardText = "";
 
-                        if (isStop) {
+                        const isStopCmd = isStopTalkingCommand(command);
+                        if (command.length > 1 && !isStopCmd) {
+                            clearTimeout(wakeWordTimer);
+                            isWaitingCommandAfterWakeWord = false;
                             const wText = document.getElementById("voiceWaveText");
-                            if (wText) wText.innerText = "Áudio interrompido.";
-                            return;
-                        }
+                            if (wText) wText.innerText = `"${agentName}, ${command}"`;
+                            processCommand(command);
+                        } else {
+                            // Chamou apenas o nome (ex: "Sexta-feira") ou comando de parar (ex: "Sexta-feira, pare")
+                            clearTimeout(wakeWordTimer);
+                            isWaitingCommandAfterWakeWord = true;
+                            const wText = document.getElementById("voiceWaveText");
+                            if (wText) wText.innerText = `"${agentName}..." (Áudio parado)`;
 
-                        if (isWake) {
-                            if (command.length > 1) {
-                                clearTimeout(wakeWordTimer);
+                            wakeWordTimer = setTimeout(() => {
                                 isWaitingCommandAfterWakeWord = false;
-                                const wText = document.getElementById("voiceWaveText");
-                                if (wText) wText.innerText = `"${agentName}, ${command}"`;
-                                processCommand(command);
-                            } else {
-                                isWaitingCommandAfterWakeWord = true;
-                                const wText = document.getElementById("voiceWaveText");
-                                if (wText) wText.innerText = `"${agentName}..." (Aguardando instrução...)`;
-                                speakResponse("Sim, estou ouvindo!");
-
-                                clearTimeout(wakeWordTimer);
-                                wakeWordTimer = setTimeout(() => {
-                                    isWaitingCommandAfterWakeWord = false;
-                                    const wt = document.getElementById("voiceWaveText");
-                                    if (wt) wt.innerText = `Ouvindo... Diga "${agentName}"`;
-                                }, 8000);
-                            }
-                            return;
+                                const wt = document.getElementById("voiceWaveText");
+                                if (wt) wt.innerText = `Ouvindo... Diga "${agentName}"`;
+                            }, 8000);
                         }
+                        return;
                     }
+                    // Ignora ruídos, eco do próprio TTS e palavras sem o nome do agente
                     return;
                 }
 
@@ -3782,9 +3776,7 @@
                 patterns.add("sexta");
                 patterns.add("cesta-feira");
                 patterns.add("cesta feira");
-                patterns.add("cesta");
                 patterns.add("sesta feira");
-                patterns.add("sesta");
                 patterns.add("6a feira");
                 patterns.add("6 feira");
                 patterns.add("sexta f");

@@ -2498,46 +2498,41 @@
                 const currentText = fullTranscript.trim();
                 if (!currentText) return;
 
-                // BARGE-IN: Se o assistente estiver falando (TTS), permite interrupção imediata por Wake Word ou comando de parada
+                // BARGE-IN: Interrupção de áudio APENAS se o usuário chamar o nome cadastrado do agente (Wake Word)
                 if (isSpeakingTTS || isAudioPlayingActive || speechQueue.length > 0) {
                     const agentName = getAgentName();
                     const { isWake, command } = extractWakeWordAndCommand(currentText, agentName);
-                    const isStop = isStopTalkingCommand(currentText) || (isWake && isStopTalkingCommand(command));
 
-                    if (isWake || isStop) {
-                        console.log("[Casa Barge-In Detected]:", currentText);
+                    // O áudio SÓ É interrompido se a Wake Word (nome do agente) for detectada
+                    if (isWake) {
+                        console.log("[Casa Barge-In por Wake Word]:", currentText);
                         silenciarAudio(false);
                         latestHeardText = "";
 
-                        if (isStop) {
-                            setVoiceStatus("⏹️", "Áudio interrompido.", false);
-                            return;
-                        }
+                        const isStopCmd = isStopTalkingCommand(command);
+                        if (command.length > 1 && !isStopCmd) {
+                            clearTimeout(wakeWordTimer);
+                            isWaitingCommandAfterWakeWord = false;
+                            showVoiceHud();
+                            setVoiceStatus("✨", "Processando comando...", true);
+                            setVoiceTranscript(`"${agentName}, ${command}"`, false);
+                            processCommandWithApi(command);
+                        } else {
+                            // Chamou apenas o nome (ex: "Sexta-feira") ou comando de parar (ex: "Sexta-feira, pare")
+                            clearTimeout(wakeWordTimer);
+                            isWaitingCommandAfterWakeWord = true;
+                            showVoiceHud();
+                            setVoiceStatus("👂", "Áudio interrompido. Ouvindo...", true);
+                            setVoiceTranscript(`"${agentName}..." (Áudio parado)`, false);
 
-                        if (isWake) {
-                            if (command.length > 1) {
-                                clearTimeout(wakeWordTimer);
+                            wakeWordTimer = setTimeout(() => {
                                 isWaitingCommandAfterWakeWord = false;
-                                showVoiceHud();
-                                setVoiceStatus("✨", "Processando comando...", true);
-                                setVoiceTranscript(`"${agentName}, ${command}"`, false);
-                                processCommandWithApi(command);
-                            } else {
-                                isWaitingCommandAfterWakeWord = true;
-                                showVoiceHud();
-                                setVoiceStatus("⚡", `Sim! Diga o comando agora...`, true);
-                                setVoiceTranscript(`"${agentName}..." (Aguardando instrução...)`, false);
-                                speakResponse("Sim, estou ouvindo!");
-
-                                clearTimeout(wakeWordTimer);
-                                wakeWordTimer = setTimeout(() => {
-                                    isWaitingCommandAfterWakeWord = false;
-                                    setVoiceStatus("💤", "Aguardando ativação...", false);
-                                }, 8000);
-                            }
-                            return;
+                                setVoiceStatus("💤", "Aguardando ativação...", false);
+                            }, 8000);
                         }
+                        return;
                     }
+                    // Ignora ruídos, eco do próprio TTS e palavras sem o nome do agente
                     return;
                 }
 
@@ -2631,9 +2626,7 @@
                 patterns.add("sexta");
                 patterns.add("cesta-feira");
                 patterns.add("cesta feira");
-                patterns.add("cesta");
                 patterns.add("sesta feira");
-                patterns.add("sesta");
                 patterns.add("6a feira");
                 patterns.add("6 feira");
                 patterns.add("sexta f");
@@ -2916,8 +2909,8 @@
                 return "Ok, verificando mensagens e canais...";
             }
 
-            // 12. OSINT & Sherlock / Holehe
-            if (/\b(investigar|investigacao|osint|sherlock|holehe|dossie|rastrear|redes sociais)\b/.test(raw)) {
+            // 12. OSINT & Sherlock / Holehe / PhoneXtract
+            if (/\b(investigar|investigacao|osint|sherlock|holehe|phonextract|telefone|telefones|celular|numero de telefone|ddd|operadora|dossie|rastrear|redes sociais)\b/.test(raw)) {
                 return "Iniciando levantamento detalhado na internet, isso pode levar alguns segundos...";
             }
 

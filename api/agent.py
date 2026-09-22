@@ -71,6 +71,7 @@ try:
         investigar_pessoa_osint,
         buscar_usuario_redes_sociais_sherlock,
         verificar_email_osint_holehe,
+        investigar_telefone_phonextract,
         set_osint_context
     )
     from api.tools.memory_tools import (
@@ -134,6 +135,7 @@ except ImportError:
         investigar_pessoa_osint,
         buscar_usuario_redes_sociais_sherlock,
         verificar_email_osint_holehe,
+        investigar_telefone_phonextract,
         set_osint_context
     )
     from tools.memory_tools import (
@@ -514,6 +516,7 @@ def processar_comando_agente(
         investigar_pessoa_osint,
         buscar_usuario_redes_sociais_sherlock,
         verificar_email_osint_holehe,
+        investigar_telefone_phonextract,
         pesquisar_na_internet,
         pesquisar_e_transcrever_youtube,
         controlar_luzes,
@@ -665,8 +668,9 @@ Suas capacidades e ferramentas disponíveis:
    - 'consultar_agente_antigravity': Use SEMPRE que você tiver alguma dúvida técnica, complexa, de programação, arquitetura de software, infraestrutura, engenharia ou quando o usuário pedir para perguntar/consultar o Antigravity (ex: 'pergunta pro Antigravity', 'o que o Antigravity acha disso?', 'tira uma dúvida com o Antigravity', 'qual a melhor solução técnica para isso?'). O Antigravity atua como seu engenheiro consultor sênior.
    - 'executar_comando_antigravity': Use SEMPRE que o usuário pedir para executar comandos de terminal/shell na máquina física / computador (ex: 'execute o comando df -h', 'veja o uptime do servidor', 'liste os arquivos da pasta', 'execute o comando ... na máquina'). Retorna a saída real do terminal (stdout/stderr) e o código de saída do Linux.
    - 'perguntar_e_executar_antigravity': Use quando o usuário pedir para delegar uma tarefa completa de diagnóstico ou resolução técnica no computador ao Antigravity.
-20. INTELIGÊNCIA OSINT (OPEN SOURCE INTELLIGENCE) & FERRAMENTAS KALI LINUX:
-   - 'investigar_pessoa_osint': Use SEMPRE que o usuário pedir para investigar uma pessoa, buscar dados de alguém, levantar informações sobre um perfil ou @ do Instagram (ex: 'investiga o @fulano', 'pesquise sobre o Marcio Silva no Instagram @marciobob', 'faça um levantamento OSINT sobre tal pessoa', 'veja tudo o que tem na internet sobre fulano'). Ela aciona ferramentas como Sherlock, Holehe, busca web direcionada e sintetiza um dossiê analítico completo através do Antigravity.
+20. INTELIGÊNCIA OSINT (OPEN SOURCE INTELLIGENCE), PHONE EXTRACT & FERRAMENTAS KALI LINUX:
+   - 'investigar_pessoa_osint': Use SEMPRE que o usuário pedir para investigar uma pessoa, buscar dados de alguém, levantar informações sobre um perfil ou @ do Instagram (ex: 'investiga o @fulano', 'pesquise sobre o Marcio Silva no Instagram @marciobob', 'faça um levantamento OSINT sobre tal pessoa', 'veja tudo o que tem na internet sobre fulano'). Ela aciona ferramentas como Sherlock, Holehe, PhoneXtract, busca web direcionada e sintetiza um dossiê analítico completo através do Antigravity.
+   - 'investigar_telefone_phonextract': Use SEMPRE que o usuário pedir para investigar, rastrear, analisar ou extrair dados de um número de telefone nacional ou internacional (ex: 'investigue esse telefone (11) 98765-4321', 'de quem é o DDD 21?', 'qual a operadora desse número +5511999998888?', 'rastreie o telefone +1 415 555 2671', 'verifique o telefone 11999998888'). Retorna validação formal, operadora telecom, DDD/região geográfica detalhada, tipo de linha (fixo/móvel/VoIP), fuso horário, link direto do WhatsApp e pegada digital na web.
    - 'buscar_usuario_redes_sociais_sherlock': Use quando o objetivo for especificamente rastrear e listar em quais redes sociais ou plataformas um username/@ possui perfil ativo usando o Sherlock do Kali Linux.
    - 'verificar_email_osint_holehe': Use quando o objetivo for especificamente verificar em quais serviços e plataformas da internet um e-mail possui conta cadastrada usando o Holehe.
 21. CONTROLE TOTAL & NAVEGAÇÃO AUTÔNOMA DA INTERFACE VISUAL (TELAS, ABAS & MODAIS):
@@ -697,6 +701,7 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO VISUAL:
   * Utilize subtítulos ('### Título') para dividir seções em respostas mais detalhadas ou relatórios (ex: OSINT, pesquisas, listas).
   * Sempre que citar links, perfis de redes sociais, artigos, vídeos ou sites da internet, utilize SEMPRE a formatação de link Markdown com texto descritivo e amigável: [Título do Artigo ou Nome da Plataforma](URL) em vez de jogar URLs soltas e desordenadas no texto.
 - Responda sempre em português brasileiro de forma educada, prestativa, inteligente e objetiva.
+- NUNCA inicie suas respostas com saudações redundantes repetindo o seu próprio nome (ex: "Olá, sou a {agent_name}"). Seja direto e natural, evitando emitir o nome do assistente nos alto-falantes a não ser que o usuário pergunte especificamente qual é o seu nome.
 - O sistema possui um pipeline separado que converte automaticamente sua resposta em áudio limpo para a voz, portanto você DEVE incluir links descritivos, formatação e detalhes completos no texto para a melhor experiência visual do usuário na tela do chat.
 - Se a solicitação do usuário exigir uma ação (olhar câmera, identificar pessoas, gerenciar notas/listas, gerenciar tarefas, consultar/salvar contatos, consultar/agendar na agenda, ler/enviar/responder e-mail, ligar/desligar luz, consultar status, consultar perfil, buscar na web ou memorizar/consultar fatos aprendidos), invoque a ferramenta correspondente.
 """
