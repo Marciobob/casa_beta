@@ -67,6 +67,14 @@ try:
         perguntar_e_executar_antigravity,
         set_antigravity_context
     )
+    from api.tools.hermes_tools import (
+        delegar_tarefa_hermes,
+        executar_pesquisa_profunda_hermes,
+        executar_codigo_sandbox_hermes,
+        consultar_skills_hermes,
+        status_hermes_agent,
+        set_hermes_context
+    )
     from api.tools.osint_tools import (
         investigar_pessoa_osint,
         buscar_usuario_redes_sociais_sherlock,
@@ -93,6 +101,11 @@ try:
         alternar_status_skill,
         cadastrar_ou_atualizar_skill,
         set_skills_context
+    )
+    from api.tools.image_tools import (
+        gerar_imagem_ia,
+        listar_estilos_imagem,
+        set_image_tools_context
     )
     from api.database import (
         db_get_google_credentials,
@@ -143,6 +156,14 @@ except ImportError:
         perguntar_e_executar_antigravity,
         set_antigravity_context
     )
+    from tools.hermes_tools import (
+        delegar_tarefa_hermes,
+        executar_pesquisa_profunda_hermes,
+        executar_codigo_sandbox_hermes,
+        consultar_skills_hermes,
+        status_hermes_agent,
+        set_hermes_context
+    )
     from tools.osint_tools import (
         investigar_pessoa_osint,
         buscar_usuario_redes_sociais_sherlock,
@@ -169,6 +190,11 @@ except ImportError:
         alternar_status_skill,
         cadastrar_ou_atualizar_skill,
         set_skills_context
+    )
+    from tools.image_tools import (
+        gerar_imagem_ia,
+        listar_estilos_imagem,
+        set_image_tools_context
     )
     from database import (
         db_get_google_credentials,
@@ -232,11 +258,12 @@ def get_chat_model(model_name: str, api_key: str):
             temperature=0.1
         )
 
-def gerar_texto_para_fala(texto: str, max_chars: int = 420) -> str:
+def gerar_texto_para_fala(texto: str, max_chars: int = 380) -> str:
     """
-    Transforma qualquer texto (com Markdown, links, tabelas e termos técnicos) em um
+    Transforma qualquer texto (com Markdown, links, tabelas, termos técnicos e símbolos) em um
     texto falado limpo, natural, fluido e sem poluição, perfeito para sintetizadores de voz (TTS).
-    Remove URLs completas, preposições vazias de links, símbolos Markdown e emojis.
+    Remove URLs, formatações de listas com traços, marcadores de tópicos, símbolos especiais, emojis,
+    reticências, tabelas e molduras, garantindo que o sintetizador nunca pronuncie 'traço', 'ponto ponto' ou 'barra'.
     """
     if not texto:
         return ""
@@ -244,60 +271,96 @@ def gerar_texto_para_fala(texto: str, max_chars: int = 420) -> str:
     # 1. Remove blocos de código completos ```...```
     t = re.sub(r'```[\s\S]*?```', '', texto)
     
-    # 2. Transforma links markdown [Texto Legível](URL) apenas no Texto Legível
+    # 2. Converte imagens markdown ![Alt](URL) em menção falada limpa
+    t = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'A imagem solicitada de \1 foi gerada e apresentada na tela.', t)
+    t = re.sub(r'A imagem solicitada de\s+foi', 'A imagem solicitada foi', t)
+    
+    # 2b. Transforma links markdown [Texto Legível](URL) apenas no Texto Legível
     t = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', t)
     
-    # 3. Remove cabeçalhos markdown (#, ##, ###)
+    # 3. Remove URLs puras e expressões de introdução de links
+    t = re.sub(r'(?i)(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?https?:\/\/\S+', '', t)
+    t = re.sub(r'(?i)(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?www\.\S+', '', t)
+    
+    # 4. Remove formatações de tabelas markdown (| col | col | e |---|---|)
+    t = re.sub(r'^\s*\|.*\|\s*$', '', t, flags=re.MULTILINE)
+    t = re.sub(r'\|', ' ', t)
+    
+    # 5. Remove cabeçalhos markdown (#, ##, ###)
     t = re.sub(r'^#{1,6}\s+', '', t, flags=re.MULTILINE)
     
-    # 4. Remove negrito, itálico, tachado e código inline
+    # 6. Remove negrito, itálico, tachado e código inline
     t = re.sub(r'\*\*([^*]+)\*\*', r'\1', t)
     t = re.sub(r'\*([^*]+)\*', r'\1', t)
     t = re.sub(r'__([^_]+)__', r'\1', t)
     t = re.sub(r'_([^_]+)_', r'\1', t)
-    t = re.sub(r'`([^`]+)`', r'\1', t)
     t = re.sub(r'~~([^~]+)~~', r'\1', t)
+    t = re.sub(r'`+', '', t)  # Remove crases/backticks
     
-    # 5. Remove marcadores de lista (*, -, +, •, 1.) no início de linhas
-    t = re.sub(r'^\s*[-*+•]\s+', '', t, flags=re.MULTILINE)
-    t = re.sub(r'^\s*\d+\.\s+', '', t, flags=re.MULTILINE)
+    # 7. Remove molduras ASCII / TUI e divisores (╭─, ╰─, │, ─, ---, ===, ***)
+    t = re.sub(r'[╭╰│┌└┐┘├┤┬┴┼═║╔╚╗╝╟╢╤╧╪─━┄┅┈┉\-_=*~]{2,}', ' ', t)
     
-    # 6. Remove citações (> texto) e divisores (---, ***)
-    t = re.sub(r'^\s*>\s+', '', t, flags=re.MULTILINE)
-    t = re.sub(r'^\s*[-*_]{3,}\s*$', '', t, flags=re.MULTILINE)
+    # 8. Remove todos os tipos de marcadores de lista no início de linhas (*, -, +, •, 1., a))
+    t = re.sub(r'^\s*[-*+•▪▫►▸⁃‣○●✦✧✔✓✖✕]\s*', '', t, flags=re.MULTILINE)
+    t = re.sub(r'^\s*\d+[\.\)]\s*', '', t, flags=re.MULTILINE)
+    t = re.sub(r'^\s*[a-zA-Z][\.\)]\s*', '', t, flags=re.MULTILINE)
     
-    # 7. Remove URLs puras e expressões que as introduzem diretamente
-    t = re.sub(r'(?i)(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?https?:\/\/\S+', '', t)
-    t = re.sub(r'(?i)(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?www\.\S+', '', t)
+    # 9. Remove citações (> texto)
+    t = re.sub(r'^\s*>\s*', '', t, flags=re.MULTILINE)
     
-    # 8. Remove rótulos soltos de link no final da linha ou antes de pontuação (ex: "Link:", "URL:", "Fonte:")
-    t = re.sub(r'(?i)\b(?:links?|urls?|fontes?|acesse em|disponível em|veja em|no link|pelo link)\s*:\s*$', '', t, flags=re.MULTILINE)
-    t = re.sub(r'(?i)\b(?:links?|urls?|fontes?|acesse em|disponível em|veja em|no link|pelo link)\s*:\s*', '', t)
-    t = re.sub(r'(?i)\b(?:com mais detalhes em|mais detalhes em|acesse em|disponível em|veja em|no link|pelo link|no endereço|no site|no perfil)\s*(?=[.,;!?]|$)', '', t)
+    # 10. Remove todos os emojis e símbolos decorativos Unicode
+    emoji_pattern = re.compile(
+        '['
+        '\U00010000-\U0010ffff'  # Plano Suplementar (emojis modernos, 🤖, 🧠, 📂, etc.)
+        '\u2600-\u26FF'          # Símbolos diversos (⚪, ⚫, ⚡, ⚙, ⚠, etc.)
+        '\u2700-\u27BF'          # Dingbats (✅, ❌, ✨, ⭐, ➡, ✔, etc.)
+        '\u2B50-\u2B55'          # Estrelas e círculos
+        '\u2300-\u23FF'          # Símbolos técnicos
+        '\u2B00-\u2BFF'          # Setas e símbolos extras
+        '\u2022\u2023\u25AA\u25AB\u25BA\u25B6\u25CF\u25CB' # Bullets e formas geométricas
+        ']+',
+        flags=re.UNICODE
+    )
+    t = emoji_pattern.sub('', t)
     
-    # 9. Remove colchetes de referências numéricas [1], [2]
+    # 11. Remove referências de notas [1], [2], [ref]
     t = re.sub(r'\[\d+\]', '', t)
+    t = re.sub(r'\[[a-zA-Z0-9_\-\s]+\]', '', t)
     
-    # 10. Remove emojis
-    t = re.sub(r'[\U00010000-\U0010ffff]', '', t)
+    # 12. Substitui traços/hífens soltos, travessões e marcadores no meio de frases por vírgulas ou espaços
+    # Preserva apenas palavras compostas com letras antes e depois (ex: guarda-roupa, sexta-feira)
+    t = re.sub(r'\s+[-–—]+\s+', ', ', t)
+    t = re.sub(r'[-–—]{2,}', ' ', t)
+    t = re.sub(r'(?<![a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ])[-–—]+', ' ', t)
+    t = re.sub(r'[-–—]+(?![a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ])', ' ', t)
     
-    # 11. Converte quebras de linha em pausas suaves com ponto
+    # 13. Remove caminhos absolutos longos de sistema de arquivos que soam robóticos na voz (ex: /home/marcio/.hermes/bin/hermes)
+    t = re.sub(r'(?:/[a-zA-Z0-9_.\-]+){3,}', 'no sistema', t)
+    
+    # 14. Remove rótulos vazios ou pendentes no final da linha ou antes de pontuação (ex: 'Executável:', 'URL:', 'Link:')
+    t = re.sub(r'(?i)\b(?:links?|urls?|fontes?|executável|caminho|arquivo|endereço|local)\s*:\s*(?=[.,;!?:\n]|$)', '', t)
+    
+    # 15. Organiza linhas em frases completas
     linhas = [l.strip() for l in t.split('\n') if l.strip()]
     reconstruido = []
     for l in linhas:
         if not re.search(r'[.!?:]$', l):
             l += '.'
         reconstruido.append(l)
-    t = " ".join(reconstruido)
+    t = ' '.join(reconstruido)
     
-    # 12. Limpa pontuações repetidas e múltiplos espaços
-    t = re.sub(r'\s*([,.:;?!])\s*', r'\1 ', t)
-    t = re.sub(r':\s*\.', '.', t)
-    t = re.sub(r'\.\s*\.', '.', t)
-    t = re.sub(r',\s*\.', '.', t)
+    # 16. Limpeza profunda de pontuações repetidas e espaços
+    t = re.sub(r'\.{2,}', '.', t)           # Remove reticências (...) -> '.'
+    t = re.sub(r'\s*:\s*\.', '.', t)
+    t = re.sub(r'\s*,\s*\.', '.', t)
+    t = re.sub(r'\s*\.\s*,', '.', t)
+    t = re.sub(r'\s*\.\s*\.', '.', t)
+    t = re.sub(r':\s*:', ':', t)
+    t = re.sub(r'\s*([,;?!])\s*', r'\1 ', t)
+    t = re.sub(r'\s*(\.)\s+', r'. ', t)
     t = re.sub(r'\s+', ' ', t).strip()
     
-    # 13. Se for excessivamente longo para síntese de voz (ex: relatórios OSINT extensos)
+    # 17. Se for longo, sintetiza de forma concisa e natural para fala
     if len(t) > max_chars:
         frases = re.split(r'(?<=[.!?])\s+', t)
         resumo = []
@@ -309,11 +372,11 @@ def gerar_texto_para_fala(texto: str, max_chars: int = 420) -> str:
             else:
                 break
         if not resumo and frases:
-            resumo.append(frases[0][:max_chars].rsplit(' ', 1)[0] + '...')
-        t = " ".join(resumo).strip()
+            resumo.append(frases[0][:max_chars].rsplit(' ', 1)[0] + '.')
+        t = ' '.join(resumo).strip()
         if not t.endswith('.'):
             t += '.'
-        t += " Os detalhes completos e links estão disponíveis na tela do chat."
+        t += ' Os detalhes completos foram apresentados na tela.'
         
     return t
 
@@ -330,6 +393,11 @@ TOOL_STATUS_MESSAGES = {
     "consultar_agente_antigravity": "Consultando o agente especialista Antigravity...",
     "executar_comando_antigravity": "Executando comando no sistema via Antigravity...",
     "perguntar_e_executar_antigravity": "Delegando análise e execução ao Antigravity...",
+    "delegar_tarefa_hermes": "Delegando tarefa ao Hermes Agent...",
+    "executar_pesquisa_profunda_hermes": "Hermes realizando pesquisa aprofundada...",
+    "executar_codigo_sandbox_hermes": "Hermes executando código em sandbox...",
+    "consultar_skills_hermes": "Consultando habilidades do Hermes Agent...",
+    "status_hermes_agent": "Verificando status do Hermes Agent...",
     "listar_compromissos": "Consultando sua agenda no Google Calendar...",
     "agendar_compromisso": "Agendando compromisso no Google Calendar...",
     "buscar_compromissos": "Buscando compromissos na agenda...",
@@ -393,7 +461,9 @@ TOOL_STATUS_MESSAGES = {
     "alternar_aba_interface": "Alternando aba na interface...",
     "consultar_skills_ativas": "Consultando habilidades especializadas ativas...",
     "alternar_status_skill": "Atualizando status da habilidade...",
-    "cadastrar_ou_atualizar_skill": "Criando nova habilidade especializada..."
+    "cadastrar_ou_atualizar_skill": "Criando nova habilidade especializada...",
+    "gerar_imagem_ia": "Gerando imagem personalizada com Inteligência Artificial...",
+    "listar_estilos_imagem": "Consultando estilos e tipos de imagens disponíveis..."
 }
 
 TOOL_SPOKEN_STATUS_MESSAGES = {
@@ -405,6 +475,11 @@ TOOL_SPOKEN_STATUS_MESSAGES = {
     "consultar_agente_antigravity": "Consultando o especialista Antigravity...",
     "executar_comando_antigravity": "Executando comando no sistema...",
     "perguntar_e_executar_antigravity": "Delegando análise ao Antigravity...",
+    "delegar_tarefa_hermes": "Delegando essa tarefa para o Hermes Agent, só um momento...",
+    "executar_pesquisa_profunda_hermes": "Iniciando pesquisa aprofundada com o Hermes...",
+    "executar_codigo_sandbox_hermes": "Executando código no ambiente do Hermes...",
+    "consultar_skills_hermes": "Consultando habilidades do Hermes Agent...",
+    "status_hermes_agent": "Checando status do Hermes Agent...",
     "listar_compromissos": "Consultando seus compromissos no Google Agenda...",
     "agendar_compromisso": "Agendando o compromisso para você...",
     "buscar_compromissos": "Buscando compromissos na agenda...",
@@ -468,7 +543,9 @@ TOOL_SPOKEN_STATUS_MESSAGES = {
     "alternar_aba_interface": "Alternando aba...",
     "consultar_skills_ativas": "Verificando suas habilidades ativas...",
     "alternar_status_skill": "Atualizando a habilidade...",
-    "cadastrar_ou_atualizar_skill": "Cadastrando nova habilidade..."
+    "cadastrar_ou_atualizar_skill": "Cadastrando nova habilidade...",
+    "gerar_imagem_ia": "Criando a imagem com inteligência artificial, só um momento...",
+    "listar_estilos_imagem": "Consultando estilos de imagem disponíveis..."
 }
 
 def get_tool_friendly_status(tool_name: str) -> str:
@@ -531,6 +608,8 @@ def processar_comando_agente(
     set_osint_context(user_email=user_email or "", api_key=api_key or "", model_name=modelo or "")
     set_memory_context(user_email=user_email or "")
     set_skills_context(user_email=user_email or "")
+    set_hermes_context(user_email=user_email or "")
+    set_image_tools_context(user_email=user_email or "", api_key=api_key or "", model_name=modelo or "")
     
     # Carrega credenciais do Google do usuário ativo
     gmail_user, gmail_pwd = db_get_google_credentials(user_email or "")
@@ -565,6 +644,11 @@ def processar_comando_agente(
         consultar_agente_antigravity,
         executar_comando_antigravity,
         perguntar_e_executar_antigravity,
+        delegar_tarefa_hermes,
+        executar_pesquisa_profunda_hermes,
+        executar_codigo_sandbox_hermes,
+        consultar_skills_hermes,
+        status_hermes_agent,
         investigar_pessoa_osint,
         buscar_usuario_redes_sociais_sherlock,
         verificar_email_osint_holehe,
@@ -627,7 +711,9 @@ def processar_comando_agente(
         navegar_para_tela,
         abrir_modal,
         fechar_modal,
-        alternar_aba_interface
+        alternar_aba_interface,
+        gerar_imagem_ia,
+        listar_estilos_imagem
     ]
     tool_map = {t.name: t for t in tools}
     
@@ -752,6 +838,20 @@ Suas capacidades e ferramentas disponíveis:
     - 'consultar_skills_ativas': Use quando o usuário perguntar quais habilidades ou especializações estão ativas no sistema ou pedir para listar suas skills.
     - 'alternar_status_skill': Use quando o usuário pedir para ativar ou desativar uma skill específica por voz/chat (ex: 'ative a skill de Python', 'desative a skill de finanças').
     - 'cadastrar_ou_atualizar_skill': Use quando o usuário pedir para criar uma nova habilidade/especialização personalizada com diretrizes específicas.
+23. INTEGRAÇÃO COM HERMES AGENT (SUBAGENTE EXECUTOR ESPECIALISTA & PESQUISA PROFUNDA):
+    Você é a Sexta-Feira, o orquestrador principal e central de todo o sistema. Você tem à sua disposição o Hermes Agent (Nous Research), um subagente autônomo com capacidades profundas de raciocínio, sandbox de código, pesquisa exaustiva e aprendizado de skills.
+    - 'delegar_tarefa_hermes': Use SEMPRE que a tarefa for complexa, longa, analítica, exigir raciocínio em múltiplos passos, resolução autônoma, ou quando o usuário pedir explicitamente para delegar ou perguntar ao Hermes (ex: 'Hermes, faça...', 'delegue para o Hermes', 'peça ao Hermes para resolver isso', 'Hermes, analise...'). O Hermes devolverá o resultado consolidado e você apresentará a resposta ao usuário.
+    - 'executar_pesquisa_profunda_hermes': Use SEMPRE que o usuário pedir uma pesquisa aprofundada, estudo exaustivo, análise de mercado detalhada ou dossiê temático na web que vá além de uma busca rápida.
+    - 'executar_codigo_sandbox_hermes': Use quando o usuário pedir para rodar scripts, validar códigos ou testar programas em ambiente de sandbox controlado pelo Hermes.
+    - 'consultar_skills_hermes': Use para inspecionar habilidades autônomas aprendidas ou disponíveis no Hermes Agent.
+    - 'status_hermes_agent': Use para verificar a saúde, conectividade do gateway ou instalação do Hermes.
+24. CRIAÇÃO E GERAÇÃO DE IMAGENS COM INTELIGÊNCIA ARTIFICIAL:
+    - 'gerar_imagem_ia': Use SEMPRE que o usuário pedir para criar, gerar, desenhar, renderizar, ilustrar, pintar ou produzir uma imagem, foto, arte, logotipo, cenário ou papel de parede com Inteligência Artificial (ex: 'crie uma imagem de...', 'desenhe um...', 'gere uma imagem realista de...', 'faça uma imagem estilo cyberpunk...', 'crie um logo para...').
+      * 'descricao_prompt': Descrição clara e detalhada do que desenhar.
+      * 'estilo': Escolha o estilo visual mais adequado ('realista', 'fotografico', '3d_render', 'arte_digital', 'anime', 'ghibli', 'cyberpunk', 'smart_home', 'arquitetura', 'aquarela', 'pixel_art', 'logo', 'minimalista', 'fantasia', 'esboco').
+      * 'proporcao': '1:1' (quadrado), '16:9' (widescreen/paisagem), '9:16' (vertical/stories), '4:3', '3:4'.
+      * Ao retornar o resultado, apresente a tag markdown da imagem ![Descrição](/static/generated_images/...) para que a imagem apareça diretamente na tela.
+    - 'listar_estilos_imagem': Use quando o usuário perguntar quais estilos ou formatos de imagem você consegue gerar.
 
 REGRAS OBRIGATÓRIAS DE RESPOSTA E FORMATAÇÃO VISUAL:
 - Formate sua resposta de maneira elegante e organizada para visualização na tela do chat utilizando Markdown bem estruturado:

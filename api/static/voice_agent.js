@@ -63,22 +63,111 @@
         return localStorage.getItem("smartHomeVoice") || "pt-BR-FranciscaNeural";
     }
 
-    function cleanTextForSpeech(text) {
+    function cleanTextForSpeech(text, maxChars = 380) {
         if (!text) return "";
-        let t = text.replace(/```[\s\S]*?```/g, "");
+        let t = text;
+
+        // 1. Remove blocos de código completos ```...```
+        t = t.replace(/```[\s\S]*?```/g, "");
+
+        // 2. Transforma links markdown [Texto](URL) apenas no Texto
         t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+
+        // 3. Remove URLs puras e expressões que introduzem links
+        t = t.replace(/(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)?\s*https?:\/\/\S+/gi, "");
+        t = t.replace(/(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)?\s*www\.\S+/gi, "");
+
+        // 4. Remove tabelas markdown
+        t = t.replace(/^\s*\|.*\|\s*$/gm, "");
+        t = t.replace(/\|/g, " ");
+
+        // 5. Remove cabeçalhos markdown (#, ##, ###)
         t = t.replace(/^#{1,6}\s+/gm, "");
+
+        // 6. Remove negrito, itálico, tachado e código inline
         t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
         t = t.replace(/\*([^*]+)\*/g, "$1");
         t = t.replace(/__([^_]+)__/g, "$1");
         t = t.replace(/_([^_]+)_/g, "$1");
-        t = t.replace(/`([^`]+)`/g, "$1");
-        t = t.replace(/^\s*[-*+•]\s+/gm, "");
-        t = t.replace(/^\s*\d+\.\s+/gm, "");
-        t = t.replace(/https?:\/\/\S+/g, "");
-        t = t.replace(/www\.\S+/g, "");
-        t = t.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "");
-        return t.replace(/\s+/g, " ").trim();
+        t = t.replace(/~~([^~]+)~~/g, "$1");
+        t = t.replace(/`+/g, "");
+
+        // 7. Remove divisores e caixas ASCII / TUI (---, ===, ***, ╭─, ╰─, etc.)
+        t = t.replace(/[╭╰│┌└┐┘├┤┬┴┼═║╔╚╗╝╟╢╤╧╪─━┄┅┈┉\-_=*~]{2,}/g, " ");
+
+        // 8. Remove marcadores de lista (*, -, +, •, 1., etc.)
+        t = t.replace(/^\s*[-*+•▪▫►▸⁃‣○●✦✧✔✓✖✕]\s*/gm, "");
+        t = t.replace(/^\s*\d+[\.\)]\s*/gm, "");
+        t = t.replace(/^\s*[a-zA-Z][\.\)]\s*/gm, "");
+
+        // 9. Remove citações (> texto)
+        t = t.replace(/^\s*>\s*/gm, "");
+
+        // 10. Remove emojis e símbolos Unicode
+        t = t.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}-\u{2B55}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}\u{2022}\u{2023}\u{25AA}\u{25AB}\u{25BA}\u{25B6}\u{25CF}\u{25CB}]/gu, "");
+
+        // 11. Remove referências de notas [1], [2]
+        t = t.replace(/\[\d+\]/g, "");
+        t = t.replace(/\[[a-zA-Z0-9_\-\s]+\]/g, "");
+
+        // 12. Substitui traços soltos e travessões por vírgulas/espaços
+        t = t.replace(/\s+[-–—]+\s+/g, ", ");
+        t = t.replace(/[-–—]{2,}/g, " ");
+        t = t.replace(/(?<![a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ])[-–—]+/g, " ");
+        t = t.replace(/[-–—]+(?![a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ])/g, " ");
+
+        // 13. Remove caminhos absolutos longos
+        t = t.replace(/(?:\/[a-zA-Z0-9_.\-]+){3,}/g, "no sistema");
+
+        // 14. Remove rótulos pendentes no final da frase
+        t = t.replace(/\b(?:links?|urls?|fontes?|executável|caminho|arquivo|endereço|local)\s*:\s*(?=[.,;!?:\n]|$)/gi, "");
+
+        // 15. Formata linhas em frases
+        const linhas = t.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+        const reconstruido = [];
+        for (let l of linhas) {
+            if (!/[.!?:]$/.test(l)) {
+                l += ".";
+            }
+            reconstruido.push(l);
+        }
+        t = reconstruido.join(" ");
+
+        // 16. Limpeza de pontuação duplicada
+        t = t.replace(/\.{2,}/g, ".");
+        t = t.replace(/\s*:\s*\./g, ".");
+        t = t.replace(/\s*,\s*\./g, ".");
+        t = t.replace(/\s*\.\s*,/g, ".");
+        t = t.replace(/\s*\.\s*\./g, ".");
+        t = t.replace(/:\s*:/g, ":");
+        t = t.replace(/\s*([,;?!])\s*/g, "$1 ");
+        t = t.replace(/\s*(\.)\s+/g, ". ");
+        t = t.replace(/\s+/g, " ").trim();
+
+        // 17. Se for excessivamente longo, sintetiza de forma concisa para fala
+        if (t.length > maxChars) {
+            const frases = t.split(/(?<=[.!?])\s+/);
+            const resumo = [];
+            let acc = 0;
+            for (const f of frases) {
+                if (acc + f.length <= maxChars) {
+                    resumo.push(f);
+                    acc += f.length;
+                } else {
+                    break;
+                }
+            }
+            if (resumo.length === 0 && frases.length > 0) {
+                const cut = frases[0].substring(0, maxChars);
+                const lastSpace = cut.lastIndexOf(" ");
+                resumo.push((lastSpace > 0 ? cut.substring(0, lastSpace) : cut) + ".");
+            }
+            t = resumo.join(" ").trim();
+            if (!t.endsWith(".")) t += ".";
+            t += " Os detalhes completos foram apresentados na tela.";
+        }
+
+        return t;
     }
 
     // =========================================================================
@@ -1083,8 +1172,10 @@
 
         // Code blocks
         safe = safe.replace(/```([\s\S]*?)```/g, '<pre class="my-1 p-2 bg-zinc-950 rounded-lg text-emerald-400 font-mono text-[11px] overflow-x-auto"><code>$1</code></pre>');
+        // Images
+        safe = safe.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<div class="my-2 rounded-xl overflow-hidden border border-zinc-700 bg-zinc-900 shadow-md"><a href="$2" target="_blank" class="block"><img src="$2" alt="$1" class="w-full max-h-64 object-cover rounded-t-xl" loading="lazy" /><div class="p-2 text-xs text-zinc-300 font-medium">🖼️ $1 (Abrir ↗)</div></a></div>');
         // Links
-        safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" class="text-indigo-400 hover:underline">$1</a>');
+        safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+|\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" class="text-indigo-400 hover:underline">$1</a>');
         // Bold
         safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-white">$1</strong>');
         // Line breaks

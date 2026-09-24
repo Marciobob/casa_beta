@@ -3260,9 +3260,29 @@
                 return `@@CODEBLOCK${idx}@@`;
             });
 
-            // 3. Links markdown [Texto](URL) e URLs soltas com tokenização
+            // 3. Imagens markdown ![Alt](URL) com visualização moderna
+            const images = [];
+            safe = safe.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
+                const idx = images.length;
+                const cleanUrl = url.trim();
+                const cleanAlt = alt.trim() || "Imagem Gerada com IA";
+                images.push(`
+                    <div class="my-3 rounded-2xl overflow-hidden border border-zinc-700/80 bg-zinc-950/80 shadow-2xl group max-w-md">
+                        <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="block relative overflow-hidden group cursor-zoom-in">
+                            <img src="${cleanUrl}" alt="${cleanAlt}" class="w-full max-h-80 object-cover group-hover:scale-105 transition-transform duration-300 rounded-t-2xl bg-zinc-900" loading="lazy" />
+                            <div class="p-3 bg-zinc-900/90 text-xs text-zinc-300 flex items-center justify-between border-t border-zinc-800">
+                                <span class="truncate font-semibold text-white flex items-center gap-1.5">🖼️ ${cleanAlt}</span>
+                                <span class="text-indigo-400 text-[11px] font-medium hover:text-indigo-300 shrink-0 ml-2">Abrir Original ↗</span>
+                            </div>
+                        </a>
+                    </div>
+                `);
+                return `@@IMGTOKEN${idx}@@`;
+            });
+
+            // 4. Links markdown [Texto](URL) e URLs soltas com tokenização
             const links = [];
-            safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, (match, label, url) => {
+            safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+|\/[^\s\)]+)\)/g, (match, label, url) => {
                 const idx = links.length;
                 links.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 py-0.5 my-0.5 rounded-lg bg-indigo-950/70 border border-indigo-500/40 text-indigo-300 hover:text-indigo-100 hover:bg-indigo-900 transition font-medium text-xs break-all" title="Abrir link: ${url}"><span>${label}</span><svg class="w-3 h-3 shrink-0 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`);
                 return `@@LINKTOKEN${idx}@@`;
@@ -3274,79 +3294,128 @@
                 return `@@LINKTOKEN${idx}@@`;
             });
 
-            // 4. Código inline `código`
+            // 5. Código inline `código`
             safe = safe.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-zinc-900 rounded text-indigo-300 font-mono text-[11px] border border-zinc-800">$1</code>');
 
-            // 5. Cabeçalhos markdown
+            // 6. Cabeçalhos markdown
             safe = safe.replace(/^### (.*$)/gim, '<h4 class="text-xs font-bold text-indigo-300 mt-2.5 mb-1 flex items-center gap-1.5">$1</h4>');
             safe = safe.replace(/^## (.*$)/gim, '<h3 class="text-sm font-bold text-white mt-3 mb-1.5 pb-1 border-b border-zinc-800 flex items-center gap-1.5">$1</h3>');
             safe = safe.replace(/^# (.*$)/gim, '<h2 class="text-sm font-extrabold text-white mt-3 mb-1.5 pb-1 border-b border-indigo-500/40">$1</h2>');
 
-            // 6. Negrito (**texto** ou __texto__)
+            // 7. Negrito (**texto** ou __texto__)
             safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-white">$1</strong>');
             safe = safe.replace(/__([^_]+)__/g, '<strong class="font-semibold text-white">$1</strong>');
 
-            // 7. Itálico (*texto* ou _texto_)
+            // 8. Itálico (*texto* ou _texto_)
             safe = safe.replace(/(^|[^\*])\*([^\*]+)\*([^\*]|$)/g, '$1<em class="italic text-zinc-300">$2</em>$3');
             safe = safe.replace(/(^|[^_])_([^_]+)_([^_]|$)/g, '$1<em class="italic text-zinc-300">$2</em>$3');
 
-            // 8. Listas com marcadores (- item ou * item)
+            // 9. Listas com marcadores (- item ou * item)
             safe = safe.replace(/^[\s]*[-*•]\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1 pl-1"><span class="text-indigo-400 font-bold shrink-0">•</span><div class="flex-1">$1</div></div>');
 
-            // 9. Listas numeradas (1. item)
+            // 10. Listas numeradas (1. item)
             safe = safe.replace(/^[\s]*(\d+)\.\s+(.*$)/gim, '<div class="flex items-start gap-2 my-1 pl-1"><span class="text-indigo-400 font-bold shrink-0 font-mono text-[11px]">$1.</span><div class="flex-1">$2</div></div>');
 
-            // 10. Quebras de linha (preservando espaçamento entre parágrafos)
+            // 11. Quebras de linha (preservando espaçamento entre parágrafos)
             safe = safe.replace(/\n\n+/g, '<div class="h-2"></div>');
             safe = safe.replace(/\n/g, '<br>');
 
-            // 11. Restaura links e blocos de código
+            // 12. Restaura links, imagens e blocos de código
+            safe = safe.replace(/@@IMGTOKEN(\d+)@@/g, (match, idx) => images[parseInt(idx, 10)] || "");
             safe = safe.replace(/@@LINKTOKEN(\d+)@@/g, (match, idx) => links[parseInt(idx, 10)] || "");
             safe = safe.replace(/@@CODEBLOCK(\d+)@@/g, (match, idx) => codeBlocks[parseInt(idx, 10)] || "");
 
             return safe;
         }
 
-        function cleanTextForSpeech(text) {
+        function cleanTextForSpeech(text, maxChars = 380) {
             if (!text) return "";
-            let t = text.replace(/```[\s\S]*?```/g, "");
+            let t = text;
+
+            // 1. Remove blocos de código completos ```...```
+            t = t.replace(/```[\s\S]*?```/g, "");
+
+            // 2. Transforma links markdown [Texto](URL) apenas no Texto
             t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+
+            // 3. Remove URLs puras e expressões que introduzem links
+            t = t.replace(/(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)?\s*https?:\/\/\S+/gi, "");
+            t = t.replace(/(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)?\s*www\.\S+/gi, "");
+
+            // 4. Remove tabelas markdown
+            t = t.replace(/^\s*\|.*\|\s*$/gm, "");
+            t = t.replace(/\|/g, " ");
+
+            // 5. Remove cabeçalhos markdown (#, ##, ###)
             t = t.replace(/^#{1,6}\s+/gm, "");
+
+            // 6. Remove negrito, itálico, tachado e código inline
             t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
             t = t.replace(/\*([^*]+)\*/g, "$1");
             t = t.replace(/__([^_]+)__/g, "$1");
             t = t.replace(/_([^_]+)_/g, "$1");
-            t = t.replace(/`([^`]+)`/g, "$1");
             t = t.replace(/~~([^~]+)~~/g, "$1");
-            t = t.replace(/^[\s]*[-*+•]\s+/gm, "");
-            t = t.replace(/^[\s]*\d+\.\s+/gm, "");
-            t = t.replace(/^[\s]*>\s+/gm, "");
-            t = t.replace(/^[\s]*[-*_]{3,}\s*$/gm, "");
-            t = t.replace(/(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?https?:\/\/\S+/gi, "");
-            t = t.replace(/(?:\b(?:com mais detalhes em|mais detalhes em|disponível em|acesse em|veja em|no link|pelo link|no site|no endereço)\s*)?www\.\S+/gi, "");
-            t = t.replace(/\b(?:links?|urls?|fontes?|no link|pelo link)\s*:\s*$/gmi, "");
-            t = t.replace(/\b(?:links?|urls?|fontes?|no link|pelo link)\s*:\s*/gi, "");
-            t = t.replace(/\b(?:com mais detalhes em|mais detalhes em|acesse em|disponível em|veja em|no link|pelo link|no endereço|no site|no perfil)\s*(?=[.,;!?]|$)/gi, "");
+            t = t.replace(/`+/g, "");
+
+            // 7. Remove divisores e caixas ASCII / TUI (---, ===, ***, ╭─, ╰─, etc.)
+            t = t.replace(/[╭╰│┌└┐┘├┤┬┴┼═║╔╚╗╝╟╢╤╧╪─━┄┅┈┉\-_=*~]{2,}/g, " ");
+
+            // 8. Remove marcadores de lista (*, -, +, •, 1., etc.)
+            t = t.replace(/^\s*[-*+•▪▫►▸⁃‣○●✦✧✔✓✖✕]\s*/gm, "");
+            t = t.replace(/^\s*\d+[\.\)]\s*/gm, "");
+            t = t.replace(/^\s*[a-zA-Z][\.\)]\s*/gm, "");
+
+            // 9. Remove citações (> texto)
+            t = t.replace(/^\s*>\s*/gm, "");
+
+            // 10. Remove emojis e símbolos Unicode
+            t = t.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}-\u{2B55}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}\u{2022}\u{2023}\u{25AA}\u{25AB}\u{25BA}\u{25B6}\u{25CF}\u{25CB}]/gu, "");
+
+            // 11. Remove referências de notas [1], [2]
             t = t.replace(/\[\d+\]/g, "");
-            t = t.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "");
+            t = t.replace(/\[[a-zA-Z0-9_\-\s]+\]/g, "");
 
-            const linhas = t.split("\n").map(l => l.trim()).filter(Boolean);
-            const reconstruido = linhas.map(l => /[.!?:]$/.test(l) ? l : l + ".").join(" ");
+            // 12. Substitui traços soltos e travessões por vírgulas/espaços
+            t = t.replace(/\s+[-–—]+\s+/g, ", ");
+            t = t.replace(/[-–—]{2,}/g, " ");
+            t = t.replace(/(?<![a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ])[-–—]+/g, " ");
+            t = t.replace(/[-–—]+(?![a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ])/g, " ");
 
-            t = reconstruido
-                .replace(/\s*([,.:;?!])\s*/g, "$1 ")
-                .replace(/:\s*\./g, ".")
-                .replace(/\.\s*\./g, ".")
-                .replace(/,\s*\./g, ".")
-                .replace(/\s+/g, " ")
-                .trim();
+            // 13. Remove caminhos absolutos longos
+            t = t.replace(/(?:\/[a-zA-Z0-9_.\-]+){3,}/g, "no sistema");
 
-            if (t.length > 420) {
+            // 14. Remove rótulos pendentes no final da frase
+            t = t.replace(/\b(?:links?|urls?|fontes?|executável|caminho|arquivo|endereço|local)\s*:\s*(?=[.,;!?:\n]|$)/gi, "");
+
+            // 15. Formata linhas em frases
+            const linhas = t.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+            const reconstruido = [];
+            for (let l of linhas) {
+                if (!/[.!?:]$/.test(l)) {
+                    l += ".";
+                }
+                reconstruido.push(l);
+            }
+            t = reconstruido.join(" ");
+
+            // 16. Limpeza de pontuação duplicada
+            t = t.replace(/\.{2,}/g, ".");
+            t = t.replace(/\s*:\s*\./g, ".");
+            t = t.replace(/\s*,\s*\./g, ".");
+            t = t.replace(/\s*\.\s*,/g, ".");
+            t = t.replace(/\s*\.\s*\./g, ".");
+            t = t.replace(/:\s*:/g, ":");
+            t = t.replace(/\s*([,;?!])\s*/g, "$1 ");
+            t = t.replace(/\s*(\.)\s+/g, ". ");
+            t = t.replace(/\s+/g, " ").trim();
+
+            // 17. Se for excessivamente longo, sintetiza de forma concisa para fala
+            if (t.length > maxChars) {
                 const frases = t.split(/(?<=[.!?])\s+/);
                 const resumo = [];
                 let acc = 0;
                 for (const f of frases) {
-                    if (acc + f.length <= 420) {
+                    if (acc + f.length <= maxChars) {
                         resumo.push(f);
                         acc += f.length;
                     } else {
@@ -3354,13 +3423,15 @@
                     }
                 }
                 if (resumo.length === 0 && frases.length > 0) {
-                    resumo.push(frases[0].substring(0, 420).replace(/\s+\S*$/, "") + "...");
+                    const cut = frases[0].substring(0, maxChars);
+                    const lastSpace = cut.lastIndexOf(" ");
+                    resumo.push((lastSpace > 0 ? cut.substring(0, lastSpace) : cut) + ".");
                 }
-                let finalT = resumo.join(" ").trim();
-                if (!finalT.endsWith(".")) finalT += ".";
-                finalT += " Os detalhes completos e links estão disponíveis na tela do chat.";
-                return finalT;
+                t = resumo.join(" ").trim();
+                if (!t.endsWith(".")) t += ".";
+                t += " Os detalhes completos foram apresentados na tela.";
             }
+
             return t;
         }
 

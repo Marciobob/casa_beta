@@ -1,0 +1,12 @@
+# Test scripts e scratch
+scratch/
+
+# Imagens geradas em tempo de execução
+static/generated_images/*
+!static/generated_images/.gitkeep
+
+# Logs e DB
+*.log
+logs/
+smarthome.db
+.env

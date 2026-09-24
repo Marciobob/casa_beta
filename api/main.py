@@ -56,6 +56,8 @@ try:
     from api.tools.slack_tools import get_slack_auth_info, send_slack_message_payload, build_slack_report_blocks
     from api.telegram_bot import send_telegram_message, get_telegram_bot_info, telegram_manager
     from api.automation_engine import automation_engine, run_automation_now
+    from api.tools.hermes_tools import status_hermes_agent, delegar_tarefa_hermes, set_hermes_context
+    from api.tools.image_tools import gerar_imagem_ia, listar_estilos_imagem, set_image_tools_context
     from api.logger import system_logger, auth_logger, vision_logger
 except ImportError:
     from agent import processar_comando_agente, gerar_texto_para_fala
@@ -84,6 +86,8 @@ except ImportError:
     from tools.slack_tools import get_slack_auth_info, send_slack_message_payload, build_slack_report_blocks
     from telegram_bot import send_telegram_message, get_telegram_bot_info, telegram_manager
     from automation_engine import automation_engine, run_automation_now
+    from tools.hermes_tools import status_hermes_agent, delegar_tarefa_hermes, set_hermes_context
+    from tools.image_tools import gerar_imagem_ia, listar_estilos_imagem, set_image_tools_context
     from logger import system_logger, auth_logger, vision_logger
 
 app = FastAPI(
@@ -2112,6 +2116,73 @@ def export_user_skill_endpoint(
         )
 
 # =========================================================================
+# INTEGRAÇÃO HERMES AGENT (SUBAGENTE EXECUTOR & PESQUISA PROFUNDA)
+# =========================================================================
+
+class HermesDelegateRequest(BaseModel):
+    task: str
+    context: Optional[str] = ""
+
+@app.get("/api/hermes/status")
+def get_hermes_status_endpoint(token_payload: dict = Depends(get_current_user_token)):
+    user_email = token_payload.get("sub", "")
+    set_hermes_context(user_email=user_email)
+    raw_status = status_hermes_agent.invoke({})
+    return {"status": "success", "details": raw_status}
+
+@app.post("/api/hermes/delegate")
+def delegate_to_hermes_endpoint(
+    payload: HermesDelegateRequest,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    user_email = token_payload.get("sub", "")
+    set_hermes_context(user_email=user_email)
+    if not payload.task.strip():
+        raise HTTPException(status_code=400, detail="A descrição da tarefa é obrigatória.")
+    res = delegar_tarefa_hermes.invoke({"tarefa": payload.task, "contexto_adicional": payload.context})
+    return {"status": "success", "task": payload.task, "result": res}
+
+
+# =========================================================================
+# CRIAÇÃO E GERAÇÃO DE IMAGENS COM INTELIGÊNCIA ARTIFICIAL
+# =========================================================================
+
+class ImageGenerateRequest(BaseModel):
+    prompt: str
+    style: Optional[str] = "realista"
+    aspect_ratio: Optional[str] = "1:1"
+    model: Optional[str] = "auto"
+
+@app.get("/api/images/styles")
+def get_image_styles_endpoint():
+    """Retorna os estilos e formatos disponíveis para geração de imagem."""
+    styles_info = listar_estilos_imagem.invoke({})
+    return {"status": "success", "info": styles_info}
+
+@app.post("/api/images/generate")
+def generate_image_endpoint(
+    payload: ImageGenerateRequest,
+    token_payload: dict = Depends(get_current_user_token)
+):
+    """Gera uma imagem personalizada via IA e salva no servidor local."""
+    user_email = token_payload.get("sub", "")
+    ai_cfg = db_get_ai_config(user_email) if user_email else {}
+    api_key = (ai_cfg.get("api_key") or os.getenv("GEMINI_API_KEY") or "").strip()
+    
+    set_image_tools_context(user_email=user_email, api_key=api_key)
+    if not payload.prompt.strip():
+        raise HTTPException(status_code=400, detail="O prompt de descrição da imagem é obrigatório.")
+        
+    res = gerar_imagem_ia.invoke({
+        "descricao_prompt": payload.prompt,
+        "estilo": payload.style or "realista",
+        "proporcao": payload.aspect_ratio or "1:1",
+        "modelo_preferido": payload.model or "auto"
+    })
+    return {"status": "success", "result": res}
+
+
+# =========================================================================
 # SÍNTESE DE VOZ NEURAL HUMANA (TTS)
 # =========================================================================
 
@@ -2282,6 +2353,9 @@ if static_dir.exists():
     avatars_dir = static_dir / "avatars"
     if avatars_dir.exists():
         app.mount("/avatars", StaticFiles(directory=avatars_dir), name="avatars")
+    generated_img_dir = static_dir / "generated_images"
+    generated_img_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/generated_images", StaticFiles(directory=generated_img_dir), name="generated_images")
 
 # Montar pasta config
 config_dir = project_root / "config"
